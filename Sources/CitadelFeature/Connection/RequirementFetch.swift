@@ -125,3 +125,25 @@ extension PlanTree {
             intakeIssueID: tree.requirement.intakeIssueId, planVersion: Int(tree.requirement.planVersion))
     }
 }
+
+/// Screen 12's "⋯" and 📎 (API minor 7): rename, cancel, and a file into the thread. `nil` = done.
+extension CitadelServer {
+    func rename(requirement: Int64, title: String) async -> ServerAnswer? {
+        await act { try await client.renameRequirement(path: .init(id: requirement), body: .json(.init(title: title))) }
+    }
+
+    /// Cancels it and its open issues; refused while a run works on one of them.
+    func cancel(requirement: Int64, reason: String?) async -> ServerAnswer? {
+        await act {
+            try await client.cancelRequirement(path: .init(id: requirement), body: .json(.init(reason: reason)))
+        }
+    }
+
+    /// The file becomes an artifact of the requirement's thread (a text file is redacted of key shapes first).
+    func attach(requirement: Int64, name: String, data: Data) async -> ServerAnswer? {
+        await act {
+            try await client.attachToRequirement(
+                path: .init(id: requirement, name: name), body: .binary(HTTPBody(data)))
+        }
+    }
+}

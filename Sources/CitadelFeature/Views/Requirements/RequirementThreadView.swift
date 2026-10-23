@@ -9,6 +9,8 @@ struct RequirementThreadView: View {
     let model: CompanyModel
     let requirement: RequirementInfo
     @State private var draft = ""
+    @State private var renaming = false
+    @State private var cancelling = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -33,15 +35,46 @@ struct RequirementThreadView: View {
                         systemName: "envelope", size: skin.size.s30, tooltip: "Agent threads on \(requirement.key)"
                     ) { store.screen = .threads }
                     .outlineBox()
-                    // TODO(citadel#requirement-actions): rename / cancel a requirement once the API has them.
-                    AinkradIconButton(systemName: "ellipsis", size: skin.size.s30, tooltip: "More") {}
-                        .outlineBox().disabled(true)
+                    AinkradMenuButton(items: [
+                        AinkradMenuItem(title: "Rename…", systemName: "pencil") { renaming = true },
+                        AinkradMenuItem(title: "Cancel requirement…", systemName: "xmark.circle", isDestructive: true) {
+                            cancelling = true
+                        },
+                    ]) {
+                        Image(systemName: "ellipsis")
+                    }
+                    .disabled(["done", "cancelled"].contains(requirement.state))
                 }
             }
             conversation
             composer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ainkradSheet(isPresented: $renaming) {
+            PromptSheet(
+                title: "Rename \(requirement.key)", message: "The thread, the plan and its issues keep their keys.",
+                placeholder: "Title", confirmTitle: "Rename", text: requirement.title, isPresented: $renaming
+            ) { store.rename(requirement: requirement, to: $0) }
+        }
+        .ainkradSheet(isPresented: $cancelling) {
+            PromptSheet(
+                title: "Cancel \(requirement.key)?",
+                message:
+                    "Its open issues are cancelled with it. Citadel refuses while a run works on one — stop the run first.",
+                placeholder: "Why (optional)", confirmTitle: "Cancel requirement", isDestructive: true,
+                allowsEmpty: true, text: "", isPresented: $cancelling
+            ) { store.cancel(requirement: requirement, reason: $0) }
+        }
+    }
+
+    /// 📎: pick a file; it lands in the thread as an artifact card.
+    private func attach() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Attach a file to \(requirement.key)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        store.attach(url, requirement: requirement)
     }
 
     /// "Citadel · with Aldric (CEO) · IN PROGRESS".
@@ -145,12 +178,11 @@ struct RequirementThreadView: View {
                 Text(hint).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
             },
             trailing: {
-                // TODO(citadel#thread-attachments): attach a file to a requirement message once the API takes one.
                 AinkradIconButton(
                     systemName: "paperclip", size: AinkradComposer<EmptyView, EmptyView, EmptyView>.controlHeight,
-                    tooltip: "Attach"
-                ) {}
-                .outlineBox().disabled(true)
+                    tooltip: "Attach a file"
+                ) { attach() }
+                .outlineBox()
             }
         )
         .padding(.horizontal, skin.size.s20)

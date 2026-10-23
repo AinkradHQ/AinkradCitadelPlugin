@@ -8,6 +8,7 @@ struct ProjectsView: View {
     let store: CitadelStore
     let model: CompanyModel
     @State private var section: ProfileSection? = .repositories
+    @State private var creating = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
@@ -48,14 +49,14 @@ struct ProjectsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .task { if !page.isLoaded { store.loadProjectsPage() } }
+        .ainkradSheet(isPresented: $creating) { NewProjectSheet(store: store, isPresented: $creating) }
     }
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
             PaneTitle(title: "Projects", crumb: nil) {
-                // TODO(citadel#createProject): no POST /companies/{id}/projects on the client API yet.
-                AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "New project") {}
-                    .outlineBox().disabled(true)
+                AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "New project") { creating = true }
+                    .outlineBox()
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s2) {

@@ -7,6 +7,7 @@ struct ProfileBody: View {
     let store: CitadelStore
     let model: CompanyModel
     let project: ProjectInfo
+    @State private var showsHistory = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
@@ -41,49 +42,63 @@ struct ProfileBody: View {
     }
 
     /// "PROPOSED BY AGENTS · 2 waiting · History →" and a card per proposal: the diff, the reason, Reject… / Accept.
-    @ViewBuilder private var proposals: some View {
-        if !profile.proposals.isEmpty {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                HStack(spacing: skin.size.s8) {
-                    Text(skin.labelCased("Proposed by agents")).citadelFont("t10", weight: "semibold")
-                        .foregroundStyle(skin.color(skin.text.muted))
-                    AinkradBadge(
-                        text: "\(profile.proposals.count) waiting", tint: skin.color(skin.palette.accentViolet))
-                    Spacer(minLength: skin.size.s8)
-                    // TODO(citadel#profileHistory): the profile's change history has no client endpoint yet.
-                    AinkradButton(title: "History →", style: .ghost) {}
-                        .borderless().secondaryAccent().compact().fixedSize().disabled(true)
+    /// With none waiting the header stays, so History is always one click away.
+    private var proposals: some View {
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            HStack(spacing: skin.size.s8) {
+                Text(skin.labelCased("Proposed by agents")).citadelFont("t10", weight: "semibold")
+                    .foregroundStyle(skin.color(skin.text.muted))
+                AinkradBadge(
+                    text: profile.proposals.isEmpty ? "none waiting" : "\(profile.proposals.count) waiting",
+                    tint: skin.color(profile.proposals.isEmpty ? skin.text.muted : skin.palette.accentViolet))
+                Spacer(minLength: skin.size.s8)
+                AinkradButton(title: "History →", style: .ghost) {
+                    store.loadProfileHistory(project.id)
+                    showsHistory = true
                 }
-                ForEach(profile.proposals) { proposal in
-                    ProposalRow(model: model, profile: profile, proposal: proposal)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                .borderless().secondaryAccent().compact().fixedSize()
             }
+            ForEach(profile.proposals) { proposal in
+                ProposalRow(store: store, model: model, project: project.id, profile: profile, proposal: proposal)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .ainkradSheet(isPresented: $showsHistory) {
+            ProfileHistorySheet(model: model, project: project, isPresented: $showsHistory)
         }
     }
 }
 
 /// One agent proposal (decision #48: a person accepts it; it never applies itself).
 private struct ProposalRow: View {
+    let store: CitadelStore
     let model: CompanyModel
+    let project: Int64
     let profile: ProfileInfo
     let proposal: ProposalInfo
+    @State private var rejecting = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let agent = model.agent(proposal.agentID)
         let diff = profile.diff(proposal)
-        // TODO(citadel#decideProfileProposal): proposals are decided with `citadel-server knowledge accept|reject`
-        // only; the client API has no accept / reject endpoint yet, so the buttons stay off.
         AinkradProposalCard(
             author: agent.map { "\($0.name) (\($0.role))" } ?? "An agent", title: proposal.title,
             tag: proposal.field.replacingOccurrences(of: "_", with: " "), oldValue: diff.old, newValue: diff.new,
-            reason: nil, onAccept: {}, onReject: {}
+            reason: proposal.rationale,
+            onAccept: { store.decide(proposal, project: project, accept: true) },
+            onReject: { rejecting = true }
         ) {
             if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s24) }
         }
-        .disabled(true)
-        .help("Accept and reject arrive with the client API's proposal endpoint.")
+        .ainkradSheet(isPresented: $rejecting) {
+            PromptSheet(
+                title: "Reject \(proposal.title)?",
+                message: "The profile stays as it is. A reason is optional; the agent sees it.",
+                placeholder: "Why not (optional)", confirmTitle: "Reject", isDestructive: true, allowsEmpty: true,
+                text: "", isPresented: $rejecting
+            ) { store.decide(proposal, project: project, accept: false, reason: $0) }
+        }
     }
 }
 

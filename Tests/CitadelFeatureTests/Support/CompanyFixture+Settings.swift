@@ -82,6 +82,27 @@ extension CompanyFixture {
         }
     }
 
+    /// Screen 14 with "History →" opened: a rejection, the proposal it answered, an accepted one, a change.
+    static func profileHistory(_ model: CompanyModel) {
+        projectsPage(model)
+        let now = Date()
+        model.projectsPage.history[1] = [
+            ProfileChangeInfo(
+                id: 9, at: now.addingTimeInterval(-1_200), agentID: nil, byPerson: true, action: "knowledge.rejected",
+                title: "Branch name pattern", why: "We keep the issue key first."),
+            ProfileChangeInfo(
+                id: 8, at: now.addingTimeInterval(-7_200), agentID: 7, byPerson: false, action: "knowledge.proposed",
+                title: "Lint command", field: "conventions",
+                why: "Two PRs this sprint passed review and then failed CI on clippy."),
+            ProfileChangeInfo(
+                id: 7, at: now.addingTimeInterval(-90_000), agentID: nil, byPerson: true, action: "knowledge.accepted",
+                title: "Definition of done: diff the spec"),
+            ProfileChangeInfo(
+                id: 6, at: now.addingTimeInterval(-200_000), agentID: nil, byPerson: true,
+                action: "project.profile_set", fields: ["merge_method", "merged_by"]),
+        ]
+    }
+
     static func projectsPage(_ model: CompanyModel) {
         model.projects[1].name = "Mac Client"
         let page = model.projectsPage
@@ -139,7 +160,7 @@ extension CompanyFixture {
                 ProposalInfo(
                     id: 1, field: "conventions", title: "Lint command",
                     body: "Conventional Commits with scope · lint with cargo clippy -- -D warnings && cargo deny check",
-                    agentID: 7),
+                    agentID: 7, rationale: "Two PRs this sprint passed review and then failed CI on clippy."),
                 ProposalInfo(
                     id: 2, field: "definition_of_done", title: "Definition of done", body: "[\(ruleList)]", agentID: 9),
             ],

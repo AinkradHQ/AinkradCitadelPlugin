@@ -8,7 +8,7 @@ import XCTest
 /// the limits table's groups, filters, refusals and scope chips — and what is overridden below the company.
 @MainActor
 final class ProjectLimitsTests: XCTestCase {
-    private func connectedStore() throws -> (CitadelStore, CompanyModel) {
+    func connectedStore() throws -> (CitadelStore, CompanyModel) {
         let settings = SettingsStore(documents: MemoryDocs())
         settings.update { $0.server = "https://citadel.example.com" }
         let store = CitadelStore(
@@ -22,7 +22,7 @@ final class ProjectLimitsTests: XCTestCase {
         return (store, model)
     }
 
-    private func body(_ request: URLRequest) -> [String: Any] {
+    func body(_ request: URLRequest) -> [String: Any] {
         var data = request.httpBody
         if data == nil, let stream = request.httpBodyStream {
             stream.open()

@@ -10,6 +10,10 @@ extension SweepTests {
                 "12-requirements", stage(.requirements, nil, CompanyFixture.requirementsPage),
                 CGSize(width: 1280, height: 1110)
             ),
+            (
+                "12-requirement-cancel", stage(.requirements, nil, CompanyFixture.requirementsPage),
+                CGSize(width: 1280, height: 900)
+            ),
             ("13-artifacts", stage(.artifacts, nil, CompanyFixture.artifactsPage), CGSize(width: 1280, height: 860)),
         ]
     }
