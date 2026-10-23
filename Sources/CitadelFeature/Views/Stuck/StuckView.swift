@@ -20,8 +20,9 @@ struct StuckView: View {
                 VStack(alignment: .leading, spacing: skin.size.s12) {
                     if lists.stuck.isEmpty && lists.slowing.isEmpty {
                         AinkradEmptyState(
-                            icon: "flag", title: "Nothing is stuck",
-                            message: "Every issue has a next actor that can move it."
+                            icon: "flag.fill", title: "Every issue has a moving next actor",
+                            message:
+                                "The engine watches every open issue. Anything that stops moving shows up here with the reason."
                         )
                         .frame(maxWidth: .infinity).padding(.top, skin.size.s60)
                     }

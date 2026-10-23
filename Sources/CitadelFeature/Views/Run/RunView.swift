@@ -19,7 +19,11 @@ struct RunView: View {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     header(run)
-                    transcript(run)
+                    if run.hasNoTranscript(model.transcripts[runID]) {
+                        NoTranscriptView(store: store, model: model, run: run)
+                    } else {
+                        transcript(run)
+                    }
                     if let approval = model.waitingApproval(run: runID) {
                         decisionBar(approval, run: run)
                             .transition(.move(edge: .bottom).combined(with: .opacity))

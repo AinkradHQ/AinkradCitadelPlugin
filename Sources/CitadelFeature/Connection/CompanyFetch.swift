@@ -168,7 +168,8 @@ extension CitadelServer {
         guard let accounts else { return nil }
         let usage: [Schemas.AccountUsage] =
             await read("accountUsage") {
-                guard case .ok(let ok) = try await client.accountUsage() else { return nil }
+                // The pool's usage is read without the company header: with it the server answers 404.
+                guard case .ok(let ok) = try await scoped(to: nil).client.accountUsage() else { return nil }
                 return try ok.body.json
             } ?? []
         return accounts.filter { $0.companyIds.contains(company) }.map { account in
