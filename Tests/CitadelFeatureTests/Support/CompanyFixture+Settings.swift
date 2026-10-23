@@ -139,7 +139,7 @@ extension CompanyFixture {
                 ProposalInfo(
                     id: 1, field: "conventions", title: "Lint command",
                     body: "Conventional Commits with scope · lint with cargo clippy -- -D warnings && cargo deny check",
-                    agentID: 7),
+                    agentID: 7, rationale: "Two PRs this sprint passed review and then failed CI on clippy."),
                 ProposalInfo(
                     id: 2, field: "definition_of_done", title: "Definition of done", body: "[\(ruleList)]", agentID: 9),
             ],

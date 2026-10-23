@@ -107,7 +107,8 @@ extension CitadelStore {
         let name = file.lastPathComponent
         requirementWrite(requirement.id, "Couldn't attach \(name)", outcome: "Nothing was attached.") {
             await $0.attach(requirement: requirement.id, name: name, data: data)
-        } done: { _ in }
+        } done: { _ in
+        }
     }
 
     private func requirementWrite(

@@ -86,7 +86,10 @@ final class RunControlsTests: XCTestCase {
         await eventually { store.actionFailure != nil }
         let failure = try XCTUnwrap(store.actionFailure)
         XCTAssertEqual(failure.title, "Couldn't stop run #418")
-        XCTAssertEqual(failure.answer, ServerAnswer(status: 409, code: "conflict", message: "The run already ended."))
+        XCTAssertEqual(
+            failure.answer,
+            ServerAnswer(status: 409, code: "conflict", message: "The run already ended.", errorID: "err_01JTEST")
+        )
         XCTAssertEqual(failure.message, "The server answered 409: The run already ended. It keeps running.")
     }
 
