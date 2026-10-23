@@ -77,3 +77,44 @@ extension CitadelServer {
         }
     }
 }
+
+/// Screen 14's API minor 7 writes: a new project, a decision on an agent's proposal, and the profile's history.
+extension CitadelServer {
+    /// "＋ New project": a malformed or taken key is a 409 with the server's reason.
+    func createProject(company: Int64, name: String, key: String, mode: String) async -> Result<
+        ProjectInfo, ServerAnswer
+    > {
+        let body = Schemas.NewProject(key: key, mode: .init(value1: .init(rawValue: mode), value2: mode), name: name)
+        return await attempt({ try await client.createProject(path: .init(id: company), body: .json(body)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            let project = try ok.body.json
+            return ProjectInfo(
+                id: project.id, key: project.key, name: project.name, teamID: project.teamId, mode: project.mode.word)
+        }
+    }
+
+    /// Accept applies the proposal; reject drops it, with an optional reason (decision #48: a person only). The
+    /// profile after.
+    func decide(proposal: Int64, project: Int64, accept: Bool, reason: String?) async -> Result<
+        ProfileInfo, ServerAnswer
+    > {
+        await attempt({
+            try await client.decideProfileProposal(
+                path: .init(id: project, proposalId: proposal), body: .json(.init(accept: accept, reason: reason)))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return ProfileInfo(try ok.body.json)
+        }
+    }
+
+    /// The profile's changes and the agents' proposals of them, newest first.
+    func profileHistory(project: Int64, limit: Int32 = 50) async -> [ProfileChangeInfo]? {
+        await read("getProfileHistory") {
+            guard
+                case .ok(let ok) = try await client.getProfileHistory(
+                    path: .init(id: project), query: .init(limit: limit))
+            else { return nil }
+            return try ok.body.json.map(ProfileChangeInfo.init)
+        }
+    }
+}

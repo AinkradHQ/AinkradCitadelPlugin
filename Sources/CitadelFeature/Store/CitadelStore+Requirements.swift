@@ -68,6 +68,64 @@ extension CitadelStore {
         Task { _ = await server.submitRequest(company: model.companyID, title: title, body: body) }
     }
 
+    /// "⋯ → Rename…": the hub's list and the thread's title follow.
+    func rename(requirement: RequirementInfo, to title: String) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != requirement.title else { return }
+        requirementWrite(requirement.id, "Couldn't rename \(requirement.key)", outcome: "Its title is unchanged.") {
+            await $0.rename(requirement: requirement.id, title: title)
+        } done: { model in
+            if let index = model.requirements.firstIndex(where: { $0.id == requirement.id }) {
+                model.requirements[index].title = title
+            }
+        }
+    }
+
+    /// "⋯ → Cancel requirement…": it and its open issues are cancelled; it leaves the hub's list.
+    func cancel(requirement: RequirementInfo, reason: String) {
+        let reason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        requirementWrite(
+            requirement.id, "Couldn't cancel \(requirement.key)", outcome: "It and its issues go on."
+        ) {
+            await $0.cancel(requirement: requirement.id, reason: reason.isEmpty ? nil : reason)
+        } done: { model in
+            if let index = model.requirements.firstIndex(where: { $0.id == requirement.id }) {
+                model.requirements[index].state = "cancelled"
+            }
+        }
+    }
+
+    /// 📎: the file goes into the thread as an artifact card.
+    func attach(_ file: URL, requirement: RequirementInfo) {
+        guard let data = try? Data(contentsOf: file) else {
+            actionFailure = ActionFailure(
+                title: "Couldn't read \(file.lastPathComponent)",
+                answer: ServerAnswer(status: 0, code: "unreadable", message: "the file could not be read"),
+                outcome: "Nothing was attached.")
+            return
+        }
+        let name = file.lastPathComponent
+        requirementWrite(requirement.id, "Couldn't attach \(name)", outcome: "Nothing was attached.") {
+            await $0.attach(requirement: requirement.id, name: name, data: data)
+        } done: { _ in }
+    }
+
+    private func requirementWrite(
+        _ id: Int64, _ title: String, outcome: String, _ send: @escaping (CitadelServer) async -> ServerAnswer?,
+        done: @escaping @MainActor (CompanyModel) -> Void
+    ) {
+        guard let server, let model else { return }
+        Task {
+            if let answer = await send(server) {
+                actionFailure = ActionFailure(title: title, answer: answer, outcome: outcome)
+            } else {
+                actionFailure = nil
+                done(model)
+                schedule([.requirements, .thread(id), .artifacts])
+            }
+        }
+    }
+
     /// ▤ on a requirement: screen 13 filtered to it.
     func showArtifacts(requirement: Int64) {
         model?.artifactsPage.filter = ArtifactFilter(requirementID: requirement)
