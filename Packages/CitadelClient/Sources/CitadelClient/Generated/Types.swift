@@ -127,6 +127,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/events`.
     /// - Remark: Generated from `#/paths//api/v1/events/get(listEvents)`.
     func listEvents(_ input: Operations.ListEvents.Input) async throws -> Operations.ListEvents.Output
+    /// - Remark: HTTP `GET /api/v1/events/latest`.
+    /// - Remark: Generated from `#/paths//api/v1/events/latest/get(latestEvent)`.
+    func latestEvent(_ input: Operations.LatestEvent.Input) async throws -> Operations.LatestEvent.Output
     /// - Remark: HTTP `GET /api/v1/events/ws`.
     /// - Remark: Generated from `#/paths//api/v1/events/ws/get(streamEvents)`.
     func streamEvents(_ input: Operations.StreamEvents.Input) async throws -> Operations.StreamEvents.Output
@@ -160,6 +163,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/issues/{id}/transition`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/transition/post(transitionIssue)`.
     func transitionIssue(_ input: Operations.TransitionIssue.Input) async throws -> Operations.TransitionIssue.Output
+    /// - Remark: HTTP `GET /api/v1/me`.
+    /// - Remark: Generated from `#/paths//api/v1/me/get(getMe)`.
+    func getMe(_ input: Operations.GetMe.Input) async throws -> Operations.GetMe.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/get(getProject)`.
     func getProject(_ input: Operations.GetProject.Input) async throws -> Operations.GetProject.Output
@@ -729,6 +735,11 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/events/latest`.
+    /// - Remark: Generated from `#/paths//api/v1/events/latest/get(latestEvent)`.
+    public func latestEvent(headers: Operations.LatestEvent.Input.Headers = .init()) async throws -> Operations.LatestEvent.Output {
+        try await latestEvent(Operations.LatestEvent.Input(headers: headers))
+    }
     /// - Remark: HTTP `GET /api/v1/events/ws`.
     /// - Remark: Generated from `#/paths//api/v1/events/ws/get(streamEvents)`.
     public func streamEvents(headers: Operations.StreamEvents.Input.Headers = .init()) async throws -> Operations.StreamEvents.Output {
@@ -857,6 +868,11 @@ extension APIProtocol {
             headers: headers,
             body: body
         ))
+    }
+    /// - Remark: HTTP `GET /api/v1/me`.
+    /// - Remark: Generated from `#/paths//api/v1/me/get(getMe)`.
+    public func getMe(headers: Operations.GetMe.Input.Headers = .init()) async throws -> Operations.GetMe.Output {
+        try await getMe(Operations.GetMe.Input(headers: headers))
     }
     /// - Remark: HTTP `GET /api/v1/projects/{id}`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/get(getProject)`.

@@ -41,11 +41,14 @@ struct CitadelServer: Sendable {
         return URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
     }
 
-    /// Every company on the server: the key check and the switcher.
-    func companies() async throws(ServerFailure) -> [Components.Schemas.Company] {
-        let output = try await call { try await client.listCompanies() }
+    /// `GET /api/v1/me` — the key check: who this device is, the server's version, every company the key may
+    /// see (the switcher), and the newest event's seq (how far a catch-up has to go).
+    func me() async throws(ServerFailure) -> ServerIdentity {
+        let output = try await call { try await client.getMe() }
         switch output {
-        case .ok(let ok): return (try? ok.body.json) ?? []
+        case .ok(let ok):
+            guard let me = try? ok.body.json else { throw .status(200) }
+            return ServerIdentity(companies: me.companies, version: me.versions.server, latestSeq: me.latestSeq)
         case .unauthorized: throw .rejected
         case .undocumented(let status, _): throw .status(status)
         default: throw .status(0)
@@ -114,6 +117,14 @@ struct CitadelServer: Sendable {
             throw .unreachable(error.localizedDescription)
         }
     }
+}
+
+/// What `GET /me` says about the server.
+struct ServerIdentity: Sendable {
+    let companies: [Components.Schemas.Company]
+    /// The server's version, `0.1.0`.
+    let version: String
+    let latestSeq: Int64
 }
 
 /// A page of `GET /events`.

@@ -48,6 +48,8 @@ struct OfflineBar: View {
 /// Mockup 11 C: real replay progress after a reconnect — never an endless spinner.
 struct CatchingUpView: View {
     let replayed: Int
+    /// How many there are to replay, when the server said (`GET /me`).
+    var total: Int?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTypography) private var typo
 
@@ -57,14 +59,26 @@ struct CatchingUpView: View {
             Text("Catching up")
                 .font(skin.font(AinkradFontToken(sizeKey: "t14", weight: "bold"), typography: typo))
                 .foregroundStyle(skin.color(skin.text.primary))
-            Text(verbatim: "Replayed \(replayed.formatted()) events since you were last here")
+            Text(verbatim: progressLine)
                 .font(skin.font(AinkradFontToken(sizeKey: "t12_5"), typography: typo))
                 .foregroundStyle(skin.color(skin.text.muted))
+            if let total, total > 0 {
+                AinkradBudgetBar(
+                    label: "Catching up", value: Double(min(replayed, total)), limit: Double(total),
+                    warnFraction: nil, showsHardLimit: false
+                )
+                .frame(width: skin.size.s240)
+            }
         }
         .multilineTextAlignment(.center)
         .padding(.horizontal, skin.size.s30)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+    private var progressLine: String {
+        guard let total, total > 0 else { return "Replayed \(replayed.formatted()) events since you were last here" }
+        return "Replayed \(min(replayed, total).formatted()) of \(total.formatted()) events since you were last here"
     }
 }
 

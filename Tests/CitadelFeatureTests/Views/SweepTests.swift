@@ -88,6 +88,7 @@ final class SweepTests: XCTestCase {
                     $0.phase = .connected
                     $0.agentCount = 18
                     $0.latency = .milliseconds(42)
+                    $0.serverVersion = "0.1.0"
                     $0.replayed = 312
                 }
             ),
@@ -117,6 +118,7 @@ final class SweepTests: XCTestCase {
                     $0.agentCount = 18
                     $0.phase = .connected
                     $0.streamStatus = .catchingUp(replayed: 312)
+                    $0.catchUpTotal = 1_204
                 }
             ),
             (

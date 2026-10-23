@@ -59,6 +59,8 @@ enum Wire {
     static let companies =
         #"[{"id":7,"name":"Ainkrad","kind":"own","account_ids":[]},{"id":9,"name":"AutomotiveAi","kind":"client","account_ids":[1]}]"#
     static let agents = "[]"
+    static let me =
+        #"{"device":{"id":1,"name":"ahmed-mbp"},"user":{"id":1,"name":"Ahmed"},"versions":{"server":"0.1.0","git_sha":"3c51e1c","api":{"major":"v1","minor":1},"runner_protocol":"1.17"},"companies":\#(companies),"latest_seq":18442}"#
 
     static func wake(_ seq: Int64) -> String {
         #"{"seq":\#(seq),"at":"2026-10-21T12:00:00.250Z","payload":{"type":"wake","wake_id":\#(seq),"agent_id":3,"source":"timer","reason":"tick"}}"#

@@ -49,7 +49,7 @@ struct ShellView: View {
     @ViewBuilder
     private var content: some View {
         if case .catchingUp(let replayed) = store.streamStatus {
-            CatchingUpView(replayed: replayed)
+            CatchingUpView(replayed: replayed, total: store.catchUpTotal)
         } else if store.agentCount == nil, !isOffline {
             FirstLoadView()
         } else {
