@@ -26,14 +26,17 @@ struct ApprovalsView: View {
                 .frame(width: skin.size.s380)
                 .background(theme.surface.opacity(skin.opacity.o20))
             Group {
-                if let selected {
+                if let failure = store.actionFailure {
+                    ActionFailureView(store: store, failure: failure)
+                } else if let selected {
                     ApprovalDetail(store: store, model: model, approval: selected)
                         .id(selected.id)
                         .transition(.opacity)
                 } else {
                     AinkradEmptyState(
                         icon: "checkmark", title: "Nothing waits on you",
-                        message: "Agents ask here when a sprint, a merge, a budget, a hire or a permission needs you.")
+                        message: [model.lastDecisionLine(), "New approvals arrive here and as a notification."]
+                            .compactMap { $0 }.joined(separator: " "))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -36,7 +36,14 @@ extension CitadelStore {
         guard let server else { return }
         let reply = reply.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         Task {
-            if await server.decide(approval: approval.id, approve: approve, raiseTokens: raiseTokens, reply: reply) {
+            if let answer = await server.decision(
+                approval: approval.id, approve: approve, raiseTokens: raiseTokens, reply: reply)
+            {
+                let title = model?.summary(approval).title.replacingOccurrences(of: "Commit sprint", with: "sprint")
+                actionFailure = ActionFailure(
+                    title: "Couldn't \(approve ? "approve" : "deny") \(title ?? "it")", answer: answer,
+                    outcome: approve ? "Nothing was approved." : "Nothing was denied.")
+            } else {
                 model?.answer(approval, approved: approve, reply: reply)
             }
         }
