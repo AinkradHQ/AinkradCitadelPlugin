@@ -51,7 +51,8 @@ struct ByAgentTile: View {
                         BreakdownRow(
                             name: Text(agent?.name ?? "Agent").foregroundStyle(skin.color(skin.text.primary)),
                             value: Double(row.totals.tokens), max: top, amount: row.totals.amount,
-                            tone: row.totals.costMicros == 0 && row.totals.unpricedTokens > 0 ? .warning : .accentSecondary)
+                            tone: row.totals.costMicros == 0 && row.totals.unpricedTokens > 0
+                                ? .warning : .accentSecondary)
                     }
                 }
             }

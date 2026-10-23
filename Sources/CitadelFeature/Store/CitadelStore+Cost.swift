@@ -16,7 +16,8 @@ extension CitadelStore {
             async let tasks = server.taskCosts(company: company, since: start)
             async let use = server.accountUse(company: company)
             async let breakdown = server.spendBreakdown(company: company, since: start)
-            async let days = server.spendSeries(company: company, bucket: period == .today ? "hour" : "day", since: first)
+            async let days = server.spendSeries(
+                company: company, bucket: period == .today ? "hour" : "day", since: first)
             guard model.costPeriod == period else { return }
             if let tasks = await tasks { model.costTasks = tasks }
             if let use = await use { model.accountUse = use }
@@ -63,7 +64,9 @@ extension CitadelStore {
     /// The engine's `rewake` / `requeue`, by hand: its next actor woken again.
     func nudge(_ stuck: StuckInfo) {
         guard let issue = stuck.issueID else { return }
-        act("Couldn't wake \(key(issue))'s agent", outcome: "Nobody was woken.", issue: issue) { await $0.nudge(issue: issue) }
+        act("Couldn't wake \(key(issue))'s agent", outcome: "Nobody was woken.", issue: issue) {
+            await $0.nudge(issue: issue)
+        }
     }
 
     /// Sets the issue aside in the backlog, waiting on you.

@@ -223,28 +223,28 @@ private struct BudgetRow: View {
     @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
-                    let state = model.budgetWord(budget)
-                    HStack(spacing: skin.size.s12) {
-                        Text("\(budget.label) · \(budget.period)").citadelFont("t12_5")
-                            .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
-                            .frame(width: skin.size.s200, alignment: .leading)
-                        AinkradBudgetBar(
-                            label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
-                            warnFraction: budget.warnFraction)
-                        Text("\(Fmt.tokens(budget.spent)) / \(Fmt.tokens(budget.cap))").citadelFont("t12", mono: true)
-                            .foregroundStyle(skin.color(skin.text.muted)).frame(
-                                width: skin.size.s110, alignment: .trailing)
-                        Text("\(budget.warnPercent)%").citadelFont("t12", mono: true)
-                            .foregroundStyle(skin.color(skin.text.primary))
-                        scope(model.warnScope(budget)).frame(width: skin.size.s110, alignment: .leading)
-                        AinkradBadge(text: state.word, status: state.status).frame(
-                            width: skin.size.s70, alignment: .leading)
-                        AinkradButton(title: "Edit", style: .ghost, action: edit)
-                            .borderless().secondaryAccent().compact().fixedSize()
-                            .opacity(hovering ? 1 : 0)
-                    }
-                    .contentShape(Rectangle())
-                    .onHover { hovering = $0 }
+        let state = model.budgetWord(budget)
+        HStack(spacing: skin.size.s12) {
+            Text("\(budget.label) · \(budget.period)").citadelFont("t12_5")
+                .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                .frame(width: skin.size.s200, alignment: .leading)
+            AinkradBudgetBar(
+                label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
+                warnFraction: budget.warnFraction)
+            Text("\(Fmt.tokens(budget.spent)) / \(Fmt.tokens(budget.cap))").citadelFont("t12", mono: true)
+                .foregroundStyle(skin.color(skin.text.muted)).frame(
+                    width: skin.size.s110, alignment: .trailing)
+            Text("\(budget.warnPercent)%").citadelFont("t12", mono: true)
+                .foregroundStyle(skin.color(skin.text.primary))
+            scope(model.warnScope(budget)).frame(width: skin.size.s110, alignment: .leading)
+            AinkradBadge(text: state.word, status: state.status).frame(
+                width: skin.size.s70, alignment: .leading)
+            AinkradButton(title: "Edit", style: .ghost, action: edit)
+                .borderless().secondaryAccent().compact().fixedSize()
+                .opacity(hovering ? 1 : 0)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
     }
 
     @ViewBuilder private func scope(_ scope: AinkradValueScope) -> some View {
