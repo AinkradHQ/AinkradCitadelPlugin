@@ -168,6 +168,7 @@ extension CitadelStore {
                 apply(spend: spend, budgets: budgets, to: model)
             }
             await loadSpendToday(model, server: server)
+            await refreshCostTasks(model, server: server)
         case .requirements: model.requirements = await server.requirements() ?? model.requirements
         case .sprint: model.sprint = await server.activeSprint(company: id)
         case .accounts:

@@ -171,6 +171,8 @@ final class SweepTests: XCTestCase {
             all.append(("06-approvals-\(kind)", store, wide))
         }
         all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
+        all.append(("08-stuck", company(.stuck, CompanyFixture.stuckPage), wide))
+        all.append(("09-cost", company(.cost, CompanyFixture.costPage), CGSize(width: 1280, height: 1100)))
         return all
     }
 

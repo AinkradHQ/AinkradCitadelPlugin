@@ -26,6 +26,7 @@ extension Schemas.StuckKind: OpenWord {}
 extension Schemas.RequirementState: OpenWord {}
 extension Schemas.BudgetPeriod: OpenWord {}
 extension Schemas.AccountStatus: OpenWord {}
+extension Schemas.Billing: OpenWord {}
 extension Schemas.TeamRole: OpenWord {}
 extension Schemas.SprintState: OpenWord {}
 extension Schemas.ProjectMode: OpenWord {}
@@ -215,7 +216,8 @@ extension AccountInfo {
             Double($0.used) / Double(max($0.limit.max, 1)) < Double($1.used) / Double(max($1.limit.max, 1))
         }
         self.init(
-            id: account.id, label: account.label, status: account.status.word, statusReason: account.statusReason,
+            id: account.id, label: account.label, billing: account.billing.word, status: account.status.word,
+            statusReason: account.statusReason,
             statusUntil: account.statusUntil,
             windowUse: fullest.map { Double($0.used) / Double(max($0.limit.max, 1)) },
             windowSecs: fullest?.limit.windowSecs, warnPercent: fullest?.limit.warnPercent)
