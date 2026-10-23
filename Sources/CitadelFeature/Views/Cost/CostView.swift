@@ -134,7 +134,7 @@ private struct CostKPI: View {
                         .foregroundStyle(tone?.tint(skin) ?? skin.color(skin.text.primary))
                     if let unit { Text(unit).citadelFont("t13").foregroundStyle(skin.color(skin.text.muted)) }
                 }
-                detail.citadelFont("t11_5").foregroundStyle(skin.color(skin.text.muted))
+                detail.citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                     .fixedSize(horizontal: false, vertical: true)
                 if let action {
                     AinkradButton(title: action.title, style: .ghost, action: action.perform)

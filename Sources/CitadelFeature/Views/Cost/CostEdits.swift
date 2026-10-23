@@ -166,7 +166,7 @@ struct EditBudgetForm: View {
                 AinkradTextField(text: $warn, placeholder: inherited).monospaced()
             }
             if case .failure(let why) = edit {
-                Text(why.message).citadelFont("t11_5").foregroundStyle(status.danger)
+                Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
             }
             HStack(spacing: skin.size.s8) {
                 AinkradButton(title: "Delete budget", style: .ghost) {
@@ -240,7 +240,7 @@ struct NewBudgetForm: View {
                 AinkradTextField(text: $warn, placeholder: "80").monospaced()
             }
             if !cap.isEmpty, case .failure(let why) = edit {
-                Text(why.message).citadelFont("t11_5").foregroundStyle(status.danger)
+                Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
             }
             HStack(spacing: skin.size.s8) {
                 Spacer()

@@ -203,7 +203,7 @@ private struct KPITile: View {
                     .padding(.top, skin.size.s8)
                 }
                 if let detail {
-                    detail.citadelFont("t11_5").foregroundStyle(skin.color(skin.text.muted))
+                    detail.citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
