@@ -157,6 +157,7 @@ extension CompanyFixture {
             diff: PlanDiffInfo(
                 version: 1, added: [("CIT-60", 3)], removed: [], pointsApproved: 28, pointsNow: 31),
             intakeIssueID: 70, planVersion: 1)
+        for (index, key) in ["CIT-E1", "CIT-E2", "AMC-E1"].enumerated() { page.plans[12]?.epics[index].key = key }
     }
 
     static var artifacts: [ArtifactInfo] {
