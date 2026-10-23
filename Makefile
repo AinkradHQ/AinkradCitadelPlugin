@@ -21,6 +21,12 @@ sideload: build
 AINKRAD ?= ainkrad
 release: releasebuild ; $(AINKRAD) publish build/Build/Products/Release/CitadelPlugin.bundle $(V) $(PUBLISH_FLAGS)
 
-.PHONY: generate build test releasebuild sideload release
+# The generated client (Packages/CitadelClient): `make contract [REV=<citadel-rev>]` pins the Citadel spec and
+# regenerates; `make contract-check` fails when the committed client or the pin is stale. Both need
+# GENERATOR=<swift-openapi-generator 1.14.2 binary>; see scripts/contract.sh.
+contract: ; ./scripts/contract.sh regen $(REV)
+contract-check: ; ./scripts/contract.sh check
+
+.PHONY: generate build test releasebuild sideload release contract contract-check
 
 include scripts/guardrails.mk
