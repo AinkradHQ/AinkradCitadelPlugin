@@ -1,0 +1,83 @@
+name: AinkradCitadelPlugin
+options:
+  bundleIdPrefix: com.ainkrad
+  deploymentTarget: { macOS: "14.0" }
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+    EAGER_LINKING: NO
+packages:
+  AinkradAppKit:
+    url: https://github.com/AinkradHQ/AinkradAppKit
+    # Must stay AT OR BEHIND the host's pin — the host embeds the one dynamic
+    # copy of the SDK, so a plugin built against a NEWER revision links symbols
+    # that copy does not define and dies at `Bundle.load()`. This matches the
+    # host's pin exactly: the settings-catalog merge, which is what
+    # `settingsCatalog(host:)` in Sources/CitadelFeature/PluginApp.swift needs.
+    # aa3fc95: Glass Native kit (#96–#107).
+    # bdf3b0d: Grimoire E1 — AinkradMarkdownText, AinkradDiffReview, AinkradDecisionBar, AinkradComposer (#108–#110).
+    # 41cd9d9: markdown pipe tables and block quotes in AinkradMarkdownText (#111).
+    # 51655c2: AinkradMenuButton.kitMenuUnderGlass() opt-in (#112, Forge FD20).
+    # 7481510: DiffReview hidesHeader/sideBySide/keepUndo, empty-state secondaryAction, AinkradAgent colours, PluginAppAvailability (#113).
+    # 966326c: kit parity batches 1+2 (#113, #114) for the Forge/Grimoire mockups; additive, abi-check clean.
+    # a352acd: kit parity batches 3+4 (#115, #116) for the Forge/Grimoire mockups; additive, abi-check clean.
+    # dbc2b5e: kit parity batch 5 (#117) for the Forge mockups; additive, abi-check clean.
+    # 20fb3db: kit parity batch 6 (#118) for the Forge mockups; additive, abi-check clean.
+    revision: 20fb3db9f278b3e73f195c3bfb5c321084db3053
+targets:
+  CitadelFeature:
+    type: library.static
+    platform: macOS
+    sources: [Sources/CitadelFeature]
+    dependencies:
+      - package: AinkradAppKit
+        embed: false
+  CitadelPlugin:
+    type: bundle
+    platform: macOS
+    sources: [Sources/CitadelPlugin]
+    dependencies:
+      - target: CitadelFeature
+      # AinkradAppKit is the ONLY shared dependency: dynamic + NOT embedded, so
+      # the host's copy is used at runtime and protocol casts succeed. Any other
+      # runtime dependency must be statically linked (see the template guide,
+      # Docs/Reference/ainkradplugintemplate-readme.md in the Ainkrad workspace).
+      - package: AinkradAppKit
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ainkrad.plugin.citadel
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Sources/CitadelPlugin/Info.plist
+        MACH_O_TYPE: mh_bundle
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        OTHER_LDFLAGS: ["-lCitadelFeature"]
+    postBuildScripts:
+      # Generate AinkradAPIVersion from the linked SDK rather than
+      # trusting the hand-typed value in Info.plist — see the script.
+      - script: "\"$SRCROOT/scripts/stamp-api-version.sh\""
+        name: Stamp AinkradAPIVersion
+        # The plist is an INPUT, not an output: declaring it makes the build
+        # system order this phase after the task that copies it into the
+        # bundle. Without it the script races that copy and finds nothing.
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        # No outputs, so keep it running every build: the linked SDK revision
+        # can change generation without any source file changing.
+        basedOnDependencyAnalysis: false
+  CitadelFeatureTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/CitadelFeatureTests]
+    dependencies:
+      - target: CitadelFeature
+      - package: AinkradAppKit
+schemes:
+  CitadelPlugin:
+    build: { targets: { CitadelPlugin: all, CitadelFeatureTests: [test] } }
+    test: { config: Debug, targets: [CitadelFeatureTests] }

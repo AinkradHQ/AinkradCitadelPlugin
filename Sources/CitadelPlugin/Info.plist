@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>com.ainkrad.plugin.citadel</string>
+    <key>CFBundleName</key><string>CitadelPlugin</string>
+    <!-- REQUIRED: the host renames an installed bundle to <appID>.bundle, so
+         this must be set explicitly or the bundle won't load. -->
+    <key>CFBundleExecutable</key><string>CitadelPlugin</string>
+    <key>CFBundlePackageType</key><string>BNDL</string>
+    <key>NSPrincipalClass</key><string>CitadelPluginEntryPoint</string>
+    <key>AinkradAppID</key><string>citadel</string>
+    <key>AinkradDisplayName</key><string>Citadel</string>
+    <key>AinkradIconSymbol</key><string>building.columns</string>
+    <!-- Placeholder: scripts/stamp-api-version.sh writes the linked SDK's
+         generation into the BUILT bundle, and `ainkrad new` substitutes this
+         exact line. Never hand-edit the number. -->
+    <key>AinkradAPIVersion</key><integer>12</integer>
+    <key>AinkradAuthor</key><string>Ahmed Elhalaby</string>
+    <key>description</key><string>Watch and run your Citadel agent company: org, live runs, approvals, chat and cost.</string>
+</dict>
+</plist>
