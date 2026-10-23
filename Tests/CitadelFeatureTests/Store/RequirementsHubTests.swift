@@ -166,10 +166,12 @@ final class RequirementsHubTests: XCTestCase {
     }
 
     func testAnAnswerGoesToTheAskerAndAClearedChipToTheOwner() async throws {
+        var posts = 0  // the route runs under FakeServer's lock: count here, never read `requests` there
         FakeServer.serve { request in
             guard request.url?.path == "/api/v1/requirements/12/thread" else { return .init(status: 404) }
+            posts += 1
             // The first post answers Kestrel; the second is the message to the owner.
-            guard FakeServer.requests.count <= 1 else { return .init(json: #"{"comment_id":90,"woke_agent_id":1}"#) }
+            guard posts == 1 else { return .init(json: #"{"comment_id":90,"woke_agent_id":1}"#) }
             return .init(
                 json:
                     #"{"answered":{"id":7,"asked_by_agent_id":4,"issue_id":62,"issue_key":"CIT-62","question":"?","options":[],"state":"answered","created_at":"2026-10-23T09:00:00.000Z","answer":".p8"},"woke_agent_id":4,"woke_issue_id":62}"#
