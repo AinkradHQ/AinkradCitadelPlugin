@@ -42,14 +42,19 @@ extension CitadelStore {
         model.answeredApprovals = Array(all.filter { $0.status != "pending" }.sorted { $0.id > $1.id }.prefix(10))
     }
 
-    /// Agents' questions, from each open requirement's thread.
-    // TODO(citadel#questions-list): read GET /questions once the questions list endpoint lands; it also covers
-    // questions on issues outside any requirement.
+    /// Agents' questions: the open ones from every issue (`GET /companies/{id}/questions`), and the answered ones
+    /// the requirement threads keep as receipts. Should the open list fail, the threads' open cards stand in.
     func loadQuestions(_ model: CompanyModel, server: CitadelServer) async {
-        var questions: [QuestionInfo] = []
+        let open = await server.openQuestions(company: model.companyID)
+        var byID: [Int64: QuestionInfo] = [:]
         for requirement in model.requirements {
-            questions += await server.questions(requirement: requirement.id) ?? []
+            for question in await server.questions(requirement: requirement.id) ?? []
+            where open == nil || !question.isOpen {
+                byID[question.id] = question
+            }
         }
+        for question in open ?? [] { byID[question.id] = question }
+        let questions = byID.values.sorted { ($0.askedAt, $0.id) < ($1.askedAt, $1.id) }
         model.questions = questions
         for issue in Set(questions.map(\.issueID)) where model.issues[issue] == nil {
             model.issues[issue] = await server.issue(issue)

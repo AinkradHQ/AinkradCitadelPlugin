@@ -75,6 +75,8 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var firstTokenAt: Date?
     var endedAt: Date?
     var lastProgressAt: Date?
+    /// Each repo's diff against its base, as last measured, in the issue's repo order (`+38 −6`).
+    var diffRepos: [RepoDiffInfo] = []
 
     /// What a cap counts: every token, cache included.
     var tokens: Int64 { inputTokens + outputTokens + cacheTokens }

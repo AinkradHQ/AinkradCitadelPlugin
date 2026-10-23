@@ -10,6 +10,7 @@ struct RunView: View {
     let runID: Int64
     @State private var followsLive = true
     @State private var draft = ""
+    @State private var confirmsStop = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -37,6 +38,12 @@ struct RunView: View {
                 RunRail(store: store, model: model, run: run)
             }
             .offlineDimmed()
+            .ainkradConfirmDialog(
+                isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
+                message:
+                    "The runner kills the harness at once; the run ends cancelled. A message instead reaches the agent at its next turn.",
+                confirmTitle: "Stop run", isDestructive: true
+            ) { store.stop(run: run.id) }
         } else {
             AinkradEmptyState(
                 icon: "play", title: "Loading the run", message: "Its transcript replays from the first event."
@@ -78,9 +85,8 @@ struct RunView: View {
             Spacer(minLength: skin.size.s10)
             AinkradToggleButton(isOn: $followsLive, systemName: "arrow.down.to.line")
                 .ainkradTooltip("Follow live")
-            // Stop needs a server endpoint (not in the API yet).
-            AinkradButton(title: "Stop", style: .danger, icon: "stop.fill") {}
-                .outlined().tintedFill().compact().fixedSize().disabled(true)
+            AinkradButton(title: "Stop", style: .danger, icon: "stop.fill") { confirmsStop = true }
+                .outlined().tintedFill().compact().fixedSize().disabled(!run.isLive)
             AinkradMenuButton(items: [
                 AinkradMenuItem(title: "Copy run id", systemName: "doc.on.doc") {
                     NSPasteboard.general.clearContents()
@@ -158,13 +164,16 @@ struct RunView: View {
     }
 
     private func composer(_ run: RunInfo) -> some View {
-        // Messaging a running agent needs a server endpoint (not in the API yet): the composer is shown, read-only.
+        // A message reaches a live run at its next turn (it keeps running); an ended run takes none.
         AinkradComposer(
             text: $draft,
             placeholder:
                 "Message \(model.agent(run.agentID)?.name ?? "the agent") — delivered at its next turn (it keeps running)",
-            isEditable: false, canSend: false, autoFocus: false, suggestions: { _ in [] }, onPick: { _, _ in },
-            onDrop: nil, onSend: {}, chips: { EmptyView() }, leading: { EmptyView() }, trailing: { EmptyView() }
+            isEditable: run.isLive,
+            canSend: run.isLive && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            autoFocus: false, suggestions: { _ in [] }, onPick: { _, _ in }, onDrop: nil,
+            onSend: { store.message(run: run.id, draft) { draft = "" } },
+            chips: { EmptyView() }, leading: { EmptyView() }, trailing: { EmptyView() }
         )
         .padding(.horizontal, skin.size.s20)
         .padding(.bottom, skin.size.s14)

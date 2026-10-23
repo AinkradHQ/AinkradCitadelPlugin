@@ -21,8 +21,26 @@ struct ShellView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .overlay(alignment: .bottom) { failureBanner }
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
+    }
+
+    /// Mockup 11 G away from the inbox (which shows it in place of the approval): what the server refused, said
+    /// once, with Copy error.
+    @ViewBuilder private var failureBanner: some View {
+        if let failure = store.actionFailure, store.screen != .approvals || store.detail != nil {
+            AinkradBanner(
+                message: "\(failure.title). \(failure.message)", status: .danger, actionTitle: "Copy error",
+                action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(failure.answer.line, forType: .string)
+                }, onDismiss: { store.actionFailure = nil }
+            )
+            .padding(skin.size.s14)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
     }
 
     private var isOffline: Bool {

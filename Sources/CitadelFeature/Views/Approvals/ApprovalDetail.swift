@@ -270,10 +270,11 @@ struct ApprovalDetail: View {
                     .borderless().secondaryAccent().compact().fixedSize()
             }
             reject("Deny")
-            // TODO(citadel#allow-for-issue): "For CIT-42" once the server takes an allow-for-issue scope.
-            AinkradButton(title: "For \(model.issue(approval.issueID)?.key ?? "issue")", style: .secondary) {}
-                .compact().fixedSize().disabled(true)
-                .ainkradTooltip("Needs the server's allow-for-issue endpoint")
+            AinkradButton(title: "For \(model.issue(approval.issueID)?.key ?? "issue")", style: .secondary) {
+                store.allowForIssue(approval, reply: reply)
+            }
+            .compact().fixedSize().disabled(approval.issueID == nil)
+            .ainkradTooltip("Allow this call on the issue's runs for a while, without asking again")
             primary("Allow once")
         default:
             reject("Reject")

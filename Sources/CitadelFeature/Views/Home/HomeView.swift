@@ -10,6 +10,7 @@ struct HomeView: View {
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
     @State private var pageWidth: CGFloat = 0
+    @State private var confirmsPause = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -17,8 +18,13 @@ struct HomeView: View {
                 HStack(spacing: skin.size.s8) {
                     AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "New goal for the CEO") {}
                         .outlineBox().disabled(true)
-                    AinkradIconButton(systemName: "pause.fill", size: skin.size.s30, tooltip: "Pause all runs") {}
-                        .outlineBox().disabled(true)
+                    AinkradIconButton(
+                        systemName: allPaused ? "play.fill" : "pause.fill", size: skin.size.s30,
+                        tooltip: allPaused ? "Resume all agents" : "Pause all runs"
+                    ) {
+                        if allPaused { store.setCompanyPaused(false) } else { confirmsPause = true }
+                    }
+                    .outlineBox().disabled(model.agents.isEmpty)
                     AinkradMenuButton(items: [
                         AinkradMenuItem(title: "Open Cost", systemName: "dollarsign") { store.screen = .cost }
                     ]) {
@@ -52,6 +58,18 @@ struct HomeView: View {
             }
             .offlineDimmed()
         }
+        .ainkradConfirmDialog(
+            isPresented: $confirmsPause, title: "Pause all runs?",
+            message:
+                "Every agent finishes its current tool call, then parks; new wakes queue until you resume. Nothing is killed.",
+            confirmTitle: "Pause all"
+        ) { store.setCompanyPaused(true) }
+    }
+
+    /// Every agent paused (a hire still pending doesn't count): ⏸ turns into ▶ Resume.
+    private var allPaused: Bool {
+        let hired = model.agents.values.filter { !$0.isHirePending && $0.status != "terminated" }
+        return !hired.isEmpty && hired.allSatisfy(\.isPaused)
     }
 
     /// `18 agents · 2 departments · Sprint CIT S4 day 6 of 10 · ● live`.

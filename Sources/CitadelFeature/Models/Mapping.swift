@@ -101,7 +101,7 @@ extension RunInfo {
             cacheTokens: run.usage.cacheTokens, costMicros: run.usage.costUsdMicros, contextTokens: run.contextTokens,
             queuedAt: run.queuedAt, wokenAt: run.wokenAt, claimedAt: run.claimedAt, startedAt: run.startedAt,
             harnessStartedAt: run.harnessStartedAt, firstTokenAt: run.firstTokenAt, endedAt: run.endedAt,
-            lastProgressAt: run.lastProgressAt)
+            lastProgressAt: run.lastProgressAt, diffRepos: run.diffRepos.map(RepoDiffInfo.init))
     }
 }
 
