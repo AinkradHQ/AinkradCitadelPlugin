@@ -25,7 +25,8 @@ struct PromptSheet: View {
             AinkradTextField(text: $text, placeholder: placeholder).onSubmit(done)
             HStack(spacing: skin.size.s8) {
                 Spacer()
-                AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
+                AinkradButton(title: isDestructive ? "Back" : "Cancel", style: .ghost) { isPresented = false }
+                    .fixedSize()
                 AinkradButton(title: confirmTitle, style: isDestructive ? .danger : .primary, action: done)
                     .fixedSize().disabled(!canConfirm)
             }

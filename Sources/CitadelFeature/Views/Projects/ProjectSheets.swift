@@ -16,7 +16,7 @@ struct NewProjectSheet: View {
         VStack(alignment: .leading, spacing: skin.size.s12) {
             Text("New project").citadelFont("t15", weight: "semibold")
             AinkradFormRow(title: "Name") { AinkradTextField(text: $name, placeholder: "Citadel Core") }
-            AinkradFormRow(title: "Key", help: "1–10 capital letters and digits, starting with a letter.") {
+            AinkradFormRow(title: "Key", help: "CIT → CIT-12") {
                 AinkradTextField(text: $key, placeholder: "CIT").monospaced()
             }
             AinkradFormRow(title: "Mode") {

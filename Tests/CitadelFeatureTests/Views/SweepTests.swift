@@ -37,6 +37,9 @@ final class SweepTests: XCTestCase {
             for (name, store, size) in screens() where only?.contains(where: name.hasPrefix) ?? true {
                 try LiveCapture.shoot(
                     RootView(store: store, theme: hostTheme)
+                        .ainkradSheet(isPresented: .constant(Self.sheet(name, store) != nil)) {
+                            Self.sheet(name, store)
+                        }
                         .frame(width: size.width, height: size.height)
                         .background(skin.color(skin.palette.background))
                         .ainkradSkin(skin)
