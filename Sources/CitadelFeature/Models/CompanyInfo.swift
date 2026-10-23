@@ -165,6 +165,8 @@ struct StuckInfo: Equatable, Sendable {
     /// The last automatic repair and when.
     var lastRepair: String?
     var lastRepairAt: Date?
+    /// Since when it has not moved (`stuck_since`), for the card's age.
+    var since: Date? = nil
 }
 
 struct RequirementInfo: Identifiable, Equatable, Sendable {
@@ -193,6 +195,10 @@ struct BudgetInfo: Identifiable, Equatable, Sendable {
     var spent: Int64
     var cap: Int64
     var warnPercent: Int
+    /// Tokens added by approved raises; `cap` includes them, the stored cap does not.
+    var raised: Int64 = 0
+    /// Runs stop at the cap, or it only warns.
+    var hardStop = true
 
     var warnFraction: Double { Double(warnPercent) / 100 }
     var fraction: Double { cap > 0 ? Double(spent) / Double(cap) : 0 }

@@ -16,6 +16,14 @@ enum CostPeriod: String, CaseIterable, Hashable {
         case .sprint: sprintStart.map { calendar.startOfDay(for: $0) }
         }
     }
+
+    /// Where the chart starts: the period's start, but at least the last 7 days (Today: its hours).
+    func chartStart(now: Date, start: Date?, calendar: Calendar = .current) -> Date {
+        let today = calendar.startOfDay(for: now)
+        if self == .today { return today }
+        let weekAgo = calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        return min(start ?? weekAgo, weekAgo)
+    }
 }
 
 /// One issue's spend in the period (`getTaskCosts`): tokens by kind, dollars of its priced runs only, wall time.
@@ -86,15 +94,6 @@ struct SpendTotals: Equatable, Sendable {
         }
     }
 
-    static func - (a: Self, b: Self) -> Self {
-        Self(
-            costMicros: max(0, a.costMicros - b.costMicros), pricedTokens: max(0, a.pricedTokens - b.pricedTokens),
-            unpricedTokens: max(0, a.unpricedTokens - b.unpricedTokens),
-            subscriptionTokens: max(0, a.subscriptionTokens - b.subscriptionTokens),
-            unpricedRuns: max(0, a.unpricedRuns - b.unpricedRuns),
-            subscriptionRuns: max(0, a.subscriptionRuns - b.subscriptionRuns))
-    }
-
     /// Every token, whatever its kind: what the breakdown bars compare.
     var tokens: Int64 { pricedTokens + unpricedTokens + subscriptionTokens }
 
@@ -105,20 +104,57 @@ struct SpendTotals: Equatable, Sendable {
     }
 }
 
-/// One day of the per-day chart.
+/// One agent's or department's spend in the period (`getSpendBreakdown`); a department `nil` is work outside any.
+struct ScopeSpend: Equatable, Sendable {
+    var id: Int64?
+    var totals: SpendTotals
+}
+
+/// "Set a price…": a model's dollars per million tokens, checked before it is sent.
+struct PriceDraft: Equatable, Sendable {
+    var harness: String
+    var model: String
+    var input: Double
+    var output: Double
+    var cache: Double
+
+    static let harnesses = ["claude", "codex", "opencode", "agy"]
+
+    /// The typed form as a price, or `nil` (with the reason) when the model is empty or a price is not a number ≥ 0.
+    static func parse(harness: String, model: String, input: String, output: String, cache: String)
+        -> Result<PriceDraft, PriceProblem>
+    {
+        let name = model.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return .failure(.noModel) }
+        func dollars(_ text: String) -> Double? {
+            let trimmed = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "$", with: "")
+            guard let value = Double(trimmed.isEmpty ? "0" : trimmed), value.isFinite, value >= 0 else { return nil }
+            return value
+        }
+        guard let input = dollars(input), let output = dollars(output), let cache = dollars(cache) else {
+            return .failure(.notAPrice)
+        }
+        return .success(PriceDraft(harness: harness, model: name, input: input, output: output, cache: cache))
+    }
+}
+
+enum PriceProblem: Error, Equatable {
+    case noModel, notAPrice
+
+    var message: String {
+        switch self {
+        case .noModel: "Name the model, as the harness reports it."
+        case .notAPrice: "Prices are dollars per million tokens, 0 or more."
+        }
+    }
+}
+
+/// One bar of the per-day chart: a day, or an hour on Today.
 struct DaySpend: Equatable, Sendable {
     var day: Date
     var totals: SpendTotals
 }
 
-/// Days from the server's "since" sums: each day is what was spent since its start less what was spent since the
-/// next day's start (`cumulative` is oldest first, one per day start).
-func daySpends(cumulative: [(day: Date, totals: SpendTotals)]) -> [DaySpend] {
-    cumulative.enumerated().map { index, entry in
-        let later = index + 1 < cumulative.count ? cumulative[index + 1].totals : SpendTotals()
-        return DaySpend(day: entry.day, totals: entry.totals - later)
-    }
-}
 
 extension CompanyModel {
     /// The period's tasks added up by project key, biggest first.
