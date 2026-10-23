@@ -75,9 +75,11 @@ struct NoTranscriptView: View {
     var body: some View {
         let issue = model.issue(run.issueID)
         AinkradEmptyState(
-            icon: "doc.plaintext", title: "This run's transcript is gone",
+            icon: "doc.plaintext",
+            title: run.transcriptGoneReason == "pruned"
+                ? "This run's transcript was pruned" : "This run's transcript is gone",
             message:
-                "Nothing of it is on the server any more, or it never started. The summary stays: \(run.summaryLine(issue: issue?.key)).",
+                "\(run.goneLine(keptFor: model.limits["transcript.retention_secs"])) The summary stays: \(run.summaryLine(issue: issue?.key)).",
             actionTitle: issue.map { "Open \($0.key)" },
             action: issue.map { issue in
                 {
@@ -96,6 +98,16 @@ struct NoTranscriptView: View {
 extension RunInfo {
     /// A run with nothing to replay: ended, and its transcript loaded empty.
     func hasNoTranscript(_ chunks: [TranscriptChunkInfo]?) -> Bool { !isLive && chunks?.isEmpty == true }
+
+    /// "Transcripts are kept 30 days — this one went on Oct 3." when pruned; else why there is none.
+    func goneLine(keptFor retention: LimitSetting?) -> String {
+        guard transcriptGoneReason == "pruned" else {
+            return "Nothing of it is on the server any more, or it never started."
+        }
+        let kept = retention.map { "Transcripts are kept \(Fmt.span(TimeInterval($0.value)))" } ?? "Old transcripts are pruned"
+        let when = transcriptPrunedAt.map { " — this one went on \($0.formatted(.dateTime.month(.abbreviated).day()))" }
+        return "\(kept)\(when ?? "")."
+    }
 
     /// "succeeded · 18m · $1.12 · CIT-12".
     func summaryLine(issue key: String?) -> String {

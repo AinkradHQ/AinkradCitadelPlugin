@@ -10,6 +10,8 @@ struct AccountCard: View {
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
+    @State private var editingPlan = false
+    @State private var planDraft = ""
 
     private var page: AccountsPage { model.accountsPage }
 
@@ -24,6 +26,33 @@ struct AccountCard: View {
             }
         }
         .rim(rim)
+        .ainkradContextMenu([
+            AinkradMenuItem(title: "Set plan tier…", systemName: "tag") {
+                planDraft = account.planTier ?? ""
+                editingPlan = true
+            }
+        ])
+        .ainkradPanelModal(isPresented: $editingPlan, contentWidth: skin.size.s440) { planForm }
+    }
+
+    /// "Max 20x": what the account's plan is called; empty clears it.
+    private var planForm: some View {
+        VStack(alignment: .leading, spacing: skin.size.s12) {
+            Text("Plan tier · \(account.label)").citadelFont("t15", weight: "semibold")
+            AinkradFormRow(title: "Tier", help: "As the provider names it; empty clears it.") {
+                AinkradTextField(text: $planDraft, placeholder: "Max 20x")
+            }
+            HStack(spacing: skin.size.s8) {
+                Spacer()
+                AinkradButton(title: "Cancel", style: .ghost) { editingPlan = false }.fixedSize()
+                AinkradButton(title: "Save") {
+                    store.setPlanTier(account.id, planDraft)
+                    editingPlan = false
+                }
+                .fixedSize()
+                .disabled(planDraft.trimmingCharacters(in: .whitespaces).count > 64)
+            }
+        }
     }
 
     private var rim: AinkradChartTone? {
@@ -50,7 +79,8 @@ struct AccountCard: View {
             HStack(spacing: skin.size.s6) {
                 // Billing leads the second line so the label never truncates beside the windows column.
                 AinkradBadge(
-                    text: account.isSubscription ? "subscription" : "API key · priced",
+                    text: (account.isSubscription ? "subscription" : "API key · priced")
+                        + (account.planTier.map { " · \($0)" } ?? ""),
                     tint: account.isSubscription ? skin.color(skin.palette.accentPrimary) : theme.accentSecondary
                 )
                 .fixedSize()
@@ -83,8 +113,12 @@ struct AccountCard: View {
     /// "2 runs now · 0 drops / 10 min · config ~/.citadel/acct/claude-personal".
     private var meta: String {
         let runs = model.liveRuns.filter { $0.accountID == account.id }.count
-        let window = page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min"
-        var parts = ["\(runs) run\(runs == 1 ? "" : "s") now", "\(account.drops) drops / \(window)"]
+        // The display window (a day by default) when the server reports one, else the unhealthy window.
+        let drops =
+            account.recentDropsWindowSecs > 0
+            ? "\(account.recentDrops) drops / \(ScopedSetting.format(account.recentDropsWindowSecs, unit: "seconds"))"
+            : "\(account.drops) drops / \(page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min")"
+        var parts = ["\(runs) run\(runs == 1 ? "" : "s") now", drops]
         if !account.configDir.isEmpty { parts.append("config \(account.configDir)") }
         return parts.joined(separator: " · ")
     }
