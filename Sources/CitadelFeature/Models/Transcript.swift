@@ -13,6 +13,8 @@ struct ToolCallItem: Equatable {
     /// Secrets the server's redactor caught in the call, by name.
     var secrets: [String]
     var footnote: String?
+    /// What the tool printed (runner protocol 1.18), redacted and cut to its head and tail by the server.
+    var output: String?
 
     struct Edit: Equatable {
         let path: String
@@ -37,8 +39,9 @@ enum TranscriptItem: Identifiable, Equatable {
 }
 
 enum Transcript {
-    /// Folds a run's chunks (and its system lines) into items. A tool call runs until anything else the
-    /// harness says follows it; it then counts as done (the transcript carries no tool results yet). A call
+    /// Folds a run's chunks (and its system lines) into items. A tool call runs until its `tool_result`
+    /// (protocol 1.18: ok or error, exit code, output, duration) — or, from an older runner, until anything else
+    /// the harness says follows it, when it counts as done. A call
     /// the pending approval `waitingRequest` asks about waits, amber; a run that ended `failed` fails the call
     /// it was in.
     static func items(
@@ -46,6 +49,8 @@ enum Transcript {
     ) -> [TranscriptItem] {
         var items: [TranscriptItem] = []
         var open: Int?
+        /// Each tool call's item by its `tool_use` id, for its `tool_result`.
+        var calls: [String: Int] = [:]
 
         func close(_ status: AinkradToolCardStatus = .succeeded) {
             guard let index = open, case .tool(var call) = items[index], call.status == .running else { return }
@@ -78,6 +83,14 @@ enum Transcript {
                 close()
                 items.append(.tool(toolCall(chunk)))
                 open = items.count - 1
+                if let id = f["id"] { calls[id] = items.count - 1 }
+            case "tool_result":
+                guard let index = f["id"].flatMap({ calls[$0] }) ?? open, case .tool(var call) = items[index] else {
+                    continue
+                }
+                apply(result: f, to: &call)
+                items[index] = .tool(call)
+                if index == open { open = nil }
             case "approval_requested":
                 guard let request = f["id"], request == waitingRequest else { continue }
                 let tool = f["tool"] ?? ""
@@ -101,6 +114,21 @@ enum Transcript {
             close(runState == "succeeded" ? .succeeded : runState == "failed" ? .failed : .succeeded)
         }
         return items
+    }
+
+    /// A `tool_result`: the call's end state, "exit 0 · 1.2 s" (an edit keeps its +/− counts), and its output.
+    static func apply(result f: [String: String], to call: inout ToolCallItem) {
+        let failed = f["status"] == "error"
+        call.status = failed ? .failed : .succeeded
+        let duration = f["duration_ms"].flatMap(Double.init).map { String(format: "%.1f s", $0 / 1000) }
+        let line = [f["exit_code"].map { "exit \($0)" }, duration].compactMap { $0 }.joined(separator: " · ")
+        if call.edit == nil, !line.isEmpty { call.result = failed ? .summary(line) : .success(line) }
+        if let output = f["output"], !output.isEmpty {
+            call.output = output
+            let full = f["output_bytes"].flatMap(Int.init) ?? 0
+            if full > output.utf8.count { call.footnote = "output cut to its head and tail · \(full) bytes in all" }
+        }
+        call.secrets += Redaction.names(in: f["output"] ?? "")
     }
 
     private static func toolCall(_ chunk: TranscriptChunkInfo, name: String? = nil) -> ToolCallItem {

@@ -70,6 +70,7 @@ extension CompanyFixture {
                     subscriptionTokens: day.2 * 20_000))
         }
         model.accounts[1]?.billing = "subscription"
+        model.accounts[2]?.billing = "subscription"
         model.accounts[3] = AccountInfo(id: 3, label: "anthropic-api", status: "active")
         model.accountUse = [
             AccountUseInfo(id: 1, label: "claude-work", tokens: 6_100_000, runs: 40),

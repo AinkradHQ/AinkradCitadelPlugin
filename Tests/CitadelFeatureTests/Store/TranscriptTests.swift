@@ -22,6 +22,32 @@ final class TranscriptTests: XCTestCase {
         XCTAssertTrue(text.hasPrefix("The stream drops events"))
     }
 
+    func testAToolResultEndsItsCallWithExitDurationAndOutput() {
+        let at = Date(timeIntervalSince1970: 1_000)
+        func chunk(_ seq: Int64, _ kind: String, _ fields: [String: String]) -> TranscriptChunkInfo {
+            TranscriptChunkInfo(seq: seq, at: at.addingTimeInterval(Double(seq)), kind: kind, fields: fields)
+        }
+        let chunks = [
+            chunk(1, "tool_use", ["id": "t1", "name": "Bash", "input.command": "cargo test"]),
+            chunk(2, "tool_use", ["id": "t2", "name": "Bash", "input.command": "cargo build"]),
+            chunk(
+                3, "tool_result",
+                [
+                    "id": "t1", "status": "error", "exit_code": "101", "duration_ms": "4200",
+                    "output": "test db::writes ... FAILED [redacted:GITHUB_TOKEN]", "output_bytes": "90000",
+                ]),
+            chunk(4, "tool_result", ["id": "t2", "status": "ok", "exit_code": "0", "duration_ms": "800"]),
+        ]
+        let tools = calls(Transcript.items(chunks, runState: "running"))
+        XCTAssertEqual(tools.map(\.status), [.failed, .succeeded], "each result finds its own call by id")
+        XCTAssertEqual(tools[0].result, .summary("exit 101 · 4.2 s"))
+        XCTAssertEqual(tools[1].result, .success("exit 0 · 0.8 s"))
+        XCTAssertEqual(tools[0].output, "test db::writes ... FAILED [redacted:GITHUB_TOKEN]")
+        XCTAssertEqual(tools[0].footnote, "output cut to its head and tail · 90000 bytes in all")
+        XCTAssertEqual(tools[0].secrets, ["GITHUB_TOKEN"])
+        XCTAssertNil(tools[1].output)
+    }
+
     func testAnEditCountsItsLinesAndCarriesItsDiff() {
         let edit = calls(Transcript.items(CompanyFixture.transcript, runState: "running"))[1]
         XCTAssertEqual(edit.result, .counts(added: 1, removed: 1))

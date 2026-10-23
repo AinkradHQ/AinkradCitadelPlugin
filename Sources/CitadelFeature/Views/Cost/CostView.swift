@@ -19,7 +19,7 @@ struct CostView: View {
                 HStack(spacing: skin.size.s8) {
                     AinkradSegmentedPicker(items: CostPeriod.allCases, selection: $period) { $0.title }
                         .disabledOptions { $0 == .sprint && model.sprint == nil }
-                        .controlSize(.small)
+                        .controlSize(.small).fixedSize()
                     AinkradIconButton(systemName: "square.and.arrow.down", size: skin.size.s30, tooltip: "Export CSV") {
                         store.exportCostCSV()
                     }

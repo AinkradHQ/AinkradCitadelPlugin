@@ -7298,7 +7298,11 @@ extension Components {
         public struct TranscriptChunk: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/TranscriptChunk/at`.
             public var at: Components.Schemas.Timestamp
-            /// `text`, `tool_call`, `tool_result`, … — open: new kinds may appear.
+            /// The payload's `type`: `session_started`, `assistant_text`, `tool_use`, `tool_result`,
+            /// `approval_requested`, `usage`, `turn_ended`, … — open: new kinds may appear. A
+            /// `tool_result` (runner protocol 1.18) ends the `tool_use` with its `id`: `name`, `status`
+            /// (`ok` or `error`), `exit_code` (when known), `output` (redacted, cut to its head and tail
+            /// at `run.tool_output_bytes`), `output_bytes` (the full size) and `duration_ms`.
             ///
             /// - Remark: Generated from `#/components/schemas/TranscriptChunk/kind`.
             public var kind: Swift.String
@@ -7312,7 +7316,7 @@ extension Components {
             ///
             /// - Parameters:
             ///   - at:
-            ///   - kind: `text`, `tool_call`, `tool_result`, … — open: new kinds may appear.
+            ///   - kind: The payload's `type`: `session_started`, `assistant_text`, `tool_use`, `tool_result`,
             ///   - payload:
             ///   - seq: Increasing within the run: the transcript's own cursor.
             public init(

@@ -90,7 +90,8 @@ private struct StuckCard: View {
                         .foregroundStyle(skin.color(skin.text.primary)))
                         .citadelFont("t14", weight: "semibold").lineLimit(1)
                     (Text(sentence(stuck.reason)).foregroundStyle(skin.color(skin.text.primary)).bold()
-                        + Text(" \(sentence(stuck.action))").foregroundStyle(skin.color(skin.text.muted)))
+                        + Text(" \(sentence(stuck.action, capitalized: false))").foregroundStyle(
+                            skin.color(skin.text.muted)))
                         .citadelFont("t12_5").fixedSize(horizontal: false, vertical: true)
                     if let trail {
                         Text(trail).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
@@ -168,9 +169,9 @@ private struct StuckCard: View {
         }
     }
 
-    private func sentence(_ text: String) -> String {
+    private func sentence(_ text: String, capitalized: Bool = true) -> String {
         guard let first = text.first else { return text }
-        let capped = first.uppercased() + text.dropFirst()
+        let capped = capitalized ? first.uppercased() + text.dropFirst() : text
         return capped.hasSuffix(".") ? capped : capped + "."
     }
 }

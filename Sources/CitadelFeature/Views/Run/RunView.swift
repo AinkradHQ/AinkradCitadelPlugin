@@ -186,7 +186,8 @@ private struct TranscriptRow: View {
         case .tool(let call):
             AinkradToolCard(
                 name: call.name, argument: call.argument, status: call.status, result: call.result,
-                footnote: call.footnote, isInitiallyExpanded: call.edit != nil || !call.secrets.isEmpty
+                footnote: call.footnote,
+                isInitiallyExpanded: call.edit != nil || !call.secrets.isEmpty || call.status == .failed
             ) {
                 VStack(alignment: .leading, spacing: skin.size.s6) {
                     if let edit = call.edit {
@@ -197,6 +198,7 @@ private struct TranscriptRow: View {
                         )
                         .hidesHeader().editorLines().bareHunks().lineNumberGutter()
                     }
+                    if let output = call.output { AinkradCodeBlock(Redaction.masked(output)) }
                     if !call.secrets.isEmpty { chips(call.secrets) }
                 }
             }
