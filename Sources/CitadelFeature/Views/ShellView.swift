@@ -33,10 +33,7 @@ struct ShellView: View {
         if let failure = store.actionFailure, store.screen != .approvals || store.detail != nil {
             AinkradBanner(
                 message: "\(failure.title). \(failure.message)", status: .danger, actionTitle: "Copy error",
-                action: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(failure.answer.line, forType: .string)
-                }, onDismiss: { store.actionFailure = nil }
+                action: { failure.answer.copy() }, onDismiss: { store.actionFailure = nil }
             )
             .padding(skin.size.s14)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -81,7 +78,7 @@ struct ShellView: View {
         switch (store.detail, store.screen) {
         case (.agent(let id)?, _): AgentView(store: store, model: model, agentID: id)
         case (.run(let id)?, _): RunView(store: store, model: model, runID: id)
-        case (nil, .home) where model.agents.isEmpty: NoAgentsView(store: store)
+        case (nil, .home) where model.agents.isEmpty: NoAgentsView(store: store, model: model)
         case (nil, .home): HomeView(store: store, model: model)
         case (nil, .org): OrgView(store: store, model: model)
         case (nil, .approvals): ApprovalsView(store: store, model: model)

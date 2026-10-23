@@ -1,6 +1,7 @@
 import CitadelClient
 import Foundation
 import Observation
+import OpenAPIRuntime
 
 extension Schemas.MergeMethod: OpenWord {}
 extension Schemas.Merger: OpenWord {}
@@ -28,7 +29,9 @@ final class ProjectsPage {
     /// An open issue of the project and the repos it declares (decision #51), for the "declare" row.
     var declared: [Int64: (issue: IssueInfo, repos: [String])] = [:]
     /// Why the last repo action was refused ("an open issue still touches it").
-    var problem: String?
+    var problem: ServerAnswer?
+    /// Each project's profile history once "History →" opened it, newest first.
+    var history: [Int64: [ProfileChangeInfo]] = [:]
 }
 
 /// One git repo of a project (decision #51).
@@ -114,6 +117,40 @@ struct ProposalInfo: Identifiable, Equatable, Sendable {
     /// The new value: JSON for a list or choice field, plain text for a text field.
     var body: String
     var agentID: Int64?
+    /// Why the agent proposes it, in one line, when it said.
+    var rationale: String?
+}
+
+/// One step of a profile's history ("History →"): a change, or an agent's proposal of one and its decision.
+struct ProfileChangeInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var at: Date
+    /// The agent that acted; `nil` for a person or the server.
+    var agentID: Int64?
+    /// A person (the admin) acted.
+    var byPerson: Bool
+    /// `project.profile_set`, `knowledge.proposed`, `knowledge.accepted`, `knowledge.rejected`.
+    var action: String
+    /// The fields a change set.
+    var fields: [String] = []
+    /// A proposal's title and field.
+    var title: String?
+    var field: String?
+    /// A proposal's rationale, or a decision's reason.
+    var why: String?
+
+    /// "changed lint, test", "proposed Lint command", "rejected Lint command".
+    var line: String {
+        switch action {
+        case "project.profile_set":
+            let names = fields.map { $0.replacingOccurrences(of: "_", with: " ") }
+            return names.isEmpty ? "changed the profile" : "changed \(names.joined(separator: ", "))"
+        case "knowledge.proposed": return "proposed \(title ?? field ?? "a change")"
+        case "knowledge.accepted": return "accepted \(title ?? "a proposal")"
+        case "knowledge.rejected": return "rejected \(title ?? "a proposal")"
+        default: return action
+        }
+    }
 }
 
 extension RepoInfo {
@@ -144,7 +181,9 @@ extension ProfileInfo {
             permissionMode: view.permissionMode.word, injectedBytes: view.injectedBytes,
             budgetBytes: view.budgetBytes,
             proposals: view.proposals.map {
-                ProposalInfo(id: $0.id, field: $0.field, title: $0.title, body: $0.body, agentID: $0.proposedBy)
+                ProposalInfo(
+                    id: $0.id, field: $0.field, title: $0.title, body: $0.body, agentID: $0.proposedBy,
+                    rationale: $0.rationale)
             },
             updatedAt: view.updatedAt)
     }
@@ -215,4 +254,22 @@ extension ProjectsPage {
 extension Optional where Wrapped == String {
     /// `nil` for an empty string.
     var nonEmpty: String? { self.flatMap { $0.isEmpty ? nil : $0 } }
+}
+
+extension ProfileChangeInfo {
+    init(_ change: Schemas.ProfileChange) {
+        let details = change.details.value
+        func text(_ key: String) -> String? { (details[key] as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        var agent: Int64?
+        var person = false
+        switch change.actor {
+        case .agent(let a): agent = a.agentId
+        case .user: person = true
+        case .runner, .system: break
+        }
+        self.init(
+            id: change.seq, at: change.at, agentID: agent, byPerson: person, action: change.action,
+            fields: (details["fields"] as? [Any])?.compactMap { $0 as? String } ?? [], title: text("title"),
+            field: text("profile_field"), why: text("rationale") ?? text("reason"))
+    }
 }

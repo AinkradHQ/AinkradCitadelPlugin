@@ -43,14 +43,15 @@ struct AddAccountSheet: View {
             AinkradFormRow(title: "Config directory", help: "Left empty, the server picks one per account.") {
                 AinkradTextField(text: $draft.configDir, placeholder: "~/.citadel/acct/claude-personal")
             }
-            if let problem = page.addProblem ?? (draft.label.isEmpty ? nil : draft.problem) {
-                Text(problem).citadelFont("t12")
-                    .foregroundStyle(page.addProblem == nil ? skin.color(skin.text.muted) : status.danger)
+            if let failure = page.addFailure {
+                RefusalLine(failure: failure)
+            } else if let problem = draft.label.isEmpty ? nil : draft.problem {
+                Text(problem).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
             }
             HStack(spacing: skin.size.s8) {
                 Spacer()
                 AinkradButton(title: "Cancel", style: .ghost) {
-                    page.addProblem = nil
+                    page.addFailure = nil
                     isPresented = false
                 }
                 .fixedSize()

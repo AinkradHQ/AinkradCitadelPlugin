@@ -23,7 +23,9 @@ struct RepositoriesGroup: View {
                 .secondaryAccent().compact().fixedSize()
         } content: {
             if let problem = page.problem {
-                AinkradBanner(message: problem, status: .warning)
+                AinkradBanner(
+                    message: problem.message, status: .warning, actionTitle: "Copy error", action: { problem.copy() },
+                    onDismiss: { page.problem = nil })
             }
             AinkradReorderList(
                 items: Binding(get: { repos }, set: { store.reorderRepos(project: project.id, $0) })

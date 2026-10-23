@@ -4,25 +4,27 @@ import SwiftUI
 /// Mockup 11 A: a new server with no agents yet — what fills it, and the action that does.
 struct NoAgentsView: View {
     let store: CitadelStore
+    let model: CompanyModel
+    @State private var proposing = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
         VStack(spacing: 0) {
             PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
-            // TODO(citadel#hire-template): both actions create hire approvals; they need the template and propose-agent
-            // endpoints.
             AinkradEmptyState(
                 icon: "building.columns", title: "Your company has no agents yet",
                 message:
                     "Start from the Engineering template — a CTO and one scrum team (PO, Lead, two devs, QA, DevOps) with their skills — or propose agents one by one. Every new agent is a hire you approve.",
-                actionTitle: "Use Engineering template", action: {}
+                actionTitle: "Use Engineering template", action: { store.useTemplate() }
             )
-            .secondaryAction("Propose an agent…") {}
+            .secondaryAction("Propose an agent…") { proposing = true }
             .glyph("⛫").iconTint(theme.accentSecondary).secondaryAccent().compact()
-            .disabled(true)
             .frame(maxWidth: skin.size.s520)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s440) {
+            ProposeAgentSheet(store: store, model: model, isPresented: $proposing)
         }
     }
 }
@@ -40,13 +42,28 @@ struct ActionFailureView: View {
             actionTitle: failure.answer.status == 409 ? "Review the new scope" : "Back to the approval",
             action: { store.actionFailure = nil }
         )
-        .secondaryAction("Copy error") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(failure.answer.line, forType: .string)
-        }
+        .secondaryAction("Copy error") { failure.answer.copy() }
         .iconTint(status.danger).compact()
         .frame(maxWidth: skin.size.s440)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A refusal shown in place (a card, a sheet): what failed in red, and Copy error with the server's error id.
+struct RefusalLine: View {
+    let failure: ActionFailure
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: skin.size.s8) {
+            Text("\(failure.title). \(failure.message)").citadelFont("t12").foregroundStyle(status.danger)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            AinkradButton(title: "Copy error", style: .ghost) { failure.answer.copy() }
+                .borderless().compact().fixedSize()
+        }
+        .transition(.opacity)
     }
 }
 
@@ -60,9 +77,11 @@ struct NoTranscriptView: View {
     var body: some View {
         let issue = model.issue(run.issueID)
         AinkradEmptyState(
-            icon: "doc.plaintext", title: "This run's transcript is gone",
+            icon: "doc.plaintext",
+            title: run.transcriptGoneReason == "pruned"
+                ? "This run's transcript was pruned" : "This run's transcript is gone",
             message:
-                "Nothing of it is on the server any more, or it never started. The summary stays: \(run.summaryLine(issue: issue?.key)).",
+                "\(run.goneLine(keptFor: model.limits["transcript.retention_secs"])) The summary stays: \(run.summaryLine(issue: issue?.key)).",
             actionTitle: issue.map { "Open \($0.key)" },
             action: issue.map { issue in
                 {
@@ -81,6 +100,17 @@ struct NoTranscriptView: View {
 extension RunInfo {
     /// A run with nothing to replay: ended, and its transcript loaded empty.
     func hasNoTranscript(_ chunks: [TranscriptChunkInfo]?) -> Bool { !isLive && chunks?.isEmpty == true }
+
+    /// "Transcripts are kept 30 days — this one went on Oct 3." when pruned; else why there is none.
+    func goneLine(keptFor retention: LimitSetting?) -> String {
+        guard transcriptGoneReason == "pruned" else {
+            return "Nothing of it is on the server any more, or it never started."
+        }
+        let kept =
+            retention.map { "Transcripts are kept \(Fmt.span(TimeInterval($0.value)))" } ?? "Old transcripts are pruned"
+        let when = transcriptPrunedAt.map { " — this one went on \($0.formatted(.dateTime.month(.abbreviated).day()))" }
+        return "\(kept)\(when ?? "")."
+    }
 
     /// "succeeded · 18m · $1.12 · CIT-12".
     func summaryLine(issue key: String?) -> String {

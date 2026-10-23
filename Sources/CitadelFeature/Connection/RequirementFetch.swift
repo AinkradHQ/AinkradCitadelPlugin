@@ -39,13 +39,25 @@ extension CitadelServer {
     }
 
     /// The requirement's live plan.
+    /// The requirement's live plan, its epics named by their keys (`CIT-E3`, API minor 9) from each project's epics.
     func plan(requirement: Int64) async -> PlanTree? {
-        await read("getRequirementTree") {
+        let tree = await read("getRequirementTree") { () -> PlanTree? in
             guard case .ok(let ok) = try await client.getRequirementTree(path: .init(id: requirement)) else {
                 return nil
             }
             return PlanTree(try ok.body.json)
         }
+        guard var tree else { return nil }
+        var keys: [Int64: String] = [:]
+        for project in Set(tree.epics.map(\.projectID)) {
+            let epics = await read("listEpics") { () -> [Schemas.Epic]? in
+                guard case .ok(let ok) = try await client.listEpics(path: .init(id: project)) else { return nil }
+                return try ok.body.json
+            }
+            for epic in epics ?? [] { keys[epic.id] = epic.key }
+        }
+        for index in tree.epics.indices { tree.epics[index].key = keys[tree.epics[index].id] }
+        return tree
     }
 
     /// A new request for the CEO to route (the list's ＋); the intake issue it became.
@@ -123,5 +135,27 @@ extension PlanTree {
                     pointsApproved: Int(diff.pointsApproved), pointsNow: Int(diff.pointsNow))
             },
             intakeIssueID: tree.requirement.intakeIssueId, planVersion: Int(tree.requirement.planVersion))
+    }
+}
+
+/// Screen 12's "⋯" and 📎 (API minor 7): rename, cancel, and a file into the thread. `nil` = done.
+extension CitadelServer {
+    func rename(requirement: Int64, title: String) async -> ServerAnswer? {
+        await act { try await client.renameRequirement(path: .init(id: requirement), body: .json(.init(title: title))) }
+    }
+
+    /// Cancels it and its open issues; refused while a run works on one of them.
+    func cancel(requirement: Int64, reason: String?) async -> ServerAnswer? {
+        await act {
+            try await client.cancelRequirement(path: .init(id: requirement), body: .json(.init(reason: reason)))
+        }
+    }
+
+    /// The file becomes an artifact of the requirement's thread (a text file is redacted of key shapes first).
+    func attach(requirement: Int64, name: String, data: Data) async -> ServerAnswer? {
+        await act {
+            try await client.attachToRequirement(
+                path: .init(id: requirement, name: name), body: .binary(HTTPBody(data)))
+        }
     }
 }

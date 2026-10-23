@@ -46,6 +46,86 @@ extension CitadelStore {
         }
     }
 
+    /// "+ Add runner": registers it; the sheet then shows its key and start command once.
+    func registerRunner(name: String, tags: [String]) {
+        guard let server, let model else { return }
+        let page = model.runnersPage
+        page.registerFailure = nil
+        Task {
+            switch await server.registerRunner(name: name, tags: tags) {
+            case .success(let registered):
+                page.registered = registered
+                await reloadRunners(model, server: server)
+            case .failure(let answer):
+                page.registerFailure = ActionFailure(
+                    title: "Couldn't register \(name)", answer: answer, outcome: "No runner was added.")
+            }
+        }
+    }
+
+    /// Drain (it takes no new run; its runs finish) or put it back to work.
+    func setDrained(_ runner: RunnerInfo, _ drained: Bool) {
+        runnerChange(
+            runner, drained ? "Couldn't drain \(runner.name)" : "Couldn't undrain \(runner.name)",
+            outcome: drained ? "It still takes work." : "It stays drained."
+        ) { await $0.drain(runner: runner.id, drained) }
+    }
+
+    /// "Keep awake while jobs queue": the Mac's Power Nap preference.
+    func setPowerNap(_ runner: RunnerInfo, _ enabled: Bool) {
+        runnerChange(runner, "Couldn't change \(runner.name)'s Power Nap", outcome: "Its preference is unchanged.") {
+            await $0.setPowerNap(runner: runner.id, enabled)
+        }
+    }
+
+    /// "Remove runner…" (after its confirm): its key stops working and the card goes.
+    func removeRunner(_ runner: RunnerInfo) {
+        guard let server, let model else { return }
+        let page = model.runnersPage
+        page.failures[runner.id] = nil
+        Task {
+            if let answer = await server.removeRunner(runner.id) {
+                page.failures[runner.id] = ActionFailure(
+                    title: "Couldn't remove \(runner.name)", answer: answer, outcome: "It stays registered.")
+            } else {
+                page.runners.removeAll { $0.id == runner.id }
+                page.disk[runner.id] = nil
+                await reloadRunners(model, server: server)
+            }
+        }
+    }
+
+    /// "Probe log" / "Show last log": the end of the runner's log, in a sheet.
+    func showRunnerLog(_ runner: RunnerInfo) {
+        guard let server, let page = model?.runnersPage else { return }
+        page.failures[runner.id] = nil
+        Task {
+            switch await server.runnerLog(runner.id) {
+            case .success(let lines): page.log = (runner.id, lines)
+            case .failure(let answer):
+                page.failures[runner.id] = ActionFailure(
+                    title: "Couldn't read \(runner.name)'s log", answer: answer, outcome: "Nothing was read.")
+            }
+        }
+    }
+
+    /// An action answered with the runner: its card updates; a refusal shows on it.
+    private func runnerChange(
+        _ runner: RunnerInfo, _ title: String, outcome: String,
+        _ send: @escaping (CitadelServer) async -> Result<RunnerInfo, ServerAnswer>
+    ) {
+        guard let server, let page = model?.runnersPage else { return }
+        page.failures[runner.id] = nil
+        Task {
+            switch await send(server) {
+            case .success(let info):
+                if let index = page.runners.firstIndex(where: { $0.id == runner.id }) { page.runners[index] = info }
+            case .failure(let answer):
+                page.failures[runner.id] = ActionFailure(title: title, answer: answer, outcome: outcome)
+            }
+        }
+    }
+
     /// ↺: back to the server's value.
     func resetRunnerLimit(_ runner: Int64, key: String) {
         guard let server, let page = model?.runnersPage else { return }

@@ -45,58 +45,76 @@ extension CitadelServer {
     }
 
     /// Sets the merge order (decision #54): every repo's name, in the new order. The repos as the server keeps them.
-    func orderRepos(project: Int64, names: [String]) async -> Result<[RepoInfo], RepoRefusal> {
-        await repoWrite("orderRepos") {
-            switch try await client.orderRepos(path: .init(id: project), body: .json(.init(repos: names))) {
-            case .ok(let ok): .success(try ok.body.json.map(RepoInfo.init))
-            case .badRequest(let bad): .failure(RepoRefusal(message: try bad.body.json.message))
-            default: .failure(RepoRefusal(message: "The server did not take the new order."))
-            }
+    func orderRepos(project: Int64, names: [String]) async -> Result<[RepoInfo], ServerAnswer> {
+        await attempt({ try await client.orderRepos(path: .init(id: project), body: .json(.init(repos: names))) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return try ok.body.json.map(RepoInfo.init)
         }
     }
 
     /// ★: makes `repo` the project's primary (the default for new issues).
-    func setPrimary(repo: Int64) async -> Result<[RepoInfo], RepoRefusal> {
-        await repoWrite("setPrimaryRepo") {
-            switch try await client.setPrimaryRepo(path: .init(id: repo)) {
-            case .ok(let ok): .success(try ok.body.json.map(RepoInfo.init))
-            case .badRequest(let bad): .failure(RepoRefusal(message: try bad.body.json.message))
-            default: .failure(RepoRefusal(message: "The server did not change the primary repo."))
-            }
+    func setPrimary(repo: Int64) async -> Result<[RepoInfo], ServerAnswer> {
+        await attempt({ try await client.setPrimaryRepo(path: .init(id: repo)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return try ok.body.json.map(RepoInfo.init)
         }
     }
 
     /// ✕: refused (400, with the server's reason) while an open issue touches it, or for the primary while there
     /// are others. The repos left.
-    func removeRepo(_ repo: Int64) async -> Result<[RepoInfo], RepoRefusal> {
-        await repoWrite("removeRepo") {
-            switch try await client.removeRepo(path: .init(id: repo)) {
-            case .ok(let ok): .success(try ok.body.json.map(RepoInfo.init))
-            case .badRequest(let bad): .failure(RepoRefusal(message: try bad.body.json.message))
-            default: .failure(RepoRefusal(message: "The server did not remove the repo."))
-            }
+    func removeRepo(_ repo: Int64) async -> Result<[RepoInfo], ServerAnswer> {
+        await attempt({ try await client.removeRepo(path: .init(id: repo)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return try ok.body.json.map(RepoInfo.init)
         }
     }
 
     /// "＋ Add repository": the server checks the URL and the token reference before it saves.
-    func addRepo(project: Int64, _ body: Schemas.RepoBody) async -> Result<RepoInfo, RepoRefusal> {
-        await repoWrite("addRepo") {
-            switch try await client.addRepo(path: .init(id: project), body: .json(body)) {
-            case .ok(let ok): .success(RepoInfo(try ok.body.json))
-            case .badRequest(let bad): .failure(RepoRefusal(message: try bad.body.json.message))
-            default: .failure(RepoRefusal(message: "The server did not add the repo."))
-            }
+    func addRepo(project: Int64, _ body: Schemas.RepoBody) async -> Result<RepoInfo, ServerAnswer> {
+        await attempt({ try await client.addRepo(path: .init(id: project), body: .json(body)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return RepoInfo(try ok.body.json)
         }
-    }
-
-    private func repoWrite<T>(
-        _ operation: String, _ work: () async throws -> Result<T, RepoRefusal>
-    ) async -> Result<T, RepoRefusal> {
-        await read(operation, work) ?? .failure(RepoRefusal(message: "Couldn't reach the server."))
     }
 }
 
-/// Why the server refused a repo change, in its words.
-struct RepoRefusal: Error, Equatable {
-    var message: String
+/// Screen 14's API minor 7 writes: a new project, a decision on an agent's proposal, and the profile's history.
+extension CitadelServer {
+    /// "＋ New project": a malformed or taken key is a 409 with the server's reason.
+    func createProject(company: Int64, name: String, key: String, mode: String) async -> Result<
+        ProjectInfo, ServerAnswer
+    > {
+        let body = Schemas.NewProject(key: key, mode: .init(value1: .init(rawValue: mode), value2: mode), name: name)
+        return await attempt({ try await client.createProject(path: .init(id: company), body: .json(body)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            let project = try ok.body.json
+            return ProjectInfo(
+                id: project.id, key: project.key, name: project.name, teamID: project.teamId, mode: project.mode.word)
+        }
+    }
+
+    /// Accept applies the proposal; reject drops it, with an optional reason (decision #48: a person only). The
+    /// profile after.
+    func decide(proposal: Int64, project: Int64, accept: Bool, reason: String?) async -> Result<
+        ProfileInfo, ServerAnswer
+    > {
+        await attempt({
+            try await client.decideProfileProposal(
+                path: .init(id: project, proposalId: proposal), body: .json(.init(accept: accept, reason: reason)))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return ProfileInfo(try ok.body.json)
+        }
+    }
+
+    /// The profile's changes and the agents' proposals of them, newest first.
+    func profileHistory(project: Int64, limit: Int32 = 50) async -> [ProfileChangeInfo]? {
+        await read("getProfileHistory") {
+            guard
+                case .ok(let ok) = try await client.getProfileHistory(
+                    path: .init(id: project), query: .init(limit: limit))
+            else { return nil }
+            return try ok.body.json.map(ProfileChangeInfo.init)
+        }
+    }
 }

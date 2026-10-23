@@ -70,7 +70,7 @@ extension CitadelStore {
             case .success(let saved): page.repos[project] = saved
             case .failure(let refusal):
                 page.repos[project] = before
-                page.problem = refusal.message
+                page.problem = refusal
             }
         }
     }
@@ -93,14 +93,14 @@ extension CitadelStore {
         Task {
             switch await server.addRepo(project: project, body) {
             case .success(let repo): page.repos[project, default: []].append(repo)
-            case .failure(let refusal): page.problem = refusal.message
+            case .failure(let refusal): page.problem = refusal
             }
         }
     }
 
     /// A repo action that answers with the project's repos; `project` is found from the repo.
     private func repoChange(
-        project repo: Int64, _ call: @escaping (CitadelServer) async -> Result<[RepoInfo], RepoRefusal>
+        project repo: Int64, _ call: @escaping (CitadelServer) async -> Result<[RepoInfo], ServerAnswer>
     ) {
         guard let server, let model else { return }
         let page = model.projectsPage
@@ -110,7 +110,7 @@ extension CitadelStore {
             case .success(let repos):
                 page.repos[project] = repos
                 page.problem = nil
-            case .failure(let refusal): page.problem = refusal.message
+            case .failure(let refusal): page.problem = refusal
             }
         }
     }
@@ -123,6 +123,53 @@ extension CitadelStore {
         Task {
             if let profile = await server.updateProfile(project: project, patch) {
                 model.projectsPage.profiles[project] = profile
+            }
+        }
+    }
+
+    /// Accept applies an agent's proposal, Reject drops it with an optional reason; the profile comes back without
+    /// it. A refusal is the 11 G banner.
+    func decide(_ proposal: ProposalInfo, project: Int64, accept: Bool, reason: String? = nil) {
+        guard let server, let model else { return }
+        let reason = (reason?.trimmingCharacters(in: .whitespacesAndNewlines)).nonEmpty
+        Task {
+            switch await server.decide(proposal: proposal.id, project: project, accept: accept, reason: reason) {
+            case .success(let profile):
+                model.projectsPage.profiles[project] = profile
+                if model.projectsPage.history[project] != nil { loadProfileHistory(project) }
+            case .failure(let answer):
+                actionFailure = ActionFailure(
+                    title: "Couldn't \(accept ? "accept" : "reject") \(proposal.title)", answer: answer,
+                    outcome: "The profile is unchanged.")
+            }
+        }
+    }
+
+    /// "History →": the profile's changes and proposals, newest first.
+    func loadProfileHistory(_ project: Int64) {
+        guard let server, let model else { return }
+        Task {
+            if let history = await server.profileHistory(project: project) {
+                model.projectsPage.history[project] = history
+            }
+        }
+    }
+
+    /// "＋ New project": the new project joins the list, selected; a refusal (a taken key) stays in the sheet.
+    func createProject(
+        name: String, key: String, mode: String, done: @escaping @MainActor (ActionFailure?) -> Void
+    ) {
+        guard let server, let model else { return }
+        let name = name.trimmingCharacters(in: .whitespaces)
+        let key = key.trimmingCharacters(in: .whitespaces).uppercased()
+        Task {
+            switch await server.createProject(company: model.companyID, name: name, key: key, mode: mode) {
+            case .success(let project):
+                model.projects.append(project)
+                done(nil)
+                selectProject(project.id)
+            case .failure(let answer):
+                done(ActionFailure(title: "Couldn't create \(key)", answer: answer, outcome: "No project was made."))
             }
         }
     }

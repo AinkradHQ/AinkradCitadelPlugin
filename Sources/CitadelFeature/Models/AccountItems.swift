@@ -31,7 +31,7 @@ final class AccountsPage {
     /// "All →" on Last fallbacks: every one read, not the newest four.
     var showsAllFallbacks = false
     /// Why the last "Add account" was refused, in the server's words.
-    var addProblem: String?
+    var addFailure: ActionFailure?
 
     /// The accounts on screen: the company's, or the whole pool.
     func visible(company: Int64) -> [PoolAccount] {
@@ -70,6 +70,11 @@ struct PoolAccount: Identifiable, Equatable, Sendable {
     var signalWindows: [SignalWindow]
     /// Counted limits configured on the account.
     var limits: [AccountLimitInfo]
+    /// Its plan tier as the admin named it (`Max 20x`).
+    var planTier: String? = nil
+    /// Drops in the display window (`account.drop_display_window_secs`, a day by default), and that window.
+    var recentDrops: Int64 = 0
+    var recentDropsWindowSecs: Int64 = 0
 
     var health: Health {
         switch status {
@@ -227,7 +232,8 @@ extension PoolAccount {
                 AccountLimitInfo(
                     windowSecs: $0.limit.windowSecs, unit: $0.limit.unit.word, max: $0.limit.max,
                     warnPercent: $0.limit.warnPercent, used: $0.used)
-            })
+            }, planTier: account.planTier, recentDrops: usage?.recentDrops ?? 0,
+            recentDropsWindowSecs: usage?.recentDropsWindowSecs ?? 0)
     }
 
     /// `{"type": "rate_limit", "windows": [{"name", "utilization", "resets_at"}]}`.

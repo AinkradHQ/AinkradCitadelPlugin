@@ -8,7 +8,7 @@ import XCTest
 /// the limits table's groups, filters, refusals and scope chips — and what is overridden below the company.
 @MainActor
 final class ProjectLimitsTests: XCTestCase {
-    private func connectedStore() throws -> (CitadelStore, CompanyModel) {
+    func connectedStore() throws -> (CitadelStore, CompanyModel) {
         let settings = SettingsStore(documents: MemoryDocs())
         settings.update { $0.server = "https://citadel.example.com" }
         let store = CitadelStore(
@@ -22,7 +22,7 @@ final class ProjectLimitsTests: XCTestCase {
         return (store, model)
     }
 
-    private func body(_ request: URLRequest) -> [String: Any] {
+    func body(_ request: URLRequest) -> [String: Any] {
         var data = request.httpBody
         if data == nil, let stream = request.httpBodyStream {
             stream.open()
@@ -119,14 +119,15 @@ final class ProjectLimitsTests: XCTestCase {
 
     func testARefusedRepoChangeKeepsTheServersOrderAndSaysWhy() async throws {
         FakeServer.serve { _ in
-            .init(status: 400, json: #"{"code":"repo_in_use","message":"CIT-62 still touches citadel"}"#)
+            .init(status: 400, json: Wire.refusal("repo_in_use", "CIT-62 still touches citadel"))
         }
         let (store, model) = try connectedStore()
         CompanyFixture.projectsPage(model)
         let before = try XCTUnwrap(model.projectsPage.repos[1])
         store.reorderRepos(project: 1, before.reversed())
         await eventually { model.projectsPage.problem != nil }
-        XCTAssertEqual(model.projectsPage.problem, "CIT-62 still touches citadel")
+        XCTAssertEqual(model.projectsPage.problem?.message, "CIT-62 still touches citadel")
+        XCTAssertEqual(model.projectsPage.problem?.errorID, "err_01JTEST")
         XCTAssertEqual(model.projectsPage.repos[1], before)
         store.removeRepo(before[0])
         await eventually { FakeServer.requests.contains { $0.httpMethod == "DELETE" } }
@@ -188,14 +189,17 @@ final class ProjectLimitsTests: XCTestCase {
         XCTAssertNil(page.refused["artifact.company_quota_bytes"])
     }
 
-    func testOverridesBelowAreTheValuesSetAtEachProjectRunnerAndAccount() async throws {
+    func testOverridesBelowComeFromTheCompanysOneOverriddenCall() async throws {
         FakeServer.serve { request in
             let stall = "run.stall_after_secs"
             switch request.url?.path {
             case "/api/v1/settings": return .init(json: "[\(Self.setting(stall, 900, source: nil))]")
             case "/api/v1/settings/company:1": return .init(json: "[\(Self.setting(stall, 900, source: "server"))]")
-            case "/api/v1/settings/project:1": return .init(json: "[\(Self.setting(stall, 600, source: "project:1"))]")
-            case "/api/v1/settings/project:2": return .init(json: "[\(Self.setting(stall, 900, source: "server"))]")
+            case "/api/v1/companies/1/settings/overridden":
+                return .init(
+                    json:
+                        #"[{"key":"run.stall_after_secs","description":"","unit":"seconds","default":900,"scope":"project:1","value":600,"set_by":{"kind":"agent","agent_id":7},"set_at":"2026-10-22T08:02:00.000Z"}]"#
+                )
             case "/api/v1/settings/company:1/run.stall_after_secs/history",
                 "/api/v1/settings/project:1/run.stall_after_secs/history":
                 return .init(json: "[]")
@@ -215,5 +219,7 @@ final class ProjectLimitsTests: XCTestCase {
             [LimitOverride(scope: "project:1", owner: "CIT", value: "10 min")],
             "a scope that only inherits is not an override")
         XCTAssertEqual(model.limitsPage.setHere(1), 0)
+        let paths = FakeServer.requests.compactMap(\.url?.path)
+        XCTAssertFalse(paths.contains { $0.hasPrefix("/api/v1/settings/project:") && !$0.hasSuffix("/history") })
     }
 }

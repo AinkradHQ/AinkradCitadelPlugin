@@ -78,7 +78,7 @@ extension CitadelStore {
     func addAccount(_ draft: NewAccountDraft, done: @escaping @MainActor () -> Void) {
         guard draft.problem == nil, let server, let model else { return }
         let page = model.accountsPage
-        page.addProblem = nil
+        page.addFailure = nil
         Task {
             switch await server.createAccount(draft) {
             case .success(let account):
@@ -86,10 +86,26 @@ extension CitadelStore {
                 done()
                 await fillAccounts(model, server: server)
             case .failure(let answer):
-                page.addProblem =
-                    ActionFailure(
-                        title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added."
-                    ).message
+                page.addFailure = ActionFailure(
+                    title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added.")
+            }
+        }
+    }
+
+    /// The account's plan tier (`Max 20x`); empty clears it.
+    func setPlanTier(_ account: Int64, _ tier: String) {
+        guard let server, let page = model?.accountsPage else { return }
+        let trimmed = tier.trimmingCharacters(in: .whitespaces)
+        let label = page.accounts.first { $0.id == account }?.label ?? "the account"
+        Task {
+            switch await server.setPlanTier(account: account, trimmed.isEmpty ? nil : trimmed) {
+            case .success(let saved):
+                if let index = page.accounts.firstIndex(where: { $0.id == account }) {
+                    page.accounts[index].planTier = saved
+                }
+            case .failure(let answer):
+                actionFailure = ActionFailure(
+                    title: "Couldn't set \(label)'s plan", answer: answer, outcome: "Its plan is unchanged.")
             }
         }
     }

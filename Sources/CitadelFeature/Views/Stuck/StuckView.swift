@@ -77,6 +77,7 @@ private struct StuckCard: View {
     let stuck: StuckInfo
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
+    @State private var confirmsPowerNap = false
 
     private var issue: IssueInfo? { model.issue(stuck.issueID) }
     private var tone: AinkradChartTone { stuck.isSlowing ? .warning : .danger }
@@ -136,6 +137,14 @@ private struct StuckCard: View {
                     store.wakeRunner(for: stuck, when: "when_back")
                 }
                 .compact().fixedSize()
+                AinkradButton(title: "Allow Power Nap runs…", style: .ghost) { confirmsPowerNap = true }
+                    .borderless().compact().fixedSize()
+                    .ainkradConfirmDialog(
+                        isPresented: $confirmsPowerNap, title: "Allow Power Nap runs?",
+                        message:
+                            "The sleeping Mac wakes for queued jobs under Power Nap, without you. Turn it off on the runner's card.",
+                        confirmTitle: "Allow"
+                    ) { store.allowPowerNap(for: stuck) }
             } else {
                 recommended(lead: lead)
             }
@@ -149,6 +158,19 @@ private struct StuckCard: View {
                     }
                 ) { Text("Reassign…") }
             }
+            if stuck.retries, !retryRunners.isEmpty {
+                AinkradMenuButton(
+                    items: retryRunners.map { runner in
+                        AinkradMenuItem(title: "Retry on \(runner.name)", systemName: nil) {
+                            store.retry(stuck, on: runner)
+                        }
+                    }
+                ) { Text("Retry on…") }
+            }
+            if stuck.issueID != nil, stuck.isSlowing {
+                AinkradButton(title: "Bump priority", style: .ghost) { store.bump(stuck) }
+                    .borderless().secondaryAccent().compact().fixedSize()
+            }
             if stuck.issueID != nil, !stuck.isSlowing {
                 AinkradButton(title: "Move to backlog", style: .secondary) { store.moveToBacklog(stuck) }
                     .compact().fixedSize()
@@ -161,6 +183,13 @@ private struct StuckCard: View {
             }
             Text(why(lead: lead)).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
         }
+    }
+
+    /// The online runners that hold every tag the waiting agent needs (the server still refuses one without its
+    /// harness, or drained).
+    private var retryRunners: [RunnerInfo] {
+        let tags = Set(model.agent(stuck.agentID)?.runnerTags ?? [])
+        return model.runnersPage.runners.filter { $0.status == "online" && tags.isSubset(of: $0.tags) }
     }
 
     /// The engine's recommendation as the primary fix, when the server takes it; otherwise disabled with why.
@@ -180,9 +209,11 @@ private struct StuckCard: View {
             .compact().fixedSize()
         case "requeue" where stuck.issueID != nil:
             AinkradButton(title: "Requeue", style: .primary) { store.nudge(stuck) }.compact().fixedSize()
+        case "release_checkout" where stuck.issueID != nil:
+            AinkradButton(title: "Release checkout", style: .primary) { store.releaseCheckout(stuck) }
+                .compact().fixedSize()
         case let repair?:
-            // TODO(citadel#release-checkout): release_checkout (and drop_wake / notify) have no manual endpoint; the
-            // engine runs them by itself.
+            // drop_wake / notify have no manual endpoint; the engine runs them by itself.
             AinkradButton(title: repair.replacingOccurrences(of: "_", with: " ").capitalized, style: .primary) {}
                 .compact().fixedSize().disabled(true)
                 .ainkradTooltip("The engine does this by itself")
@@ -196,6 +227,7 @@ private struct StuckCard: View {
         case "rewake", "requeue": "the engine recommends waking its next actor again"
         case "reassign_to_lead", "escalate": lead.map { "the engine recommends \($0.name), the team lead" } ?? ""
         case "unblock": "its blockers are closed"
+        case "release_checkout": "its run ended without letting go of it"
         case let repair?: "the engine will \(repair.replacingOccurrences(of: "_", with: " ")) on its own"
         case nil: ""
         }

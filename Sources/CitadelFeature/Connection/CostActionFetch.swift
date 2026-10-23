@@ -44,6 +44,33 @@ extension CitadelServer {
         await act { try await client.moveToBacklog(path: .init(id: issue)) }
     }
 
+    /// Frees an issue whose run ended without letting go of it (`checkout_dead`).
+    func releaseCheckout(issue: Int64) async -> ServerAnswer? {
+        await act { try await client.releaseCheckout(path: .init(id: issue)) }
+    }
+
+    /// Bumps the issue to the top of its backlog, its wakes dispatched first.
+    func bump(issue: Int64) async -> ServerAnswer? {
+        await act { try await client.bumpIssue(path: .init(id: issue), body: .json(.init(priority: true))) }
+    }
+
+    /// The issue's newest ended run, to retry.
+    func lastEndedRun(issue: Int64, company: Int64) async -> RunInfo? {
+        await read("listCompanyRuns") {
+            guard
+                case .ok(let ok) = try await client.listCompanyRuns(
+                    path: .init(id: company), query: .init(issue: issue, limit: 10))
+            else { return nil }
+            return try ok.body.json.items.map(RunInfo.init).first { !$0.isLive }
+        }
+    }
+
+    /// Wakes the ended run's agent again on its issue, pinned to `runner` (refused for a drained runner or one
+    /// without the agent's tags or harness).
+    func retry(run: Int64, on runner: Int64) async -> ServerAnswer? {
+        await act { try await client.retryRun(path: .init(id: run), body: .json(.init(runnerId: runner))) }
+    }
+
     /// A model's price from now on, dollars per million tokens.
     func setPrice(_ price: PriceDraft) async -> ServerAnswer? {
         await act {
@@ -70,6 +97,42 @@ extension CitadelServer {
                     .init(
                         hardStop: budget.hardStop, period: period, scope: scope, tokenCap: max(0, cap - budget.raised),
                         warnAtPercent: warnPercent.map(Int32.init))))
+        }
+    }
+
+    /// "＋ New budget": a cap for a scope (`company:1`, `project:2`, …) and period; `warnPercent` `nil` inherits.
+    func createBudget(company: Int64, scope: String, period: String, cap: Int64, warnPercent: Int?) async
+        -> ServerAnswer?
+    {
+        guard let wire = BudgetInfo.wireScope(scope) else {
+            return ServerAnswer(status: 400, code: "bad_scope", message: "Unknown budget scope \(scope)")
+        }
+        let known = Schemas.BudgetPeriod.Value1Payload(rawValue: period)
+        return await act {
+            try await client.createBudget(
+                path: .init(id: company),
+                body: .json(
+                    .init(
+                        period: .init(value1: known, value2: known == nil ? period : nil), scope: wire, tokenCap: cap,
+                        warnAtPercent: warnPercent.map(Int32.init))))
+        }
+    }
+
+    func deleteBudget(_ budget: Int64) async -> ServerAnswer? {
+        await act { try await client.deleteBudget(path: .init(id: budget)) }
+    }
+
+    /// Every version of a model's price, as each took effect.
+    func priceHistory(harness: String, model: String) async -> [PriceVersionInfo]? {
+        await read("priceHistory") {
+            let query = Operations.PriceHistory.Input.Query(
+                harness: .init(value1: .init(rawValue: harness), value2: harness), model: model)
+            guard case .ok(let ok) = try await client.priceHistory(query: query) else { return nil }
+            return try ok.body.json.map {
+                PriceVersionInfo(
+                    version: $0.value1.version, input: $0.value1.inputUsdPerMtok, output: $0.value1.outputUsdPerMtok,
+                    cache: $0.value1.cacheUsdPerMtok, setAt: $0.value2.setAt)
+            }
         }
     }
 

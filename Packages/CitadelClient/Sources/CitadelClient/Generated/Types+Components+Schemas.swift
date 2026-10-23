@@ -37,6 +37,10 @@ extension Components {
             public var label: Swift.String
             /// - Remark: Generated from `#/components/schemas/Account/last_used_at`.
             public var lastUsedAt: Components.Schemas.Timestamp?
+            /// Its plan tier as the admin wrote it (`Max 20x`, `Pro`); shown, never enforced.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Account/plan_tier`.
+            public var planTier: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Account/status`.
             public var status: Components.Schemas.AccountStatus
             /// Why it is not active.
@@ -59,6 +63,7 @@ extension Components {
             ///   - id:
             ///   - label:
             ///   - lastUsedAt:
+            ///   - planTier: Its plan tier as the admin wrote it (`Max 20x`, `Pro`); shown, never enforced.
             ///   - status:
             ///   - statusReason: Why it is not active.
             ///   - statusUntil: When a `limited` or `unhealthy` status ends by itself, if known.
@@ -72,6 +77,7 @@ extension Components {
                 id: Swift.Int64,
                 label: Swift.String,
                 lastUsedAt: Components.Schemas.Timestamp? = nil,
+                planTier: Swift.String? = nil,
                 status: Components.Schemas.AccountStatus,
                 statusReason: Swift.String? = nil,
                 statusUntil: Components.Schemas.Timestamp? = nil
@@ -85,6 +91,7 @@ extension Components {
                 self.id = id
                 self.label = label
                 self.lastUsedAt = lastUsedAt
+                self.planTier = planTier
                 self.status = status
                 self.statusReason = statusReason
                 self.statusUntil = statusUntil
@@ -99,6 +106,7 @@ extension Components {
                 case id
                 case label
                 case lastUsedAt = "last_used_at"
+                case planTier = "plan_tier"
                 case status
                 case statusReason = "status_reason"
                 case statusUntil = "status_until"
@@ -209,12 +217,22 @@ extension Components {
             public var account: Components.Schemas.Account
             /// - Remark: Generated from `#/components/schemas/AccountUsage/companies`.
             public var companies: [Components.Schemas.CompanyUsage]
-            /// Provider drops in the last ten minutes; three make the account unhealthy.
+            /// Provider drops in the last `drops_window_secs` (`account.drop_window_secs`); enough of
+            /// them (`account.drop_threshold`) make the account unhealthy.
             ///
             /// - Remark: Generated from `#/components/schemas/AccountUsage/drops`.
             public var drops: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/AccountUsage/drops_window_secs`.
+            public var dropsWindowSecs: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/AccountUsage/limits`.
             public var limits: [Components.Schemas.LimitUsage]
+            /// Provider drops in the last `recent_drops_window_secs`
+            /// (`account.drop_display_window_secs`, a day by default), for display.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AccountUsage/recent_drops`.
+            public var recentDrops: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/AccountUsage/recent_drops_window_secs`.
+            public var recentDropsWindowSecs: Swift.Int64
             /// The harness's latest plan-limit report (Claude's windows), as it sent it.
             ///
             /// - Remark: Generated from `#/components/schemas/AccountUsage/signal`.
@@ -224,27 +242,39 @@ extension Components {
             /// - Parameters:
             ///   - account:
             ///   - companies:
-            ///   - drops: Provider drops in the last ten minutes; three make the account unhealthy.
+            ///   - drops: Provider drops in the last `drops_window_secs` (`account.drop_window_secs`); enough of
+            ///   - dropsWindowSecs:
             ///   - limits:
+            ///   - recentDrops: Provider drops in the last `recent_drops_window_secs`
+            ///   - recentDropsWindowSecs:
             ///   - signal: The harness's latest plan-limit report (Claude's windows), as it sent it.
             public init(
                 account: Components.Schemas.Account,
                 companies: [Components.Schemas.CompanyUsage],
                 drops: Swift.Int64,
+                dropsWindowSecs: Swift.Int64,
                 limits: [Components.Schemas.LimitUsage],
+                recentDrops: Swift.Int64,
+                recentDropsWindowSecs: Swift.Int64,
                 signal: OpenAPIRuntime.OpenAPIObjectContainer? = nil
             ) {
                 self.account = account
                 self.companies = companies
                 self.drops = drops
+                self.dropsWindowSecs = dropsWindowSecs
                 self.limits = limits
+                self.recentDrops = recentDrops
+                self.recentDropsWindowSecs = recentDropsWindowSecs
                 self.signal = signal
             }
             public enum CodingKeys: String, CodingKey {
                 case account
                 case companies
                 case drops
+                case dropsWindowSecs = "drops_window_secs"
                 case limits
+                case recentDrops = "recent_drops"
+                case recentDropsWindowSecs = "recent_drops_window_secs"
                 case signal
             }
         }
@@ -465,6 +495,79 @@ extension Components {
                 case runTokenCap = "run_token_cap"
                 case runnerTags = "runner_tags"
                 case status
+            }
+        }
+        /// An agent the admin proposes; it is hired only once its approval is approved.
+        ///
+        /// - Remark: Generated from `#/components/schemas/AgentProposal`.
+        public struct AgentProposal: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/harness`.
+            public var harness: Components.Schemas.Harness
+            /// Why the company needs it: shown on the hire approval.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/justification`.
+            public var justification: Swift.String
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/model`.
+            public var model: Swift.String
+            /// Unique within the company.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/name`.
+            public var name: Swift.String
+            /// Absent: none (`ceo` and `cto` at most once per company).
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/org_role`.
+            public var orgRole: Components.Schemas.OrgRole?
+            /// An agent of the company it reports to.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/reports_to`.
+            public var reportsTo: Swift.Int64?
+            /// Free-text job title ("QA", "Designer"…).
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/role`.
+            public var role: Swift.String
+            /// Capabilities a runner must offer, e.g. `macos`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/runner_tags`.
+            public var runnerTags: [Swift.String]?
+            /// Creates a new `AgentProposal`.
+            ///
+            /// - Parameters:
+            ///   - harness:
+            ///   - justification: Why the company needs it: shown on the hire approval.
+            ///   - model:
+            ///   - name: Unique within the company.
+            ///   - orgRole: Absent: none (`ceo` and `cto` at most once per company).
+            ///   - reportsTo: An agent of the company it reports to.
+            ///   - role: Free-text job title ("QA", "Designer"…).
+            ///   - runnerTags: Capabilities a runner must offer, e.g. `macos`.
+            public init(
+                harness: Components.Schemas.Harness,
+                justification: Swift.String,
+                model: Swift.String,
+                name: Swift.String,
+                orgRole: Components.Schemas.OrgRole? = nil,
+                reportsTo: Swift.Int64? = nil,
+                role: Swift.String,
+                runnerTags: [Swift.String]? = nil
+            ) {
+                self.harness = harness
+                self.justification = justification
+                self.model = model
+                self.name = name
+                self.orgRole = orgRole
+                self.reportsTo = reportsTo
+                self.role = role
+                self.runnerTags = runnerTags
+            }
+            public enum CodingKeys: String, CodingKey {
+                case harness
+                case justification
+                case model
+                case name
+                case orgRole = "org_role"
+                case reportsTo = "reports_to"
+                case role
+                case runnerTags = "runner_tags"
             }
         }
         /// A skill an agent's runs are given (E4.3): its latest version, and what it is attached to.
@@ -1550,6 +1653,23 @@ extension Components {
                 case left
             }
         }
+        /// - Remark: Generated from `#/components/schemas/CapacityBody`.
+        public struct CapacityBody: Codable, Hashable, Sendable {
+            /// Points per sprint; `null` clears it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/CapacityBody/capacity`.
+            public var capacity: Swift.Int32?
+            /// Creates a new `CapacityBody`.
+            ///
+            /// - Parameters:
+            ///   - capacity: Points per sprint; `null` clears it.
+            public init(capacity: Swift.Int32? = nil) {
+                self.capacity = capacity
+            }
+            public enum CodingKeys: String, CodingKey {
+                case capacity
+            }
+        }
         /// The agents a company-wide pause or resume changed.
         ///
         /// - Remark: Generated from `#/components/schemas/Changed`.
@@ -2166,6 +2286,12 @@ extension Components {
         public struct Epic: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/Epic/id`.
             public var id: Swift.Int64
+            /// `KEY-E3`: its project's key and its number there, never reused.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Epic/key`.
+            public var key: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Epic/number`.
+            public var number: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Epic/project_id`.
             public var projectId: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Epic/status`.
@@ -2176,22 +2302,30 @@ extension Components {
             ///
             /// - Parameters:
             ///   - id:
+            ///   - key: `KEY-E3`: its project's key and its number there, never reused.
+            ///   - number:
             ///   - projectId:
             ///   - status:
             ///   - title:
             public init(
                 id: Swift.Int64,
+                key: Swift.String,
+                number: Swift.Int64,
                 projectId: Swift.Int64,
                 status: Components.Schemas.EpicStatus,
                 title: Swift.String
             ) {
                 self.id = id
+                self.key = key
+                self.number = number
                 self.projectId = projectId
                 self.status = status
                 self.title = title
             }
             public enum CodingKeys: String, CodingKey {
                 case id
+                case key
+                case number
                 case projectId = "project_id"
                 case status
                 case title
@@ -2274,22 +2408,31 @@ extension Components {
         public struct ErrorBody: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/ErrorBody/code`.
             public var code: Swift.String
+            /// `err_` and a ULID, unique to this answer: logged with it (and, for a refused write,
+            /// audited as `api.refused`), for the app's "Copy error".
+            ///
+            /// - Remark: Generated from `#/components/schemas/ErrorBody/error_id`.
+            public var errorId: Swift.String
             /// - Remark: Generated from `#/components/schemas/ErrorBody/message`.
             public var message: Swift.String
             /// Creates a new `ErrorBody`.
             ///
             /// - Parameters:
             ///   - code:
+            ///   - errorId: `err_` and a ULID, unique to this answer: logged with it (and, for a refused write,
             ///   - message:
             public init(
                 code: Swift.String,
+                errorId: Swift.String,
                 message: Swift.String
             ) {
                 self.code = code
+                self.errorId = errorId
                 self.message = message
             }
             public enum CodingKeys: String, CodingKey {
                 case code
+                case errorId = "error_id"
                 case message
             }
         }
@@ -2881,6 +3024,10 @@ extension Components {
             public var key: Swift.String
             /// - Remark: Generated from `#/components/schemas/Issue/kind`.
             public var kind: Components.Schemas.IssueKind
+            /// Its labels, by name.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Issue/labels`.
+            public var labels: [Components.Schemas.Label]
             /// - Remark: Generated from `#/components/schemas/Issue/next_actor`.
             public var nextActor: Components.Schemas.NextActor?
             /// - Remark: Generated from `#/components/schemas/Issue/number`.
@@ -2891,6 +3038,10 @@ extension Components {
             public var parentId: Swift.Int64?
             /// - Remark: Generated from `#/components/schemas/Issue/points`.
             public var points: Swift.Int32?
+            /// Bumped by the admin (`bumpIssue`): its wakes go first.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Issue/priority`.
+            public var priority: Swift.Bool
             /// - Remark: Generated from `#/components/schemas/Issue/project_id`.
             public var projectId: Swift.Int64
             /// Backlog order within the project: lower first.
@@ -2916,11 +3067,13 @@ extension Components {
             ///   - id:
             ///   - key: `KEY-12`.
             ///   - kind:
+            ///   - labels: Its labels, by name.
             ///   - nextActor:
             ///   - number:
             ///   - owner:
             ///   - parentId:
             ///   - points:
+            ///   - priority: Bumped by the admin (`bumpIssue`): its wakes go first.
             ///   - projectId:
             ///   - rank: Backlog order within the project: lower first.
             ///   - requirementId: The requirement it serves (E15.10), Quest's requirement tag.
@@ -2934,11 +3087,13 @@ extension Components {
                 id: Swift.Int64,
                 key: Swift.String,
                 kind: Components.Schemas.IssueKind,
+                labels: [Components.Schemas.Label],
                 nextActor: Components.Schemas.NextActor? = nil,
                 number: Swift.Int64,
                 owner: Components.Schemas.Actor? = nil,
                 parentId: Swift.Int64? = nil,
                 points: Swift.Int32? = nil,
+                priority: Swift.Bool,
                 projectId: Swift.Int64,
                 rank: Swift.Double,
                 requirementId: Swift.Int64? = nil,
@@ -2952,11 +3107,13 @@ extension Components {
                 self.id = id
                 self.key = key
                 self.kind = kind
+                self.labels = labels
                 self.nextActor = nextActor
                 self.number = number
                 self.owner = owner
                 self.parentId = parentId
                 self.points = points
+                self.priority = priority
                 self.projectId = projectId
                 self.rank = rank
                 self.requirementId = requirementId
@@ -2971,11 +3128,13 @@ extension Components {
                 case id
                 case key
                 case kind
+                case labels
                 case nextActor = "next_actor"
                 case number
                 case owner
                 case parentId = "parent_id"
                 case points
+                case priority
                 case projectId = "project_id"
                 case rank
                 case requirementId = "requirement_id"
@@ -3019,6 +3178,63 @@ extension Components {
                 case measuredAt = "measured_at"
                 case repos
                 case runId = "run_id"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/IssueFlow`.
+        public struct IssueFlow: Codable, Hashable, Sendable {
+            /// Created → done, or → now while open.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/age_secs`.
+            public var ageSecs: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/created_at`.
+            public var createdAt: Components.Schemas.Timestamp?
+            /// In progress → done.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/cycle_secs`.
+            public var cycleSecs: Swift.Int64?
+            /// Last done, while it is done.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/done_at`.
+            public var doneAt: Components.Schemas.Timestamp?
+            /// Created → done.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/lead_secs`.
+            public var leadSecs: Swift.Int64?
+            /// First moved to `in_progress`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssueFlow/started_at`.
+            public var startedAt: Components.Schemas.Timestamp?
+            /// Creates a new `IssueFlow`.
+            ///
+            /// - Parameters:
+            ///   - ageSecs: Created → done, or → now while open.
+            ///   - createdAt:
+            ///   - cycleSecs: In progress → done.
+            ///   - doneAt: Last done, while it is done.
+            ///   - leadSecs: Created → done.
+            ///   - startedAt: First moved to `in_progress`.
+            public init(
+                ageSecs: Swift.Int64? = nil,
+                createdAt: Components.Schemas.Timestamp? = nil,
+                cycleSecs: Swift.Int64? = nil,
+                doneAt: Components.Schemas.Timestamp? = nil,
+                leadSecs: Swift.Int64? = nil,
+                startedAt: Components.Schemas.Timestamp? = nil
+            ) {
+                self.ageSecs = ageSecs
+                self.createdAt = createdAt
+                self.cycleSecs = cycleSecs
+                self.doneAt = doneAt
+                self.leadSecs = leadSecs
+                self.startedAt = startedAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case ageSecs = "age_secs"
+                case createdAt = "created_at"
+                case cycleSecs = "cycle_secs"
+                case doneAt = "done_at"
+                case leadSecs = "lead_secs"
+                case startedAt = "started_at"
             }
         }
         /// - Remark: Generated from `#/components/schemas/IssueKind`.
@@ -3157,6 +3373,35 @@ extension Components {
                 ])
             }
         }
+        /// - Remark: Generated from `#/components/schemas/IssueTimes`.
+        public struct IssueTimes: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/IssueTimes/cycle_secs`.
+            public var cycleSecs: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/IssueTimes/issue_id`.
+            public var issueId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/IssueTimes/lead_secs`.
+            public var leadSecs: Swift.Int64
+            /// Creates a new `IssueTimes`.
+            ///
+            /// - Parameters:
+            ///   - cycleSecs:
+            ///   - issueId:
+            ///   - leadSecs:
+            public init(
+                cycleSecs: Swift.Int64? = nil,
+                issueId: Swift.Int64,
+                leadSecs: Swift.Int64
+            ) {
+                self.cycleSecs = cycleSecs
+                self.issueId = issueId
+                self.leadSecs = leadSecs
+            }
+            public enum CodingKeys: String, CodingKey {
+                case cycleSecs = "cycle_secs"
+                case issueId = "issue_id"
+                case leadSecs = "lead_secs"
+            }
+        }
         /// A new device and its key: the only time the key is ever shown.
         ///
         /// - Remark: Generated from `#/components/schemas/IssuedDevice`.
@@ -3180,6 +3425,54 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case device
                 case key
+            }
+        }
+        /// A label of a project, put on its issues.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Label`.
+        public struct Label: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Label/id`.
+            public var id: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Label/name`.
+            public var name: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Label/project_id`.
+            public var projectId: Swift.Int64
+            /// Creates a new `Label`.
+            ///
+            /// - Parameters:
+            ///   - id:
+            ///   - name:
+            ///   - projectId:
+            public init(
+                id: Swift.Int64,
+                name: Swift.String,
+                projectId: Swift.Int64
+            ) {
+                self.id = id
+                self.name = name
+                self.projectId = projectId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case name
+                case projectId = "project_id"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/LabelName`.
+        public struct LabelName: Codable, Hashable, Sendable {
+            /// One line, 1–50 characters, unique in the project.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LabelName/name`.
+            public var name: Swift.String
+            /// Creates a new `LabelName`.
+            ///
+            /// - Parameters:
+            ///   - name: One line, 1–50 characters, unique in the project.
+            public init(name: Swift.String) {
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case name
             }
         }
         /// An automatic repair (E15.8): its action (`rewake`, `escalate`, …, or `escalate_to_admin`
@@ -3352,6 +3645,37 @@ extension Components {
                 case latestSeq = "latest_seq"
                 case user
                 case versions
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/MemberCapacity`.
+        public struct MemberCapacity: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/MemberCapacity/agent_id`.
+            public var agentId: Swift.Int64
+            /// Points it takes on per sprint; absent when not set.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MemberCapacity/capacity`.
+            public var capacity: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/MemberCapacity/team_role`.
+            public var teamRole: Components.Schemas.TeamRole
+            /// Creates a new `MemberCapacity`.
+            ///
+            /// - Parameters:
+            ///   - agentId:
+            ///   - capacity: Points it takes on per sprint; absent when not set.
+            ///   - teamRole:
+            public init(
+                agentId: Swift.Int64,
+                capacity: Swift.Int32? = nil,
+                teamRole: Components.Schemas.TeamRole
+            ) {
+                self.agentId = agentId
+                self.capacity = capacity
+                self.teamRole = teamRole
+            }
+            public enum CodingKeys: String, CodingKey {
+                case agentId = "agent_id"
+                case capacity
+                case teamRole = "team_role"
             }
         }
         /// - Remark: Generated from `#/components/schemas/MergeMethod`.
@@ -3998,6 +4322,56 @@ extension Components {
                 case outputUsdPerMtok = "output_usd_per_mtok"
             }
         }
+        /// - Remark: Generated from `#/components/schemas/NewProject`.
+        public struct NewProject: Codable, Hashable, Sendable {
+            /// Issue-number prefix, unique in the company: 1–10 capital letters and digits, starting
+            /// with a letter (`CIT` for `CIT-12`).
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewProject/key`.
+            public var key: Swift.String
+            /// Absent: kanban.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewProject/mode`.
+            public var mode: Components.Schemas.ProjectMode?
+            /// - Remark: Generated from `#/components/schemas/NewProject/name`.
+            public var name: Swift.String
+            /// Who approves a sprint commit; absent: the owner.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewProject/sprint_approval`.
+            public var sprintApproval: Components.Schemas.SprintApproval?
+            /// The team that owns it, one of the company's.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewProject/team_id`.
+            public var teamId: Swift.Int64?
+            /// Creates a new `NewProject`.
+            ///
+            /// - Parameters:
+            ///   - key: Issue-number prefix, unique in the company: 1–10 capital letters and digits, starting
+            ///   - mode: Absent: kanban.
+            ///   - name:
+            ///   - sprintApproval: Who approves a sprint commit; absent: the owner.
+            ///   - teamId: The team that owns it, one of the company's.
+            public init(
+                key: Swift.String,
+                mode: Components.Schemas.ProjectMode? = nil,
+                name: Swift.String,
+                sprintApproval: Components.Schemas.SprintApproval? = nil,
+                teamId: Swift.Int64? = nil
+            ) {
+                self.key = key
+                self.mode = mode
+                self.name = name
+                self.sprintApproval = sprintApproval
+                self.teamId = teamId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case key
+                case mode
+                case name
+                case sprintApproval = "sprint_approval"
+                case teamId = "team_id"
+            }
+        }
         /// A request to the company, for its CEO to route.
         ///
         /// - Remark: Generated from `#/components/schemas/NewRequest`.
@@ -4021,6 +4395,33 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case body
                 case title
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/NewRunnerBody`.
+        public struct NewRunnerBody: Codable, Hashable, Sendable {
+            /// Unique; 1–64 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewRunnerBody/name`.
+            public var name: Swift.String
+            /// Capabilities it offers, e.g. `macos`, `xcode`; it may send its own when it connects.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewRunnerBody/tags`.
+            public var tags: [Swift.String]?
+            /// Creates a new `NewRunnerBody`.
+            ///
+            /// - Parameters:
+            ///   - name: Unique; 1–64 characters.
+            ///   - tags: Capabilities it offers, e.g. `macos`, `xcode`; it may send its own when it connects.
+            public init(
+                name: Swift.String,
+                tags: [Swift.String]? = nil
+            ) {
+                self.name = name
+                self.tags = tags
+            }
+            public enum CodingKeys: String, CodingKey {
+                case name
+                case tags
             }
         }
         /// - Remark: Generated from `#/components/schemas/NewSprintBody`.
@@ -4485,6 +4886,23 @@ extension Components {
                 ])
             }
         }
+        /// - Remark: Generated from `#/components/schemas/PlanBody`.
+        public struct PlanBody: Codable, Hashable, Sendable {
+            /// 1–64 characters, e.g. `Max 20x`; absent or empty clears it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/PlanBody/plan_tier`.
+            public var planTier: Swift.String?
+            /// Creates a new `PlanBody`.
+            ///
+            /// - Parameters:
+            ///   - planTier: 1–64 characters, e.g. `Max 20x`; absent or empty clears it.
+            public init(planTier: Swift.String? = nil) {
+                self.planTier = planTier
+            }
+            public enum CodingKeys: String, CodingKey {
+                case planTier = "plan_tier"
+            }
+        }
         /// The plan now against its approved version: scope added or removed since.
         ///
         /// - Remark: Generated from `#/components/schemas/PlanDiff`.
@@ -4604,6 +5022,21 @@ extension Components {
                 case wokeAgentId = "woke_agent_id"
             }
         }
+        /// - Remark: Generated from `#/components/schemas/PowerNapBody`.
+        public struct PowerNapBody: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/PowerNapBody/enabled`.
+            public var enabled: Swift.Bool
+            /// Creates a new `PowerNapBody`.
+            ///
+            /// - Parameters:
+            ///   - enabled:
+            public init(enabled: Swift.Bool) {
+                self.enabled = enabled
+            }
+            public enum CodingKeys: String, CodingKey {
+                case enabled
+            }
+        }
         /// A harness and model's price, US dollars per million tokens; each set is a new version, and
         /// earlier spend keeps the version that priced it.
         ///
@@ -4652,6 +5085,68 @@ extension Components {
                 case model
                 case outputUsdPerMtok = "output_usd_per_mtok"
                 case version
+            }
+        }
+        /// One version of a price, from when it took effect.
+        ///
+        /// - Remark: Generated from `#/components/schemas/PriceVersion`.
+        public struct PriceVersion: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/PriceVersion/value1`.
+            public var value1: Components.Schemas.Price
+            /// - Remark: Generated from `#/components/schemas/PriceVersion/value2`.
+            public struct Value2Payload: Codable, Hashable, Sendable {
+                /// - Remark: Generated from `#/components/schemas/PriceVersion/value2/set_at`.
+                public var setAt: Components.Schemas.Timestamp
+                /// Creates a new `Value2Payload`.
+                ///
+                /// - Parameters:
+                ///   - setAt:
+                public init(setAt: Components.Schemas.Timestamp) {
+                    self.setAt = setAt
+                }
+                public enum CodingKeys: String, CodingKey {
+                    case setAt = "set_at"
+                }
+            }
+            /// - Remark: Generated from `#/components/schemas/PriceVersion/value2`.
+            public var value2: Components.Schemas.PriceVersion.Value2Payload
+            /// Creates a new `PriceVersion`.
+            ///
+            /// - Parameters:
+            ///   - value1:
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.Price,
+                value2: Components.Schemas.PriceVersion.Value2Payload
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                self.value1 = try .init(from: decoder)
+                self.value2 = try .init(from: decoder)
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try self.value1.encode(to: encoder)
+                try self.value2.encode(to: encoder)
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/PriorityBody`.
+        public struct PriorityBody: Codable, Hashable, Sendable {
+            /// `true` (the default): to the top of its backlog, its wakes dispatched first; `false`
+            /// clears the flag and leaves its place.
+            ///
+            /// - Remark: Generated from `#/components/schemas/PriorityBody/priority`.
+            public var priority: Swift.Bool?
+            /// Creates a new `PriorityBody`.
+            ///
+            /// - Parameters:
+            ///   - priority: `true` (the default): to the top of its backlog, its wakes dispatched first; `false`
+            public init(priority: Swift.Bool? = nil) {
+                self.priority = priority
+            }
+            public enum CodingKeys: String, CodingKey {
+                case priority
             }
         }
         /// A project's profile. Every field may be empty.
@@ -4803,6 +5298,58 @@ extension Components {
                     "protected_branches",
                     "stack"
                 ])
+            }
+        }
+        /// One step of a profile's history.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ProfileChange`.
+        public struct ProfileChange: Codable, Hashable, Sendable {
+            /// `project.profile_set` (a change), or `knowledge.proposed`, `knowledge.accepted` or
+            /// `knowledge.rejected` (an agent's proposal of one).
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProfileChange/action`.
+            public var action: Swift.String
+            /// - Remark: Generated from `#/components/schemas/ProfileChange/actor`.
+            public var actor: Components.Schemas.EventActor
+            /// - Remark: Generated from `#/components/schemas/ProfileChange/at`.
+            public var at: Components.Schemas.Timestamp
+            /// A change: `fields` changed and their new `values` (absent on changes made before values
+            /// were recorded), `knowledge_entry` when a proposal made it. A proposal step: its
+            /// `profile_field`, `title`, `rationale` or decision `reason`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProfileChange/details`.
+            public var details: OpenAPIRuntime.OpenAPIObjectContainer
+            /// Its audit sequence number: the cursor of the next page.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProfileChange/seq`.
+            public var seq: Swift.Int64
+            /// Creates a new `ProfileChange`.
+            ///
+            /// - Parameters:
+            ///   - action: `project.profile_set` (a change), or `knowledge.proposed`, `knowledge.accepted` or
+            ///   - actor:
+            ///   - at:
+            ///   - details: A change: `fields` changed and their new `values` (absent on changes made before values
+            ///   - seq: Its audit sequence number: the cursor of the next page.
+            public init(
+                action: Swift.String,
+                actor: Components.Schemas.EventActor,
+                at: Components.Schemas.Timestamp,
+                details: OpenAPIRuntime.OpenAPIObjectContainer,
+                seq: Swift.Int64
+            ) {
+                self.action = action
+                self.actor = actor
+                self.at = at
+                self.details = details
+                self.seq = seq
+            }
+            public enum CodingKeys: String, CodingKey {
+                case action
+                case actor
+                case at
+                case details
+                case seq
             }
         }
         /// Fields to change; absent ones stay. The approval policy and permission mode live on
@@ -4989,12 +5536,16 @@ extension Components {
             public var body: Swift.String
             /// - Remark: Generated from `#/components/schemas/ProfileProposal/field`.
             public var field: Swift.String
-            /// The knowledge entry; decided with `citadel-server knowledge accept|reject`.
+            /// The knowledge entry; decided with `decideProfileProposal` (a person only, #48).
             ///
             /// - Remark: Generated from `#/components/schemas/ProfileProposal/id`.
             public var id: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/ProfileProposal/proposed_by`.
             public var proposedBy: Swift.Int64?
+            /// Why the agent proposes it, in one line, when it said.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProfileProposal/rationale`.
+            public var rationale: Swift.String?
             /// - Remark: Generated from `#/components/schemas/ProfileProposal/title`.
             public var title: Swift.String
             /// Creates a new `ProfileProposal`.
@@ -5002,20 +5553,23 @@ extension Components {
             /// - Parameters:
             ///   - body: The new value: JSON, or plain text for a text field.
             ///   - field:
-            ///   - id: The knowledge entry; decided with `citadel-server knowledge accept|reject`.
+            ///   - id: The knowledge entry; decided with `decideProfileProposal` (a person only, #48).
             ///   - proposedBy:
+            ///   - rationale: Why the agent proposes it, in one line, when it said.
             ///   - title:
             public init(
                 body: Swift.String,
                 field: Swift.String,
                 id: Swift.Int64,
                 proposedBy: Swift.Int64? = nil,
+                rationale: Swift.String? = nil,
                 title: Swift.String
             ) {
                 self.body = body
                 self.field = field
                 self.id = id
                 self.proposedBy = proposedBy
+                self.rationale = rationale
                 self.title = title
             }
             public enum CodingKeys: String, CodingKey {
@@ -5023,6 +5577,7 @@ extension Components {
                 case field
                 case id
                 case proposedBy = "proposed_by"
+                case rationale
                 case title
             }
         }
@@ -5077,6 +5632,57 @@ extension Components {
                 case name
                 case sprintApproval = "sprint_approval"
                 case teamId = "team_id"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/ProjectFlow`.
+        public struct ProjectFlow: Codable, Hashable, Sendable {
+            /// Each done issue, by when it was done.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/issues`.
+            public var issues: [Components.Schemas.IssueTimes]
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/mean_cycle_secs`.
+            public var meanCycleSecs: Swift.Double?
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/mean_lead_secs`.
+            public var meanLeadSecs: Swift.Double?
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/since`.
+            public var since: Components.Schemas.Timestamp
+            /// Top-level issues done in the window.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/throughput`.
+            public var throughput: Swift.Int
+            /// - Remark: Generated from `#/components/schemas/ProjectFlow/until`.
+            public var until: Components.Schemas.Timestamp
+            /// Creates a new `ProjectFlow`.
+            ///
+            /// - Parameters:
+            ///   - issues: Each done issue, by when it was done.
+            ///   - meanCycleSecs:
+            ///   - meanLeadSecs:
+            ///   - since:
+            ///   - throughput: Top-level issues done in the window.
+            ///   - until:
+            public init(
+                issues: [Components.Schemas.IssueTimes],
+                meanCycleSecs: Swift.Double? = nil,
+                meanLeadSecs: Swift.Double? = nil,
+                since: Components.Schemas.Timestamp,
+                throughput: Swift.Int,
+                until: Components.Schemas.Timestamp
+            ) {
+                self.issues = issues
+                self.meanCycleSecs = meanCycleSecs
+                self.meanLeadSecs = meanLeadSecs
+                self.since = since
+                self.throughput = throughput
+                self.until = until
+            }
+            public enum CodingKeys: String, CodingKey {
+                case issues
+                case meanCycleSecs = "mean_cycle_secs"
+                case meanLeadSecs = "mean_lead_secs"
+                case since
+                case throughput
+                case until
             }
         }
         /// - Remark: Generated from `#/components/schemas/ProjectMode`.
@@ -5201,6 +5807,97 @@ extension Components {
                 case proposals
                 case sprintApproval = "sprint_approval"
                 case updatedAt = "updated_at"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/ProjectSettings`.
+        public struct ProjectSettings: Codable, Hashable, Sendable {
+            /// Scrum to kanban only with no planned or active sprint.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectSettings/mode`.
+            public var mode: Components.Schemas.ProjectMode?
+            /// - Remark: Generated from `#/components/schemas/ProjectSettings/name`.
+            public var name: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/ProjectSettings/sprint_approval`.
+            public var sprintApproval: Components.Schemas.SprintApproval?
+            /// The owning team, one of the company's; `null` clears it, absent keeps it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectSettings/team_id`.
+            public var teamId: Swift.Int64?
+            /// Creates a new `ProjectSettings`.
+            ///
+            /// - Parameters:
+            ///   - mode: Scrum to kanban only with no planned or active sprint.
+            ///   - name:
+            ///   - sprintApproval:
+            ///   - teamId: The owning team, one of the company's; `null` clears it, absent keeps it.
+            public init(
+                mode: Components.Schemas.ProjectMode? = nil,
+                name: Swift.String? = nil,
+                sprintApproval: Components.Schemas.SprintApproval? = nil,
+                teamId: Swift.Int64? = nil
+            ) {
+                self.mode = mode
+                self.name = name
+                self.sprintApproval = sprintApproval
+                self.teamId = teamId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case mode
+                case name
+                case sprintApproval = "sprint_approval"
+                case teamId = "team_id"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/ProposalDecision`.
+        public struct ProposalDecision: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/ProposalDecision/accept`.
+            public var accept: Swift.Bool
+            /// Why; required to reject.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProposalDecision/reason`.
+            public var reason: Swift.String?
+            /// Creates a new `ProposalDecision`.
+            ///
+            /// - Parameters:
+            ///   - accept:
+            ///   - reason: Why; required to reject.
+            public init(
+                accept: Swift.Bool,
+                reason: Swift.String? = nil
+            ) {
+                self.accept = accept
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case accept
+                case reason
+            }
+        }
+        /// A proposed agent and the approval that hires it.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ProposedAgent`.
+        public struct ProposedAgent: Codable, Hashable, Sendable {
+            /// `pending_approval` until the approval is decided.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProposedAgent/agent`.
+            public var agent: Components.Schemas.Agent
+            /// - Remark: Generated from `#/components/schemas/ProposedAgent/hire_approval_id`.
+            public var hireApprovalId: Swift.Int64
+            /// Creates a new `ProposedAgent`.
+            ///
+            /// - Parameters:
+            ///   - agent: `pending_approval` until the approval is decided.
+            ///   - hireApprovalId:
+            public init(
+                agent: Components.Schemas.Agent,
+                hireApprovalId: Swift.Int64
+            ) {
+                self.agent = agent
+                self.hireApprovalId = hireApprovalId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case agent
+                case hireApprovalId = "hire_approval_id"
             }
         }
         /// The calling device's APNs token (E10.4).
@@ -5396,6 +6093,48 @@ extension Components {
             }
             public enum CodingKeys: String, CodingKey {
                 case agentId = "agent_id"
+            }
+        }
+        /// A registered runner and its key: shown only now, never stored (only its hash is).
+        ///
+        /// - Remark: Generated from `#/components/schemas/RegisteredRunner`.
+        public struct RegisteredRunner: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RegisteredRunner/key`.
+            public var key: Swift.String
+            /// - Remark: Generated from `#/components/schemas/RegisteredRunner/runner`.
+            public var runner: Components.Schemas.Runner
+            /// Creates a new `RegisteredRunner`.
+            ///
+            /// - Parameters:
+            ///   - key:
+            ///   - runner:
+            public init(
+                key: Swift.String,
+                runner: Components.Schemas.Runner
+            ) {
+                self.key = key
+                self.runner = runner
+            }
+            public enum CodingKeys: String, CodingKey {
+                case key
+                case runner
+            }
+        }
+        /// A runner that was removed.
+        ///
+        /// - Remark: Generated from `#/components/schemas/RemovedRunner`.
+        public struct RemovedRunner: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RemovedRunner/id`.
+            public var id: Swift.Int64
+            /// Creates a new `RemovedRunner`.
+            ///
+            /// - Parameters:
+            ///   - id:
+            public init(id: Swift.Int64) {
+                self.id = id
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
             }
         }
         /// - Remark: Generated from `#/components/schemas/RepairAction`.
@@ -5824,6 +6563,40 @@ extension Components {
                 case title
             }
         }
+        /// - Remark: Generated from `#/components/schemas/RequirementCancel`.
+        public struct RequirementCancel: Codable, Hashable, Sendable {
+            /// Why, for the audit and the thread's readers.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RequirementCancel/reason`.
+            public var reason: Swift.String?
+            /// Creates a new `RequirementCancel`.
+            ///
+            /// - Parameters:
+            ///   - reason: Why, for the audit and the thread's readers.
+            public init(reason: Swift.String? = nil) {
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case reason
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/RequirementRename`.
+        public struct RequirementRename: Codable, Hashable, Sendable {
+            /// One line, not empty.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RequirementRename/title`.
+            public var title: Swift.String
+            /// Creates a new `RequirementRename`.
+            ///
+            /// - Parameters:
+            ///   - title: One line, not empty.
+            public init(title: Swift.String) {
+                self.title = title
+            }
+            public enum CodingKeys: String, CodingKey {
+                case title
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/RequirementState`.
         public struct RequirementState: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/RequirementState/value1`.
@@ -5979,6 +6752,123 @@ extension Components {
                 case tasks
             }
         }
+        /// The wake that will start a retry.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Retried`.
+        public struct Retried: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Retried/agent_id`.
+            public var agentId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Retried/issue_id`.
+            public var issueId: Swift.Int64?
+            /// The runner it is pinned to.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Retried/runner_id`.
+            public var runnerId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Retried/wake_id`.
+            public var wakeId: Swift.Int64
+            /// Creates a new `Retried`.
+            ///
+            /// - Parameters:
+            ///   - agentId:
+            ///   - issueId:
+            ///   - runnerId: The runner it is pinned to.
+            ///   - wakeId:
+            public init(
+                agentId: Swift.Int64,
+                issueId: Swift.Int64? = nil,
+                runnerId: Swift.Int64,
+                wakeId: Swift.Int64
+            ) {
+                self.agentId = agentId
+                self.issueId = issueId
+                self.runnerId = runnerId
+                self.wakeId = wakeId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case agentId = "agent_id"
+                case issueId = "issue_id"
+                case runnerId = "runner_id"
+                case wakeId = "wake_id"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/RetroProposal`.
+        public struct RetroProposal: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/body`.
+            public var body: Swift.String
+            /// Its knowledge entry.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/id`.
+            public var id: Swift.Int64
+            /// `decision`, `landmine` or `retro`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/kind`.
+            public var kind: Swift.String
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/proposed_by`.
+            public var proposedBy: Swift.Int64?
+            /// Why it was accepted or rejected.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/reason`.
+            public var reason: Swift.String?
+            /// `proposed`, `accepted` or `rejected`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/status`.
+            public var status: Swift.String
+            /// - Remark: Generated from `#/components/schemas/RetroProposal/title`.
+            public var title: Swift.String
+            /// Creates a new `RetroProposal`.
+            ///
+            /// - Parameters:
+            ///   - body:
+            ///   - id: Its knowledge entry.
+            ///   - kind: `decision`, `landmine` or `retro`.
+            ///   - proposedBy:
+            ///   - reason: Why it was accepted or rejected.
+            ///   - status: `proposed`, `accepted` or `rejected`.
+            ///   - title:
+            public init(
+                body: Swift.String,
+                id: Swift.Int64,
+                kind: Swift.String,
+                proposedBy: Swift.Int64? = nil,
+                reason: Swift.String? = nil,
+                status: Swift.String,
+                title: Swift.String
+            ) {
+                self.body = body
+                self.id = id
+                self.kind = kind
+                self.proposedBy = proposedBy
+                self.reason = reason
+                self.status = status
+                self.title = title
+            }
+            public enum CodingKeys: String, CodingKey {
+                case body
+                case id
+                case kind
+                case proposedBy = "proposed_by"
+                case reason
+                case status
+                case title
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/RetryBody`.
+        public struct RetryBody: Codable, Hashable, Sendable {
+            /// The runner to run it on; it must hold every one of the agent's runner tags.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RetryBody/runner_id`.
+            public var runnerId: Swift.Int64
+            /// Creates a new `RetryBody`.
+            ///
+            /// - Parameters:
+            ///   - runnerId: The runner to run it on; it must hold every one of the agent's runner tags.
+            public init(runnerId: Swift.Int64) {
+                self.runnerId = runnerId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case runnerId = "runner_id"
+            }
+        }
         /// The model agents of `role` (their role, any case) run on in this project when they have
         /// none of their own, and for their small and large tiers when they have none (E15.5).
         ///
@@ -6106,6 +6996,12 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Run/tier`.
             public var tier: Components.Schemas.Tier?
+            /// Why its transcript is gone, when it is: `pruned` (`transcript.retention_secs`).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Run/transcript_gone_reason`.
+            public var transcriptGoneReason: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/Run/transcript_pruned_at`.
+            public var transcriptPrunedAt: Components.Schemas.Timestamp?
             /// - Remark: Generated from `#/components/schemas/Run/usage`.
             public var usage: Components.Schemas.Usage
             /// Stage timings (E15.6): when its wake was due, its harness first reported and its model
@@ -6139,6 +7035,8 @@ extension Components {
             ///   - state:
             ///   - terminalReason:
             ///   - tier: The tier its task was routed to (E15.5); absent on runs from before.
+            ///   - transcriptGoneReason: Why its transcript is gone, when it is: `pruned` (`transcript.retention_secs`).
+            ///   - transcriptPrunedAt:
             ///   - usage:
             ///   - wokenAt: Stage timings (E15.6): when its wake was due, its harness first reported and its model
             public init(
@@ -6164,6 +7062,8 @@ extension Components {
                 state: Components.Schemas.RunState,
                 terminalReason: Swift.String? = nil,
                 tier: Components.Schemas.Tier? = nil,
+                transcriptGoneReason: Swift.String? = nil,
+                transcriptPrunedAt: Components.Schemas.Timestamp? = nil,
                 usage: Components.Schemas.Usage,
                 wokenAt: Components.Schemas.Timestamp? = nil
             ) {
@@ -6189,6 +7089,8 @@ extension Components {
                 self.state = state
                 self.terminalReason = terminalReason
                 self.tier = tier
+                self.transcriptGoneReason = transcriptGoneReason
+                self.transcriptPrunedAt = transcriptPrunedAt
                 self.usage = usage
                 self.wokenAt = wokenAt
             }
@@ -6215,6 +7117,8 @@ extension Components {
                 case state
                 case terminalReason = "terminal_reason"
                 case tier
+                case transcriptGoneReason = "transcript_gone_reason"
+                case transcriptPrunedAt = "transcript_pruned_at"
                 case usage
                 case wokenAt = "woken_at"
             }
@@ -6279,6 +7183,38 @@ extension Components {
         }
         /// - Remark: Generated from `#/components/schemas/Runner`.
         public struct Runner: Codable, Hashable, Sendable {
+            /// An offline Mac: most likely asleep (the "Wake my Mac" case).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/asleep`.
+            public var asleep: Swift.Bool
+            /// When the admin drained it: it takes no new run; its runs finish.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/drained_at`.
+            public var drainedAt: Components.Schemas.Timestamp?
+            /// Harness → version, from its last hello.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/harnesses`.
+            public struct HarnessesPayload: Codable, Hashable, Sendable {
+                /// A container of undocumented properties.
+                public var additionalProperties: [String: Swift.String]
+                /// Creates a new `HarnessesPayload`.
+                ///
+                /// - Parameters:
+                ///   - additionalProperties: A container of undocumented properties.
+                public init(additionalProperties: [String: Swift.String] = .init()) {
+                    self.additionalProperties = additionalProperties
+                }
+                public init(from decoder: any Swift.Decoder) throws {
+                    additionalProperties = try decoder.decodeAdditionalProperties(knownKeys: [])
+                }
+                public func encode(to encoder: any Swift.Encoder) throws {
+                    try encoder.encodeAdditionalProperties(additionalProperties)
+                }
+            }
+            /// Harness → version, from its last hello.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/harnesses`.
+            public var harnesses: Components.Schemas.Runner.HarnessesPayload
             /// Why it is unhealthy, when it is.
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/health_reason`.
@@ -6287,12 +7223,38 @@ extension Components {
             public var id: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Runner/last_seen_at`.
             public var lastSeenAt: Components.Schemas.Timestamp?
+            /// How long its machine last slept, as it reported after waking.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/last_slept_secs`.
+            public var lastSleptSecs: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/Runner/logins`.
+            public var logins: [Components.Schemas.RunnerLogin]
             /// - Remark: Generated from `#/components/schemas/Runner/name`.
             public var name: Swift.String
+            /// The admin's Power Nap preference for it; absent, none set.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/power_nap`.
+            public var powerNap: Swift.Bool?
+            /// The preference the runner says it holds.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/power_nap_applied`.
+            public var powerNapApplied: Swift.Bool?
+            /// When it last reported its state (runner protocol 1.20).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/reported_at`.
+            public var reportedAt: Components.Schemas.Timestamp?
+            /// Runs it works at once, as it reported.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/slots`.
+            public var slots: Swift.Int32?
             /// - Remark: Generated from `#/components/schemas/Runner/status`.
             public var status: Components.Schemas.RunnerStatus
             /// - Remark: Generated from `#/components/schemas/Runner/tags`.
             public var tags: [Swift.String]
+            /// Seconds it had been up at `reported_at`; absent while it is offline.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/uptime_secs`.
+            public var uptimeSecs: Swift.Int64?
             /// `now` or `when_back`, with `wake_requested_at`.
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/wake_mode`.
@@ -6304,40 +7266,80 @@ extension Components {
             /// Creates a new `Runner`.
             ///
             /// - Parameters:
+            ///   - asleep: An offline Mac: most likely asleep (the "Wake my Mac" case).
+            ///   - drainedAt: When the admin drained it: it takes no new run; its runs finish.
+            ///   - harnesses: Harness → version, from its last hello.
             ///   - healthReason: Why it is unhealthy, when it is.
             ///   - id:
             ///   - lastSeenAt:
+            ///   - lastSleptSecs: How long its machine last slept, as it reported after waking.
+            ///   - logins:
             ///   - name:
+            ///   - powerNap: The admin's Power Nap preference for it; absent, none set.
+            ///   - powerNapApplied: The preference the runner says it holds.
+            ///   - reportedAt: When it last reported its state (runner protocol 1.20).
+            ///   - slots: Runs it works at once, as it reported.
             ///   - status:
             ///   - tags:
+            ///   - uptimeSecs: Seconds it had been up at `reported_at`; absent while it is offline.
             ///   - wakeMode: `now` or `when_back`, with `wake_requested_at`.
             ///   - wakeRequestedAt: When the admin asked to wake it (`wakeRunner`); absent once it connects.
             public init(
+                asleep: Swift.Bool,
+                drainedAt: Components.Schemas.Timestamp? = nil,
+                harnesses: Components.Schemas.Runner.HarnessesPayload,
                 healthReason: Swift.String? = nil,
                 id: Swift.Int64,
                 lastSeenAt: Components.Schemas.Timestamp? = nil,
+                lastSleptSecs: Swift.Int64? = nil,
+                logins: [Components.Schemas.RunnerLogin],
                 name: Swift.String,
+                powerNap: Swift.Bool? = nil,
+                powerNapApplied: Swift.Bool? = nil,
+                reportedAt: Components.Schemas.Timestamp? = nil,
+                slots: Swift.Int32? = nil,
                 status: Components.Schemas.RunnerStatus,
                 tags: [Swift.String],
+                uptimeSecs: Swift.Int64? = nil,
                 wakeMode: Swift.String? = nil,
                 wakeRequestedAt: Components.Schemas.Timestamp? = nil
             ) {
+                self.asleep = asleep
+                self.drainedAt = drainedAt
+                self.harnesses = harnesses
                 self.healthReason = healthReason
                 self.id = id
                 self.lastSeenAt = lastSeenAt
+                self.lastSleptSecs = lastSleptSecs
+                self.logins = logins
                 self.name = name
+                self.powerNap = powerNap
+                self.powerNapApplied = powerNapApplied
+                self.reportedAt = reportedAt
+                self.slots = slots
                 self.status = status
                 self.tags = tags
+                self.uptimeSecs = uptimeSecs
                 self.wakeMode = wakeMode
                 self.wakeRequestedAt = wakeRequestedAt
             }
             public enum CodingKeys: String, CodingKey {
+                case asleep
+                case drainedAt = "drained_at"
+                case harnesses
                 case healthReason = "health_reason"
                 case id
                 case lastSeenAt = "last_seen_at"
+                case lastSleptSecs = "last_slept_secs"
+                case logins
                 case name
+                case powerNap = "power_nap"
+                case powerNapApplied = "power_nap_applied"
+                case reportedAt = "reported_at"
+                case slots
                 case status
                 case tags
+                case uptimeSecs = "uptime_secs"
                 case wakeMode = "wake_mode"
                 case wakeRequestedAt = "wake_requested_at"
             }
@@ -6437,6 +7439,77 @@ extension Components {
                 case runnerId = "runner_id"
                 case usedBytes = "used_bytes"
                 case worktrees
+            }
+        }
+        /// The end of a runner's own log, redacted by the runner and again by the server.
+        ///
+        /// - Remark: Generated from `#/components/schemas/RunnerLog`.
+        public struct RunnerLog: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RunnerLog/lines`.
+            public var lines: [Swift.String]
+            /// - Remark: Generated from `#/components/schemas/RunnerLog/runner_id`.
+            public var runnerId: Swift.Int64
+            /// Creates a new `RunnerLog`.
+            ///
+            /// - Parameters:
+            ///   - lines:
+            ///   - runnerId:
+            public init(
+                lines: [Swift.String],
+                runnerId: Swift.Int64
+            ) {
+                self.lines = lines
+                self.runnerId = runnerId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case lines
+                case runnerId = "runner_id"
+            }
+        }
+        /// Where a harness or account logs in on the runner's host, and whether it is.
+        ///
+        /// - Remark: Generated from `#/components/schemas/RunnerLogin`.
+        public struct RunnerLogin: Codable, Hashable, Sendable {
+            /// The accounts that log in there.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerLogin/account_ids`.
+            public var accountIds: [Swift.Int64]
+            /// Under the runner's config root (`claude`, `accounts/claude-a`), or
+            /// `credentials/<file>` for an account's token file.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerLogin/dir`.
+            public var dir: Swift.String
+            /// The harness, when the dir is a harness's own.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerLogin/harness`.
+            public var harness: Swift.String?
+            /// `logged_in`, `logged_out`, or `unknown` (the login lives in the keychain) — open.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerLogin/state`.
+            public var state: Swift.String
+            /// Creates a new `RunnerLogin`.
+            ///
+            /// - Parameters:
+            ///   - accountIds: The accounts that log in there.
+            ///   - dir: Under the runner's config root (`claude`, `accounts/claude-a`), or
+            ///   - harness: The harness, when the dir is a harness's own.
+            ///   - state: `logged_in`, `logged_out`, or `unknown` (the login lives in the keychain) — open.
+            public init(
+                accountIds: [Swift.Int64],
+                dir: Swift.String,
+                harness: Swift.String? = nil,
+                state: Swift.String
+            ) {
+                self.accountIds = accountIds
+                self.dir = dir
+                self.harness = harness
+                self.state = state
+            }
+            public enum CodingKeys: String, CodingKey {
+                case accountIds = "account_ids"
+                case dir
+                case harness
+                case state
             }
         }
         /// - Remark: Generated from `#/components/schemas/RunnerStatus`.
@@ -6668,6 +7741,71 @@ extension Components {
                 case old
                 case scope
                 case seq
+            }
+        }
+        /// A value set at a company or one of its projects, for the Limits screen.
+        ///
+        /// - Remark: Generated from `#/components/schemas/SettingOverride`.
+        public struct SettingOverride: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/default`.
+            public var _default: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/description`.
+            public var description: Swift.String
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/key`.
+            public var key: Swift.String
+            /// `company:<id>` or `project:<id>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/scope`.
+            public var scope: Swift.String
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/set_at`.
+            public var setAt: Components.Schemas.Timestamp
+            /// Who set it last, and when.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/set_by`.
+            public var setBy: Components.Schemas.EventActor
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/unit`.
+            public var unit: Components.Schemas.SettingUnit
+            /// - Remark: Generated from `#/components/schemas/SettingOverride/value`.
+            public var value: Swift.Int64
+            /// Creates a new `SettingOverride`.
+            ///
+            /// - Parameters:
+            ///   - _default:
+            ///   - description:
+            ///   - key:
+            ///   - scope: `company:<id>` or `project:<id>`.
+            ///   - setAt:
+            ///   - setBy: Who set it last, and when.
+            ///   - unit:
+            ///   - value:
+            public init(
+                _default: Swift.Int64,
+                description: Swift.String,
+                key: Swift.String,
+                scope: Swift.String,
+                setAt: Components.Schemas.Timestamp,
+                setBy: Components.Schemas.EventActor,
+                unit: Components.Schemas.SettingUnit,
+                value: Swift.Int64
+            ) {
+                self._default = _default
+                self.description = description
+                self.key = key
+                self.scope = scope
+                self.setAt = setAt
+                self.setBy = setBy
+                self.unit = unit
+                self.value = value
+            }
+            public enum CodingKeys: String, CodingKey {
+                case _default = "default"
+                case description
+                case key
+                case scope
+                case setAt = "set_at"
+                case setBy = "set_by"
+                case unit
+                case value
             }
         }
         /// - Remark: Generated from `#/components/schemas/SettingScope`.
@@ -7027,6 +8165,23 @@ extension Components {
                 case sprintId = "sprint_id"
             }
         }
+        /// - Remark: Generated from `#/components/schemas/SprintCommit`.
+        public struct SprintCommit: Codable, Hashable, Sendable {
+            /// Required when the sprint holds more points than the team's capacity.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SprintCommit/override_reason`.
+            public var overrideReason: Swift.String?
+            /// Creates a new `SprintCommit`.
+            ///
+            /// - Parameters:
+            ///   - overrideReason: Required when the sprint holds more points than the team's capacity.
+            public init(overrideReason: Swift.String? = nil) {
+                self.overrideReason = overrideReason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case overrideReason = "override_reason"
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/SprintPoints`.
         public struct SprintPoints: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/SprintPoints/committed`.
@@ -7101,6 +8256,46 @@ extension Components {
                 case capacity
                 case committed
                 case completed
+                case sprintId = "sprint_id"
+                case state
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/SprintReview`.
+        public struct SprintReview: Codable, Hashable, Sendable {
+            /// What the product owner or team lead proposed from it, oldest first.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SprintReview/retro`.
+            public var retro: [Components.Schemas.RetroProposal]
+            /// Stored when it closed: committed and completed points, the carried issues, velocity
+            /// against the previous sprints, the blocked and escalated issues; absent before.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SprintReview/review`.
+            public var review: OpenAPIRuntime.OpenAPIObjectContainer?
+            /// - Remark: Generated from `#/components/schemas/SprintReview/sprint_id`.
+            public var sprintId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/SprintReview/state`.
+            public var state: Components.Schemas.SprintState
+            /// Creates a new `SprintReview`.
+            ///
+            /// - Parameters:
+            ///   - retro: What the product owner or team lead proposed from it, oldest first.
+            ///   - review: Stored when it closed: committed and completed points, the carried issues, velocity
+            ///   - sprintId:
+            ///   - state:
+            public init(
+                retro: [Components.Schemas.RetroProposal],
+                review: OpenAPIRuntime.OpenAPIObjectContainer? = nil,
+                sprintId: Swift.Int64,
+                state: Components.Schemas.SprintState
+            ) {
+                self.retro = retro
+                self.review = review
+                self.sprintId = sprintId
+                self.state = state
+            }
+            public enum CodingKeys: String, CodingKey {
+                case retro
+                case review
                 case sprintId = "sprint_id"
                 case state
             }
@@ -7510,6 +8705,40 @@ extension Components {
                 case name
             }
         }
+        /// - Remark: Generated from `#/components/schemas/TeamCapacity`.
+        public struct TeamCapacity: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/TeamCapacity/members`.
+            public var members: [Components.Schemas.MemberCapacity]
+            /// The project's owning team; absent (and no members) when it has none.
+            ///
+            /// - Remark: Generated from `#/components/schemas/TeamCapacity/team_id`.
+            public var teamId: Swift.Int64?
+            /// The members' capacity together, what a sprint commit is checked against; absent when
+            /// none is set.
+            ///
+            /// - Remark: Generated from `#/components/schemas/TeamCapacity/total`.
+            public var total: Swift.Int32?
+            /// Creates a new `TeamCapacity`.
+            ///
+            /// - Parameters:
+            ///   - members:
+            ///   - teamId: The project's owning team; absent (and no members) when it has none.
+            ///   - total: The members' capacity together, what a sprint commit is checked against; absent when
+            public init(
+                members: [Components.Schemas.MemberCapacity],
+                teamId: Swift.Int64? = nil,
+                total: Swift.Int32? = nil
+            ) {
+                self.members = members
+                self.teamId = teamId
+                self.total = total
+            }
+            public enum CodingKeys: String, CodingKey {
+                case members
+                case teamId = "team_id"
+                case total
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/TeamRole`.
         public struct TeamRole: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/TeamRole/value1`.
@@ -7561,6 +8790,53 @@ extension Components {
                     self.value1,
                     self.value2
                 ])
+            }
+        }
+        /// What applying a template left in place.
+        ///
+        /// - Remark: Generated from `#/components/schemas/TemplateApplied`.
+        public struct TemplateApplied: Codable, Hashable, Sendable {
+            /// Its agents, the CTO first, then the team in seat order; new ones `pending_approval`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/TemplateApplied/agents`.
+            public var agents: [Components.Schemas.Agent]
+            /// - Remark: Generated from `#/components/schemas/TemplateApplied/department_id`.
+            public var departmentId: Swift.Int64
+            /// The hire approvals this apply opened, for the admin to decide (none on a re-apply).
+            ///
+            /// - Remark: Generated from `#/components/schemas/TemplateApplied/hire_approval_ids`.
+            public var hireApprovalIds: [Swift.Int64]
+            /// - Remark: Generated from `#/components/schemas/TemplateApplied/skills_published`.
+            public var skillsPublished: Swift.Int
+            /// - Remark: Generated from `#/components/schemas/TemplateApplied/team_id`.
+            public var teamId: Swift.Int64
+            /// Creates a new `TemplateApplied`.
+            ///
+            /// - Parameters:
+            ///   - agents: Its agents, the CTO first, then the team in seat order; new ones `pending_approval`.
+            ///   - departmentId:
+            ///   - hireApprovalIds: The hire approvals this apply opened, for the admin to decide (none on a re-apply).
+            ///   - skillsPublished:
+            ///   - teamId:
+            public init(
+                agents: [Components.Schemas.Agent],
+                departmentId: Swift.Int64,
+                hireApprovalIds: [Swift.Int64],
+                skillsPublished: Swift.Int,
+                teamId: Swift.Int64
+            ) {
+                self.agents = agents
+                self.departmentId = departmentId
+                self.hireApprovalIds = hireApprovalIds
+                self.skillsPublished = skillsPublished
+                self.teamId = teamId
+            }
+            public enum CodingKeys: String, CodingKey {
+                case agents
+                case departmentId = "department_id"
+                case hireApprovalIds = "hire_approval_ids"
+                case skillsPublished = "skills_published"
+                case teamId = "team_id"
             }
         }
         /// - Remark: Generated from `#/components/schemas/Thread`.

@@ -14,6 +14,12 @@ final class RunnersPage {
     var disk: [Int64: RunnerDiskInfo] = [:]
     /// Why a runner's last action was refused (mockup 11 G, on its card).
     var failures: [Int64: ActionFailure] = [:]
+    /// The runner "+ Add runner" just registered, with its key: shown once, until the sheet closes.
+    var registered: RegisteredRunnerInfo?
+    /// Why the last "+ Add runner" was refused.
+    var registerFailure: ActionFailure?
+    /// The log tail a card's "Probe log" / "Show last log" opened.
+    var log: (runner: Int64, lines: [String])?
     /// Each runner's limits at `runner:<id>` (decision #57: server → runner, never per company).
     var settings: [Int64: [String: ScopedSetting]] = [:]
     /// The server's values, what a runner's ↺ goes back to.
@@ -22,12 +28,22 @@ final class RunnersPage {
     /// The limits a runner card edits under its disk bar, in the mockup's order.
     static let limitKeys = ["runner.disk_cap_bytes", "workspace.idle_secs", "runner.disk_evict_percent"]
 
-    /// `1 online · 1 unhealthy · 1 offline · disk 87 GB used`.
-    var counts: (online: Int, unhealthy: Int, offline: Int, diskUsed: Int64) {
+    /// `1 online · 1 unhealthy · 1 asleep · 1 offline · disk 87 GB used`.
+    var counts: (online: Int, unhealthy: Int, asleep: Int, offline: Int, diskUsed: Int64) {
         (
-            runners.filter { $0.status == "online" }.count, runners.filter { $0.status == "unhealthy" }.count,
-            runners.filter { $0.status == "offline" }.count, disk.values.map(\.used).reduce(0, +)
+            runners.filter { $0.state == "online" }.count, runners.filter { $0.state == "unhealthy" }.count,
+            runners.filter { $0.state == "asleep" }.count, runners.filter { $0.state == "offline" }.count,
+            disk.values.map(\.used).reduce(0, +)
         )
+    }
+
+    /// `5 of 8 slots free`: the slots of the runners that take work, less the live runs on them.
+    func freeSlots(running: [Int64: Int]) -> (free: Int, total: Int)? {
+        let up = runners.filter { $0.status != "offline" && $0.drainedAt == nil }
+        let total = up.compactMap(\.slots).reduce(0, +)
+        guard total > 0 else { return nil }
+        let busy = up.map { min($0.slots ?? 0, running[$0.id] ?? 0) }.reduce(0, +)
+        return (total - busy, total)
     }
 }
 
@@ -44,6 +60,46 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
     /// A wake asked for and not yet answered: `now` ("Wake now", pushed to the Mac) or `when_back` (its work waits).
     var wakeMode: String?
     var wakeRequestedAt: Date?
+    /// An offline Mac that most likely sleeps: "☾ asleep", the wake actions.
+    var asleep = false
+    /// Drained by the admin: it takes no new run; its runs finish.
+    var drainedAt: Date? = nil
+    /// Harness → version, from its last hello.
+    var harnesses: [String: String] = [:]
+    var logins: [RunnerLoginInfo] = []
+    /// Runs it works at once, as it reported.
+    var slots: Int? = nil
+    /// Seconds it had been up at `reportedAt`.
+    var uptimeSecs: Int64? = nil
+    var reportedAt: Date? = nil
+    /// The admin's Power Nap preference ("Keep awake while jobs queue"), and the one the runner says it holds.
+    var powerNap: Bool? = nil
+    var powerNapApplied: Bool? = nil
+
+    /// The pill's word: `asleep` for a sleeping Mac, else the server's status.
+    var state: String { status == "offline" && asleep ? "asleep" : status }
+
+    /// "up 6d", counted on from when it reported.
+    func uptime(now: Date) -> String? {
+        guard let uptimeSecs, status != "offline" else { return nil }
+        let since = reportedAt.map { now.timeIntervalSince($0) } ?? 0
+        return "up \(Fmt.age(TimeInterval(uptimeSecs) + max(0, since)))"
+    }
+
+    /// One row per harness, in name order: its version and whether it is logged in on the runner.
+    var harnessRows: [(name: String, version: String, login: String?)] {
+        let order = ["claude", "codex", "opencode", "agy"]
+        let names = harnesses.keys.sorted {
+            (order.firstIndex(of: $0) ?? 99, $0) < (order.firstIndex(of: $1) ?? 99, $1)
+        }
+        return names.map { name in
+            let states = logins.filter { $0.harness == name && !$0.dir.hasPrefix("accounts/") }.map(\.state)
+            return (name, harnesses[name] ?? "", states.first)
+        }
+    }
+
+    /// The logins to redo: every one the runner reports logged out.
+    var loggedOut: [RunnerLoginInfo] { logins.filter { $0.state == "logged_out" } }
 
     /// A wake asked for and not yet answered: "Wake requested 2m ago." and what happens next.
     func wakeLine(now: Date) -> (title: String, detail: String)? {
@@ -55,6 +111,13 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
                 "Nothing was pushed; its work waits until it connects."
             )
             : ("Wake requested\(age).", "Pushed to your Mac; its queued work starts when it connects.")
+    }
+
+    /// Drained: "Drained 2h ago." and what that means.
+    func drainLine(now: Date) -> (title: String, detail: String)? {
+        drainedAt.map {
+            ("Drained \(Fmt.age(now.timeIntervalSince($0))) ago.", "It takes no new run; its runs finish.")
+        }
     }
 
     /// The reason block: unhealthy says why; offline says how long it has been silent.
@@ -70,11 +133,55 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
                 String(reason[..<end.upperBound]).trimmingCharacters(in: .whitespaces),
                 String(reason[end.upperBound...])
             )
+        case "offline" where asleep:
+            let since = lastSeenAt.map { " since \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
+            return ("Asleep\(since).", "Its queued work waits; the launchd agent reconnects on wake.")
         case "offline":
             let silent = lastSeenAt.map { "No heartbeat for \(Fmt.span(now.timeIntervalSince($0)))." }
             return (silent ?? "No heartbeat yet.", "No work goes to it until it connects again.")
         default: return nil
         }
+    }
+}
+
+/// Where a harness or account logs in on a runner's host (`dir` under its config root), and whether it is.
+struct RunnerLoginInfo: Equatable, Sendable {
+    /// `claude`, `accounts/claude-a`, or `credentials/<file>` for an account's token file.
+    var dir: String
+    var harness: String?
+    /// `logged_in`, `logged_out` or `unknown` (the login lives in the keychain).
+    var state: String
+    var accountIDs: [Int64] = []
+
+    /// What to run on the runner's host to log it in again, per `citadel-runner`'s usage; Citadel never handles the
+    /// secret itself.
+    var command: String {
+        let root = "$HOME/.citadel-runner"
+        if dir.hasPrefix("credentials/") { return "install -m 600 /dev/stdin \(root)/\(dir)  # paste the token" }
+        let path = "\(root)/\(dir)"
+        switch harness ?? dir {
+        case "claude": return "CLAUDE_CONFIG_DIR=\(path) claude /login"
+        case "codex": return "CODEX_HOME=\(path) codex login"
+        case "opencode": return "XDG_DATA_HOME=\(path)/data opencode auth login"
+        case "agy": return "HOME=\(path) agy"
+        default: return "# log \(harness ?? "the harness") in with its config dir \(path)"
+        }
+    }
+}
+
+/// A runner registered from "+ Add runner": its key, shown this once.
+struct RegisteredRunnerInfo: Equatable, Sendable {
+    var runner: RunnerInfo
+    var key: String
+
+    /// The one-line start command for a runner host: the key rides in the environment, never as a flag
+    /// (`citadel-runner` refuses a key on its command line).
+    func command(server: URL) -> String {
+        var parts = URLComponents(url: server, resolvingAgainstBaseURL: false) ?? URLComponents()
+        parts.scheme = parts.scheme == "http" ? "ws" : "wss"
+        parts.path = "/runner/v1/connect"
+        let tags = runner.tags.isEmpty ? "" : " \\\n  --tags \(runner.tags.joined(separator: ","))"
+        return "CITADEL_RUNNER_KEY=\(key) \\\n  citadel-runner \(parts.string ?? "")\(tags)"
     }
 }
 
@@ -131,7 +238,13 @@ extension RunnerInfo {
         self.init(
             id: runner.id, name: runner.name, status: runner.status.word, healthReason: runner.healthReason,
             lastSeenAt: runner.lastSeenAt, tags: runner.tags, wakeMode: runner.wakeMode,
-            wakeRequestedAt: runner.wakeRequestedAt)
+            wakeRequestedAt: runner.wakeRequestedAt, asleep: runner.asleep, drainedAt: runner.drainedAt,
+            harnesses: runner.harnesses.additionalProperties,
+            logins: runner.logins.map {
+                RunnerLoginInfo(dir: $0.dir, harness: $0.harness, state: $0.state, accountIDs: $0.accountIds)
+            },
+            slots: runner.slots.map(Int.init), uptimeSecs: runner.uptimeSecs, reportedAt: runner.reportedAt,
+            powerNap: runner.powerNap, powerNapApplied: runner.powerNapApplied)
     }
 }
 

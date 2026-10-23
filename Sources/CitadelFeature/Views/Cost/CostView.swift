@@ -10,6 +10,7 @@ struct CostView: View {
     @State private var period: CostPeriod = .month
     @State private var pricing = false
     @State private var editing: BudgetInfo?
+    @State private var adding = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -43,7 +44,7 @@ struct CostView: View {
                         PerTaskTile(tasks: model.costTasks)
                     }
                     .fixedSize(horizontal: false, vertical: true)
-                    BudgetsTile(model: model) { editing = $0 }
+                    BudgetsTile(model: model, edit: { editing = $0 }, add: { adding = true })
                 }
                 .padding(.horizontal, skin.size.s20)
                 .padding(.bottom, skin.size.s20)
@@ -52,6 +53,9 @@ struct CostView: View {
         }
         .onChange(of: period, initial: true) { _, period in
             if model.costPeriod != period { store.loadCost(period) }
+        }
+        .ainkradPanelModal(isPresented: $adding, contentWidth: skin.size.s440) {
+            NewBudgetForm(store: store, model: model, isPresented: $adding)
         }
         .ainkradPanelModal(isPresented: $pricing, contentWidth: skin.size.s440) {
             SetPriceForm(store: store, isPresented: $pricing)
@@ -130,7 +134,7 @@ private struct CostKPI: View {
                         .foregroundStyle(tone?.tint(skin) ?? skin.color(skin.text.primary))
                     if let unit { Text(unit).citadelFont("t13").foregroundStyle(skin.color(skin.text.muted)) }
                 }
-                detail.citadelFont("t11_5").foregroundStyle(skin.color(skin.text.muted))
+                detail.citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                     .fixedSize(horizontal: false, vertical: true)
                 if let action {
                     AinkradButton(title: action.title, style: .ghost, action: action.perform)

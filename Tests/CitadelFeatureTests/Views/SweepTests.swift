@@ -37,6 +37,9 @@ final class SweepTests: XCTestCase {
             for (name, store, size) in screens() where only?.contains(where: name.hasPrefix) ?? true {
                 try LiveCapture.shoot(
                     RootView(store: store, theme: hostTheme)
+                        .ainkradSheet(isPresented: .constant(Self.sheet(name, store) != nil)) {
+                            Self.sheet(name, store)
+                        }
                         .frame(width: size.width, height: size.height)
                         .background(skin.color(skin.palette.background))
                         .ainkradSkin(skin)
@@ -171,7 +174,14 @@ final class SweepTests: XCTestCase {
             all.append(("06-approvals-\(kind)", store, wide))
         }
         all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
-        all.append(("08-stuck", company(.stuck, CompanyFixture.stuckPage), wide))
+        all.append(
+            (
+                "08-stuck",
+                company(.stuck) {
+                    CompanyFixture.stuckPage($0)
+                    CompanyFixture.runnersPage($0)
+                }, wide
+            ))
         all.append(("09-cost", company(.cost, CompanyFixture.costPage), CGSize(width: 1280, height: 1100)))
         let stage: SweepStage = { company($0, detail: $1, $2) }
         all += Self.requirementsShots(stage)
