@@ -311,7 +311,15 @@
           "harness": {
             "$ref": "#/components/schemas/Harness"
           },
+          "hired_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When it was hired."
+          },
           "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "issue_token_cap": {
             "format": "int64",
             "type": "integer"
           },
@@ -324,6 +332,10 @@
           "org_role": {
             "$ref": "#/components/schemas/OrgRole"
           },
+          "paused_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When the admin paused it (decision #34); absent unless it is paused by the admin."
+          },
           "reports_to": {
             "format": "int64",
             "type": [
@@ -333,6 +345,11 @@
           },
           "role": {
             "type": "string"
+          },
+          "run_token_cap": {
+            "description": "Its company's effective `run.token_cap` and `issue.token_cap` (0: none); a project\nmay set its own.",
+            "format": "int64",
+            "type": "integer"
           },
           "runner_tags": {
             "items": {
@@ -355,7 +372,73 @@
           "runner_tags",
           "status",
           "appearance",
-          "figure_state"
+          "figure_state",
+          "hired_at",
+          "run_token_cap",
+          "issue_token_cap"
+        ],
+        "type": "object"
+      },
+      "AgentSkill": {
+        "description": "A skill an agent's runs are given (E4.3): its latest version, and what it is attached to.",
+        "properties": {
+          "attached_id": {
+            "description": "The department or project id, or the role.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "attached_role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attached_to": {
+            "description": "`company`, `department`, `role` or `project`.",
+            "type": "string"
+          },
+          "bytes": {
+            "description": "Its body's size; a run gets as many as fit `skills.budget_bytes`, most specific first.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "attached_to",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "AgentSpend": {
+        "properties": {
+          "agent_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "spend": {
+            "$ref": "#/components/schemas/Spend"
+          }
+        },
+        "required": [
+          "agent_id",
+          "spend"
         ],
         "type": "object"
       },
@@ -374,6 +457,25 @@
             "type": "string"
           }
         ]
+      },
+      "AllowBody": {
+        "properties": {
+          "reply": {
+            "description": "Goes back to the agent, as with any approval.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rule": {
+            "description": "The allowlist entry: `<tool>` or `<tool>:<command prefix>`. Absent: the escalated call's\ntool and its command's first two words (`Bash:cargo add`), or the tool alone.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
       },
       "ApiVersion": {
         "description": "The contract a server speaks: `/api/<major>` and its additions so far.",
@@ -680,6 +782,44 @@
           }
         ]
       },
+      "BudgetBody": {
+        "properties": {
+          "hard_stop": {
+            "description": "Runs stop at the cap (the default), or it only warns.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BudgetScope",
+            "description": "The company itself, or one of its departments, projects, agents or sprints."
+          },
+          "token_cap": {
+            "description": "Tokens, 0 or more.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "warn_at_percent": {
+            "description": "1–100; absent: the `budget.warn_percent` setting.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "token_cap"
+        ],
+        "type": "object"
+      },
       "BudgetPeriod": {
         "anyOf": [
           {
@@ -889,6 +1029,22 @@
         "required": [
           "day",
           "left"
+        ],
+        "type": "object"
+      },
+      "Changed": {
+        "description": "The agents a company-wide pause or resume changed.",
+        "properties": {
+          "agent_ids": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_ids"
         ],
         "type": "object"
       },
@@ -1179,6 +1335,25 @@
           "id",
           "name",
           "teams"
+        ],
+        "type": "object"
+      },
+      "DepartmentSpend": {
+        "properties": {
+          "department_id": {
+            "description": "Absent: agents in no team.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "spend": {
+            "$ref": "#/components/schemas/Spend"
+          }
+        },
+        "required": [
+          "spend"
         ],
         "type": "object"
       },
@@ -1746,6 +1921,34 @@
         ],
         "type": "object"
       },
+      "IssueDiff": {
+        "description": "An issue's worktrees as last measured by a run's runner.",
+        "properties": {
+          "measured_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When that run last progressed."
+          },
+          "repos": {
+            "description": "In the issue's repo order.",
+            "items": {
+              "$ref": "#/components/schemas/RepoDiff"
+            },
+            "type": "array"
+          },
+          "run_id": {
+            "description": "The run that measured them; absent before any did.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "repos"
+        ],
+        "type": "object"
+      },
       "IssueKind": {
         "anyOf": [
           {
@@ -1946,6 +2149,33 @@
             "type": "string"
           }
         ]
+      },
+      "MessageDelivery": {
+        "description": "Where a message to a run went: to the run (`message_id`; its harness gets it at its next\nturn, shown in the transcript as a `user_message` chunk with that id), or, the run not live,\na comment on its issue waking the run's agent (`comment_id`). A message the run ends before\ntaking becomes such a comment too.",
+        "properties": {
+          "comment_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "delivered_as": {
+            "description": "`run` or `comment`.",
+            "type": "string"
+          },
+          "message_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "delivered_as"
+        ],
+        "type": "object"
       },
       "ModelTier": {
         "description": "The (harness, model) an agent's tasks of `tier` start on. Its own harness and model are\nits standard tier, so only `small` and `large` are set here.",
@@ -2206,6 +2436,55 @@
         ],
         "type": "object"
       },
+      "NewMessage": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Makes a retry safe: the same key on the same run is taken once.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "NewPrice": {
+        "properties": {
+          "cache_usd_per_mtok": {
+            "format": "double",
+            "type": "number"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/Harness"
+          },
+          "input_usd_per_mtok": {
+            "description": "Dollars per million tokens, 0 or more (as `citadel-server price set`).",
+            "format": "double",
+            "type": "number"
+          },
+          "model": {
+            "type": "string"
+          },
+          "output_usd_per_mtok": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "input_usd_per_mtok",
+          "output_usd_per_mtok",
+          "cache_usd_per_mtok"
+        ],
+        "type": "object"
+      },
       "NewRequest": {
         "description": "A request to the company, for its CEO to route.",
         "properties": {
@@ -2320,6 +2599,29 @@
         "required": [
           "at",
           "kind"
+        ],
+        "type": "object"
+      },
+      "Nudged": {
+        "description": "The wake a nudge made.",
+        "properties": {
+          "agent_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "wake_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "wake_status": {
+            "description": "`pending`, or `coalesced` into the wake already waiting.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "wake_id",
+          "wake_status"
         ],
         "type": "object"
       },
@@ -2574,6 +2876,42 @@
         },
         "required": [
           "comment"
+        ],
+        "type": "object"
+      },
+      "Price": {
+        "description": "A harness and model's price, US dollars per million tokens; each set is a new version, and\nearlier spend keeps the version that priced it.",
+        "properties": {
+          "cache_usd_per_mtok": {
+            "format": "double",
+            "type": "number"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/Harness"
+          },
+          "input_usd_per_mtok": {
+            "format": "double",
+            "type": "number"
+          },
+          "model": {
+            "type": "string"
+          },
+          "output_usd_per_mtok": {
+            "format": "double",
+            "type": "number"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "version",
+          "input_usd_per_mtok",
+          "output_usd_per_mtok",
+          "cache_usd_per_mtok"
         ],
         "type": "object"
       },
@@ -3006,6 +3344,19 @@
           }
         ]
       },
+      "ReassignBody": {
+        "properties": {
+          "agent_id": {
+            "description": "An active member of the issue's project's team (any active agent of its company when the\nproject has no team).",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "type": "object"
+      },
       "RepairAction": {
         "anyOf": [
           {
@@ -3120,6 +3471,37 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "RepoDiff": {
+        "description": "One repo's worktree against its base.",
+        "properties": {
+          "deletions": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "insertions": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repo": {
+            "description": "The repo's name in its project; empty for an issue's only repo.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "files",
+          "insertions",
+          "deletions"
+        ],
         "type": "object"
       },
       "RepoForge": {
@@ -3425,6 +3807,13 @@
               "null"
             ]
           },
+          "diff_repos": {
+            "description": "Each repo's diff against its base, as last measured (runner protocol 1.18), in the\nissue's repo order; empty before any measure.",
+            "items": {
+              "$ref": "#/components/schemas/RepoDiff"
+            },
+            "type": "array"
+          },
           "ended_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
@@ -3512,7 +3901,8 @@
           "state",
           "harness",
           "usage",
-          "queued_at"
+          "queued_at",
+          "diff_repos"
         ],
         "type": "object"
       },
@@ -3563,6 +3953,17 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "wake_mode": {
+            "description": "`now` or `when_back`, with `wake_requested_at`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wake_requested_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When the admin asked to wake it (`wakeRunner`); absent once it connects."
           }
         },
         "required": [
@@ -3844,6 +4245,91 @@
           }
         ]
       },
+      "Spend": {
+        "description": "What some cost events spent. Dollars are the priced events' only: unpriced and subscription\nspend is in tokens and runs, never $0.",
+        "properties": {
+          "cost_usd_micros": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "priced_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscription_runs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscription_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unpriced_runs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unpriced_tokens": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cost_usd_micros",
+          "priced_tokens",
+          "unpriced_tokens",
+          "unpriced_runs",
+          "subscription_tokens",
+          "subscription_runs"
+        ],
+        "type": "object"
+      },
+      "SpendBreakdown": {
+        "description": "The Cost screen's \"by agent · by department\": every agent of the company (idle ones at\nzero), and each department (an agent counts in its first team's department).",
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSpend"
+            },
+            "type": "array"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentSpend"
+            },
+            "type": "array"
+          },
+          "since": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "until": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "since",
+          "until",
+          "agents",
+          "departments"
+        ],
+        "type": "object"
+      },
+      "SpendBucket": {
+        "description": "One bucket of a spend series.",
+        "properties": {
+          "spend": {
+            "$ref": "#/components/schemas/Spend"
+          },
+          "start": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "The bucket's start (an hour, or a day at midnight UTC)."
+          }
+        },
+        "required": [
+          "start",
+          "spend"
+        ],
+        "type": "object"
+      },
       "Sprint": {
         "properties": {
           "ends_on": {
@@ -4083,6 +4569,10 @@
           "repair": {
             "$ref": "#/components/schemas/RepairAction",
             "description": "What the scheduler does about it by itself (E15.8): the engine's recommendation."
+          },
+          "stuck_since": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "Since when it has been stuck: an issue's last activity, a wake's or run's wait start;\nabsent when unknown (a full disk)."
           }
         },
         "required": [
@@ -4543,6 +5033,7 @@
             "reassign": "#/components/schemas/TransitionReassign",
             "reopen": "#/components/schemas/TransitionReopen",
             "request_changes": "#/components/schemas/TransitionRequestChanges",
+            "shelve": "#/components/schemas/TransitionShelve",
             "start": "#/components/schemas/TransitionStart",
             "submit_for_review": "#/components/schemas/TransitionSubmitForReview",
             "unblock": "#/components/schemas/TransitionUnblock"
@@ -4582,6 +5073,9 @@
           },
           {
             "$ref": "#/components/schemas/TransitionReopen"
+          },
+          {
+            "$ref": "#/components/schemas/TransitionShelve"
           }
         ]
       },
@@ -4705,6 +5199,24 @@
         },
         "required": [
           "assignee",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "TransitionShelve": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "shelve"
+            ],
+            "type": "string"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextActor"
+          }
+        },
+        "required": [
+          "next",
           "kind"
         ],
         "type": "object"
@@ -4946,6 +5458,18 @@
         ],
         "type": "object"
       },
+      "WakeBody": {
+        "properties": {
+          "when": {
+            "description": "`now` (\"Wake my Mac\": pushed to the Mac app at once; the default) or `when_back` (\"Run\nwhen I'm back\": nothing pushed until it reconnects; its work waits).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "WakeSource": {
         "anyOf": [
           {
@@ -5038,7 +5562,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.2.0"
+    "version": "1.5.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5924,6 +6448,112 @@
         ]
       }
     },
+    "/api/v1/agents/{id}/pause": {
+      "post": {
+        "operationId": "pauseAgent",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "The paused agent. Its running run finishes the tool call in flight, then ends `cancelled` (\"paused by admin\"); it gets no new run and its wakes wait until it is resumed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
+    "/api/v1/agents/{id}/resume": {
+      "post": {
+        "operationId": "resumeAgent",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "The active agent, woken on every open issue waiting on it"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
     "/api/v1/agents/{id}/runs": {
       "get": {
         "operationId": "listAgentRuns",
@@ -5993,6 +6623,62 @@
         },
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/agents/{id}/skills": {
+      "get": {
+        "operationId": "listAgentSkills",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentSkill"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The skills its runs are given, by name, before the per-run budget"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
         ]
       }
     },
@@ -6116,6 +6802,69 @@
         },
         "tags": [
           "org"
+        ]
+      }
+    },
+    "/api/v1/approvals/{id}/allow-for-issue": {
+      "post": {
+        "operationId": "allowForIssue",
+        "parameters": [
+          {
+            "description": "Approval id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllowBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            },
+            "description": "The permission escalation, approved; the same call goes ahead on its issue's runs without asking until `approval.issue_allow_secs` from now (audited as `approval.allowed_for_issue`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
         ]
       }
     },
@@ -6878,6 +7627,69 @@
         ]
       }
     },
+    "/api/v1/companies/{id}/budgets": {
+      "put": {
+        "operationId": "setBudget",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStanding"
+                }
+              }
+            },
+            "description": "The budget for its scope and period, created or changed (audited as `budget.set`), with its spend so far"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "money"
+        ]
+      }
+    },
     "/api/v1/companies/{id}/costs": {
       "get": {
         "operationId": "getCompanyCosts",
@@ -6928,6 +7740,75 @@
         },
         "tags": [
           "costs"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/costs/breakdown": {
+      "get": {
+        "operationId": "getSpendBreakdown",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendBreakdown"
+                }
+              }
+            },
+            "description": "The company's spend in the window by agent and by department"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
         ]
       }
     },
@@ -7049,6 +7930,59 @@
         ]
       }
     },
+    "/api/v1/companies/{id}/pause": {
+      "post": {
+        "operationId": "pauseCompany",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Changed"
+                }
+              }
+            },
+            "description": "Every active agent of the company, paused as `pauseAgent` does"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
     "/api/v1/companies/{id}/projects": {
       "get": {
         "operationId": "listProjects",
@@ -7102,6 +8036,62 @@
         },
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/questions": {
+      "get": {
+        "operationId": "listOpenQuestions",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Question"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Its agents' open questions for the admin, across requirements, oldest first (E15.11)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
         ]
       }
     },
@@ -7165,6 +8155,245 @@
         },
         "tags": [
           "org"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/resume": {
+      "post": {
+        "operationId": "resumeCompany",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Changed"
+                }
+              }
+            },
+            "description": "Every paused agent of the company, resumed as `resumeAgent` does"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/runs": {
+      "get": {
+        "operationId": "listCompanyRuns",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "live",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "issue",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Run"
+                }
+              }
+            },
+            "description": "The company's runs, newest first"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/spend": {
+      "get": {
+        "operationId": "getSpendSeries",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bucket",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpendBucket"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The company's spend per hour or day in the window, oldest first, every bucket present"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
         ]
       }
     },
@@ -7521,6 +8750,59 @@
         ]
       }
     },
+    "/api/v1/issues/{id}/backlog": {
+      "post": {
+        "operationId": "moveToBacklog",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "The issue set aside in the backlog (the `shelve` transition), waiting on the admin; nobody is woken. Refused while a run works on it: stop the run first"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
     "/api/v1/issues/{id}/comments": {
       "get": {
         "operationId": "listComments",
@@ -7635,6 +8917,59 @@
         },
         "tags": [
           "issues"
+        ]
+      }
+    },
+    "/api/v1/issues/{id}/diff": {
+      "get": {
+        "operationId": "getIssueDiff",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueDiff"
+                }
+              }
+            },
+            "description": "Each repo's diff against its base, from the latest run that measured it (runner protocol 1.18)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
         ]
       }
     },
@@ -7824,6 +9159,122 @@
         },
         "tags": [
           "issues"
+        ]
+      }
+    },
+    "/api/v1/issues/{id}/nudge": {
+      "post": {
+        "operationId": "nudgeIssue",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Nudged"
+                }
+              }
+            },
+            "description": "The issue's next actor, an agent, woken again"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
+    "/api/v1/issues/{id}/reassign": {
+      "post": {
+        "operationId": "reassignIssue",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "The issue, waiting on that agent, which is woken"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
         ]
       }
     },
@@ -8105,6 +9556,99 @@
         },
         "tags": [
           "devices"
+        ]
+      }
+    },
+    "/api/v1/prices": {
+      "get": {
+        "operationId": "listPrices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Price"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The latest version of every harness and model's price; a model with none is unpriced"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "money"
+        ]
+      },
+      "post": {
+        "operationId": "setPrice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPrice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Price"
+                }
+              }
+            },
+            "description": "The new version of the price, from now on (audited as `price.set`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "money"
         ]
       }
     },
@@ -9882,6 +11426,69 @@
         ]
       }
     },
+    "/api/v1/runners/{id}/wake": {
+      "post": {
+        "operationId": "wakeRunner",
+        "parameters": [
+          {
+            "description": "Runner id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WakeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            },
+            "description": "The runner, its wake requested until it next connects. The server cannot wake a sleeping machine: the request is pushed to the admin's devices (`runner.wake_requested`), and the Mac app keeps its machine awake"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
     "/api/v1/runs/{id}": {
       "get": {
         "operationId": "getRun",
@@ -9932,6 +11539,122 @@
         },
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/messages": {
+      "post": {
+        "operationId": "messageRun",
+        "parameters": [
+          {
+            "description": "Run id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDelivery"
+                }
+              }
+            },
+            "description": "Where the message went"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/stop": {
+      "post": {
+        "operationId": "stopRun",
+        "parameters": [
+          {
+            "description": "Run id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "The run, ended `cancelled` (\"stopped by admin\") at once; its runner kills the harness"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
         ]
       }
     },

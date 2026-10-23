@@ -26,6 +26,12 @@ final class AccountsPage {
     /// The agent whose fallback chain is shown, and that chain with its own entry first.
     var chainAgent: Int64?
     var chain: [FallbackEntry] = []
+    /// The company's newest runs that fell back (`GET /companies/{id}/runs`), newest first.
+    var fallbackRuns: [RunInfo] = []
+    /// "All →" on Last fallbacks: every one read, not the newest four.
+    var showsAllFallbacks = false
+    /// Why the last "Add account" was refused, in the server's words.
+    var addProblem: String?
 
     /// The accounts on screen: the company's, or the whole pool.
     func visible(company: Int64) -> [PoolAccount] {
@@ -244,5 +250,67 @@ extension PoolAccount {
         case let number as Int64: Double(number)
         default: nil
         }
+    }
+}
+
+/// "+ Add account": what the sheet collects, checked before it is sent. The credential is only ever a reference —
+/// an environment variable's name or a file / vault path on the runner — never the secret itself.
+struct NewAccountDraft: Equatable, Sendable {
+    static let harnesses = ["claude", "codex", "opencode", "agy"]
+
+    var label = ""
+    var harness = "claude"
+    /// `subscription` (tokens) or `metered` (an API key, dollars).
+    var billing = "subscription"
+    /// `env` (the variable's name) or `file` (a path on the runner).
+    var credentialKind = "file"
+    var credential = ""
+    var configDir = ""
+
+    /// Why it can't be sent yet; `nil` when it can.
+    var problem: String? {
+        let label = label.trimmingCharacters(in: .whitespaces)
+        if label.isEmpty { return "Name the account." }
+        if label.count > 64 || label.range(of: #"^[A-Za-z0-9][A-Za-z0-9._-]*$"#, options: .regularExpression) == nil {
+            return "Use letters, digits, dot, dash or underscore in the name."
+        }
+        if !Self.harnesses.contains(harness) { return "Pick a harness." }
+        let credential = credential.trimmingCharacters(in: .whitespaces)
+        if !credential.isEmpty {
+            if credentialKind == "env", credential.range(of: #"^[A-Z_][A-Z0-9_]*$"#, options: .regularExpression) == nil
+            {
+                return "An environment variable's name, such as ANTHROPIC_API_KEY."
+            }
+            if credentialKind == "file",
+                credential.range(of: #"^[A-Za-z0-9._/~-]+$"#, options: .regularExpression) == nil
+            {
+                return "A file or vault path, such as ~/.citadel/keys/anthropic."
+            }
+            if Self.looksLikeASecret(credential) { return "That looks like the key itself — give where it lives." }
+        }
+        if billing == "metered", credential.isEmpty { return "An API-key account needs where its key lives." }
+        if !configDir.isEmpty, configDir.range(of: #"^[A-Za-z0-9._/~-]+$"#, options: .regularExpression) == nil {
+            return "A plain path for the config directory."
+        }
+        return nil
+    }
+
+    /// Provider key prefixes (`sk-ant-…`, `sk-…`): a pasted key is refused, never sent.
+    static func looksLikeASecret(_ text: String) -> Bool {
+        ["sk-", "sess-", "ghp_", "AIza"].contains { text.hasPrefix($0) }
+    }
+
+    var body: Schemas.NewAccount {
+        func trimmed(_ text: String) -> String? {
+            let value = text.trimmingCharacters(in: .whitespaces)
+            return value.isEmpty ? nil : value
+        }
+        let credential = trimmed(credential)
+        return Schemas.NewAccount(
+            billing: .init(value1: .init(rawValue: billing), value2: billing), configDir: trimmed(configDir),
+            credentialEnv: credentialKind == "env" ? credential : nil,
+            credentialRef: credentialKind == "file" ? credential : nil,
+            harness: .init(value1: .init(rawValue: harness), value2: harness),
+            label: label.trimmingCharacters(in: .whitespaces))
     }
 }

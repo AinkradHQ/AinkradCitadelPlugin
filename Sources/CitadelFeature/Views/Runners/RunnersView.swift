@@ -98,6 +98,10 @@ private struct RunnerCard: View {
                     )
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                if let wake = runner.wakeLine(now: Date()) {
+                    ReasonBlock(title: wake.title, detail: wake.detail, tone: .warning)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if !runner.tags.isEmpty {
                     HStack(spacing: skin.size.s6) {
                         ForEach(runner.tags, id: \.self) { AinkradBadge(text: $0, tint: theme.accentSecondary) }
@@ -142,7 +146,7 @@ private struct RunnerCard: View {
         }
     }
 
-    /// Actions follow the state; none of them has a server endpoint yet.
+    /// Actions follow the state. Waking has an endpoint; the rest wait on the server.
     @ViewBuilder private var actions: some View {
         switch runner.status {
         case "unhealthy":
@@ -158,16 +162,32 @@ private struct RunnerCard: View {
             }
             .ainkradTooltip("Needs the server's runner actions")
         case "offline":
-            HStack(spacing: skin.size.s8) {
-                // TODO(citadel#runner-log): Show last log needs the runner log endpoint.
-                AinkradButton(title: "Show last log", style: .secondary) {}.secondaryAccent().compact().fixedSize()
-                    .disabled(true)
-                // TODO(citadel#runner-remove): Remove needs the runner delete endpoint.
-                AinkradButton(title: "Remove runner…", style: .ghost) {}.borderless().secondaryAccent().compact()
-                    .fixedSize().disabled(true)
+            VStack(alignment: .leading, spacing: skin.size.s8) {
+                HStack(spacing: skin.size.s8) {
+                    AinkradButton(title: "Wake now", style: .primary) { store.wakeRunner(runner.id, when: "now") }
+                        .compact().fixedSize()
+                        .ainkradTooltip("Pushes a wake to the Mac; its queued work starts when it connects")
+                    AinkradButton(title: "Run when I'm back", style: .secondary) {
+                        store.wakeRunner(runner.id, when: "when_back")
+                    }
+                    .secondaryAccent().compact().fixedSize()
+                    .ainkradTooltip("Nothing is pushed; its work waits until it connects")
+                }
+                HStack(spacing: skin.size.s8) {
+                    // TODO(citadel#runner-log): Show last log needs the runner log endpoint.
+                    AinkradButton(title: "Show last log", style: .secondary) {}.secondaryAccent().compact()
+                        .fixedSize().disabled(true)
+                    // TODO(citadel#runner-remove): Remove needs the runner delete endpoint.
+                    AinkradButton(title: "Remove runner…", style: .ghost) {}.borderless().secondaryAccent()
+                        .compact().fixedSize().disabled(true)
+                }
+                .ainkradTooltip("Needs the server's runner actions")
             }
-            .ainkradTooltip("Needs the server's runner actions")
         default: EmptyView()
+        }
+        if let failure = model.runnersPage.failures[runner.id] {
+            Text("\(failure.title). \(failure.message)").citadelFont("t12").foregroundStyle(status.danger)
+                .transition(.opacity)
         }
     }
 }

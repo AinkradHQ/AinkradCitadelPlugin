@@ -10,6 +10,7 @@ struct AgentView: View {
     let agentID: Int64
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
+    @State private var stopping: RunInfo?
 
     var body: some View {
         if let agent = model.agents[agentID] {
@@ -33,10 +34,26 @@ struct AgentView: View {
                 AgentRail(model: model, agent: agent)
             }
             .offlineDimmed()
+            .ainkradConfirmDialog(
+                isPresented: Binding(get: { stopping != nil }, set: { if !$0 { stopping = nil } }),
+                title: "Stop run #\(stopping?.id ?? 0) now?",
+                message:
+                    "The runner kills the harness at once; the run ends cancelled. Pause lets it finish its tool call.",
+                confirmTitle: "Stop run", isDestructive: true
+            ) { if let run = stopping { store.stop(run: run.id) } }
         } else {
             AinkradEmptyState(icon: "person", title: "Agent not found", message: "It may have been retired.")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// ⋯: the org's items, and "Stop run now" (the hard stop, confirmed) while a run is live.
+    private func menu(_ agent: AgentInfo) -> [AinkradMenuItem] {
+        var items = OrgMenu.items(agent)
+        if let run = model.currentRun(of: agent.id), run.isLive {
+            items.append(AinkradMenuItem(title: "Stop run now", systemName: "stop.fill") { stopping = run })
+        }
+        return items
     }
 
     /// Big figure, name + role, department › team, harness badge, model, who it reports to; Chat, Pause, ⋯.
@@ -64,13 +81,12 @@ struct AgentView: View {
             Spacer(minLength: skin.size.s10)
             AinkradButton(title: "Chat", style: .secondary, icon: "envelope.fill") { store.screen = .threads }
                 .secondaryAccent().compact().fixedSize()
-            // Pause / Resume needs a server endpoint (not in the API yet).
             AinkradButton(
                 title: agent.isPaused ? "Resume" : "Pause", style: .secondary,
                 icon: agent.isPaused ? "play.fill" : "pause.fill"
-            ) {}
-            .compact().fixedSize().disabled(true)
-            AinkradMenuButton(items: OrgMenu.items(agent)) { Image(systemName: "ellipsis") }
+            ) { store.setPaused(agent, !agent.isPaused) }
+            .compact().fixedSize().disabled(agent.isHirePending)
+            AinkradMenuButton(items: menu(agent)) { Image(systemName: "ellipsis") }
         }
         .padding(.horizontal, skin.size.s20)
         .padding(.top, skin.size.s14)

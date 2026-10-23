@@ -29,6 +29,23 @@ extension CitadelStore {
         }
     }
 
+    /// "Wake now" (`now`) or "Run when I'm back" (`when_back`): the card shows the request until the runner
+    /// connects; a refusal shows on the card (mockup 11 G).
+    func wakeRunner(_ runner: Int64, when: String) {
+        guard let server, let page = model?.runnersPage else { return }
+        page.failures[runner] = nil
+        Task {
+            switch await server.wake(runner: runner, when: when) {
+            case .success(let info):
+                if let index = page.runners.firstIndex(where: { $0.id == runner }) { page.runners[index] = info }
+            case .failure(let answer):
+                let name = page.runners.first { $0.id == runner }?.name ?? "the runner"
+                page.failures[runner] = ActionFailure(
+                    title: "Couldn't wake \(name)", answer: answer, outcome: "Nothing was pushed.")
+            }
+        }
+    }
+
     /// ↺: back to the server's value.
     func resetRunnerLimit(_ runner: Int64, key: String) {
         guard let server, let page = model?.runnersPage else { return }

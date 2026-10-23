@@ -240,6 +240,10 @@ enum CompanyFixture {
     static func runPage(_ model: CompanyModel) {
         agentPage(model)
         model.issueRepos[42] = ["citadel", "ainkrad-citadel-plugin"]
+        model.runs[418]?.diffRepos = [
+            RepoDiffInfo(repo: "citadel", files: 3, insertions: 38, deletions: 6),
+            RepoDiffInfo(repo: "ainkrad-citadel-plugin", files: 1, insertions: 9, deletions: 2),
+        ]
         model.issueCosts[42] = IssueCost(issueID: 42, tokens: 164_000, costMicros: 2_310_000, runs: 3, unpricedRuns: 0)
         model.approvals.append(
             ApprovalInfo(

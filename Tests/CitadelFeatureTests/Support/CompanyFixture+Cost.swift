@@ -18,23 +18,26 @@ extension CompanyFixture {
             StuckInfo(
                 kind: "run_queued_no_lease", issueID: 49, agentID: 8, reason: "runner lost, retries used up",
                 action: "Rook's run #409 ended runner_lost on hetzner-2 and the retry was lost too",
-                repair: "reassign_to_lead", lastRepair: "requeue", lastRepairAt: now.addingTimeInterval(-3_600)),
+                repair: "reassign_to_lead", lastRepair: "requeue", lastRepairAt: now.addingTimeInterval(-3_600),
+                since: now.addingTimeInterval(-7_440)),
             StuckInfo(
                 kind: "wake_no_runner", issueID: 9, agentID: 11, reason: "needs a macos runner; the only one is asleep",
                 action: "ahmed-mbp went to sleep at 01:40; the issue is queued and Pike is idle waiting for it",
-                repair: "notify", lastRepair: nil, lastRepairAt: nil),
+                repair: "notify", lastRepair: nil, lastRepairAt: nil, since: now.addingTimeInterval(-27_000)),
             StuckInfo(
                 kind: "agent_paused_by_breaker", issueID: 55, agentID: 4, reason: "loop breaker tripped",
                 action: "Kestrel failed 3 times with the same fingerprint; the engine stopped it and escalated",
-                repair: "escalate", lastRepair: "escalate", lastRepairAt: now.addingTimeInterval(-2_880)),
+                repair: "escalate", lastRepair: "escalate", lastRepairAt: now.addingTimeInterval(-2_880),
+                since: now.addingTimeInterval(-2_880)),
             StuckInfo(
                 kind: "reviewer_inactive", issueID: 58, agentID: 9, reason: "reviewer paused",
                 action: "the QA step is assigned to Sable, but Sable's queue has 4 items ahead",
-                repair: "reassign_to_lead", lastRepair: nil, lastRepairAt: nil),
+                repair: "reassign_to_lead", lastRepair: nil, lastRepairAt: nil, since: now.addingTimeInterval(-18_000)),
             StuckInfo(
                 kind: "in_progress_idle", issueID: 60, agentID: 5, reason: "no progress for a day",
                 action: "it waits on CIT-62 (APNs push), which needs an Apple push key from you",
-                repair: "rewake", lastRepair: "rewake", lastRepairAt: now.addingTimeInterval(-7_200)),
+                repair: "rewake", lastRepair: "rewake", lastRepairAt: now.addingTimeInterval(-7_200),
+                since: now.addingTimeInterval(-86_400)),
         ]
     }
 
@@ -76,6 +79,20 @@ extension CompanyFixture {
             AccountUseInfo(id: 1, label: "claude-work", tokens: 6_100_000, runs: 40),
             AccountUseInfo(id: 2, label: "codex-pro", tokens: 8_300_000, runs: 52),
             AccountUseInfo(id: 3, label: "anthropic-api", tokens: 3_400_000, runs: 61),
+        ]
+        func spend(_ usd: Double, unpriced: Int64 = 0, sub: Int64 = 0) -> SpendTotals {
+            SpendTotals(
+                costMicros: Int64(usd * 1_000_000), pricedTokens: Int64(usd * 50_000), unpricedTokens: unpriced,
+                subscriptionTokens: sub, unpricedRuns: unpriced > 0 ? 1 : 0)
+        }
+        model.costByDepartment = [
+            ScopeSpend(id: 1, totals: spend(322)), ScopeSpend(id: 2, totals: spend(90)),
+            ScopeSpend(id: nil, totals: spend(0.40)),
+        ]
+        model.costByAgent = [
+            ScopeSpend(id: 4, totals: spend(31.20)), ScopeSpend(id: 7, totals: spend(27.10)),
+            ScopeSpend(id: 15, totals: spend(24.80)), ScopeSpend(id: 9, totals: spend(19.40)),
+            ScopeSpend(id: 5, totals: spend(0, unpriced: 640_000)), ScopeSpend(id: 8, totals: spend(4)),
         ]
         model.costPeriod = .month
     }

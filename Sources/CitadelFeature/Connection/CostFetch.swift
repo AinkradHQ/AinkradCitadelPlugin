@@ -30,11 +30,6 @@ extension CitadelServer {
         }
     }
 
-    /// Hands an issue to an agent (`reassign`, next actor = the agent).
-    func reassign(issue: Int64, to agent: Int64) async -> Bool {
-        await transition(issue, .reassign(.init(kind: .reassign, next: .agent(.init(agentId: agent, kind: .agent)))))
-    }
-
     /// Unblocks a blocked issue.
     func unblock(issue: Int64) async -> Bool {
         await transition(issue, .unblock(.init(kind: .unblock)))

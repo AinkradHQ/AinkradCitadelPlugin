@@ -10,6 +10,7 @@ struct AccountsView: View {
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @State private var adding = false
 
     private var page: AccountsPage { model.accountsPage }
 
@@ -63,9 +64,9 @@ struct AccountsView: View {
             )
             .disabledOptions { $0 && !page.canSeeWholePool }
             .fixedSize()
-            // TODO(citadel#account-create): the add-account sheet (POST /accounts exists; the sheet is a follow-up).
-            AinkradButton(title: "+ Add account", style: .secondary) {}
-                .secondaryAccent().compact().fixedSize().disabled(true)
+            AinkradButton(title: "+ Add account", style: .secondary) { adding = true }
+                .secondaryAccent().compact().fixedSize()
+                .ainkradSheet(isPresented: $adding) { AddAccountSheet(store: store, page: page, isPresented: $adding) }
         }
     }
 
@@ -196,21 +197,24 @@ private struct LastFallbacksTile: View {
     @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
-        let moves = FallbackMove.recent(store.recentEvents)
+        let page = model.accountsPage
+        let moves = FallbackMove.merged(events: store.recentEvents, runs: page.fallbackRuns)
         AinkradCard {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                // TODO(citadel#runs-list): "All →" needs the runs list endpoint.
-                TileHead(title: "Last fallbacks")
+                TileHead(
+                    title: "Last fallbacks",
+                    action: moves.count > 4 ? (page.showsAllFallbacks ? "Newest" : "All \(moves.count) →") : nil
+                ) { page.showsAllFallbacks.toggle() }
                 if moves.isEmpty {
-                    Text("No run has fallen back since you connected.").citadelFont("t12")
+                    Text("No recent run has fallen back.").citadelFont("t12")
                         .foregroundStyle(skin.color(skin.text.faint))
                 }
-                ForEach(moves.prefix(4), id: \.seq) { move in
+                ForEach(moves.prefix(page.showsAllFallbacks ? moves.count : 4), id: \.run) { move in
                     VStack(alignment: .leading, spacing: skin.size.s2) {
                         (Text("run #\(move.run)").foregroundStyle(theme.accentSecondary).font(
                             skin.font(AinkradFontToken(sizeKey: "t12", mono: "family")))
                             + Text(heading(move)).foregroundStyle(skin.color(skin.text.muted)))
-                        (Text("\(move.from) → ").foregroundStyle(skin.color(skin.text.primary))
+                        (Text(move.from.map { "\($0) → " } ?? "→ ").foregroundStyle(skin.color(skin.text.primary))
                             + Text(move.to).bold().foregroundStyle(skin.color(skin.text.primary))
                             + Text(move.why.map { " · \($0)" } ?? "").foregroundStyle(status.warning))
                     }
@@ -238,11 +242,11 @@ private struct LastFallbacksTile: View {
     }
 }
 
-/// One `run.fallback` audit event.
+/// One run that fell back: from a `run.fallback` event (with what it left), or from the runs list.
 struct FallbackMove: Equatable {
-    var seq: Int64
     var run: Int64
-    var from: String
+    /// What it left; the runs list only says where it went.
+    var from: String?
     var to: String
     var why: String?
 
@@ -253,9 +257,22 @@ struct FallbackMove: Equatable {
             else { return nil }
             let details = flatFields(audit.details.value)
             return FallbackMove(
-                seq: event.seq, run: run, from: details["from.model"] ?? details["from.harness"] ?? "?",
+                run: run, from: details["from.model"] ?? details["from.harness"] ?? "?",
                 to: details["to.model"] ?? details["to.harness"] ?? "?",
                 why: details["reason"] ?? details["class"])
         }
+    }
+
+    /// The stream's moves first, then the runs list's fallen-back runs it did not cover, newest first; one per run.
+    static func merged(events: [Components.Schemas.Event], runs: [RunInfo]) -> [FallbackMove] {
+        var moves: [FallbackMove] = []
+        for move in recent(events) where !moves.contains(where: { $0.run == move.run }) { moves.append(move) }
+        for run in runs.sorted(by: { $0.id > $1.id }) where !moves.contains(where: { $0.run == run.id }) {
+            moves.append(
+                FallbackMove(
+                    run: run.id, from: nil, to: run.model ?? AgentLook.harnessName(run.harness),
+                    why: run.fallbackReason))
+        }
+        return moves
     }
 }

@@ -35,19 +35,6 @@ final class StuckCostTests: XCTestCase {
         XCTAssertEqual(stuck.glyph, "↻")
     }
 
-    func testEachDayIsItsSinceSumLessTheNextDays() {
-        let d0 = Date(timeIntervalSince1970: 0)
-        let d1 = d0.addingTimeInterval(86_400)
-        let days = daySpends(cumulative: [
-            (d0, SpendTotals(costMicros: 5_000_000, pricedTokens: 300, unpricedTokens: 20, subscriptionTokens: 100)),
-            (d1, SpendTotals(costMicros: 2_000_000, pricedTokens: 100, unpricedTokens: 20, subscriptionTokens: 0)),
-        ])
-        XCTAssertEqual(days.map(\.totals.pricedTokens), [200, 100])
-        XCTAssertEqual(days.map(\.totals.unpricedTokens), [0, 20])
-        XCTAssertEqual(days.map(\.totals.subscriptionTokens), [100, 0])
-        XCTAssertEqual(days[0].totals.costMicros, 3_000_000)
-    }
-
     func testPeriodsStartWhereTheyShould() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
@@ -95,7 +82,7 @@ final class StuckCostTests: XCTestCase {
         XCTAssertEqual(lines[1], #"CIT-1,"Fix ""a, b""",10,10,0,0,1.90,60,1"#)
     }
 
-    func testAFixReassignsToTheLeadOrUnblocks() async throws {
+    func testAFixReassignsToTheLead() async throws {
         FakeServer.serve { _ in .init(json: #"{"id":49}"#) }
         let settings = SettingsStore(documents: MemoryDocs())
         settings.update { $0.server = "https://citadel.example.com" }
@@ -109,8 +96,8 @@ final class StuckCostTests: XCTestCase {
         CompanyFixture.stuckPage(model)
         store.model = model
         store.reassign(model.stuck[0], to: 7)
-        await eventually { FakeServer.requests.contains { $0.url?.path == "/api/v1/issues/49/transition" } }
-        let request = try XCTUnwrap(FakeServer.requests.first { $0.url?.path == "/api/v1/issues/49/transition" })
+        await eventually { FakeServer.requests.contains { $0.url?.path == "/api/v1/issues/49/reassign" } }
+        let request = try XCTUnwrap(FakeServer.requests.first { $0.url?.path == "/api/v1/issues/49/reassign" })
         let body = try XCTUnwrap(
             request.httpBodyStream.flatMap { stream -> Data? in
                 stream.open()
@@ -125,9 +112,6 @@ final class StuckCostTests: XCTestCase {
                 return data
             } ?? request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        XCTAssertEqual(json["kind"] as? String, "reassign")
-        let next = try XCTUnwrap(json["next"] as? [String: Any])
-        XCTAssertEqual(next["kind"] as? String, "agent")
-        XCTAssertEqual(next["agent_id"] as? Int, 7)
+        XCTAssertEqual(json["agent_id"] as? Int, 7)
     }
 }

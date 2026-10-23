@@ -113,6 +113,13 @@ struct RunRail: View {
                 HStack(spacing: skin.size.s6) {
                     Image(systemName: "arrow.triangle.branch").foregroundStyle(theme.accentSecondary)
                     Text(repo).citadelFont("t12", mono: true).foregroundStyle(skin.color(skin.text.primary))
+                        .lineLimit(1).truncationMode(.middle)
+                    if let diff = run.diffRepos.first(where: { $0.repo == repo }) {
+                        (Text("+\(diff.insertions)").foregroundStyle(status.success) + Text(" ")
+                            + Text("−\(diff.deletions)").foregroundStyle(status.danger))
+                            .citadelFont("t11", mono: true).fixedSize()
+                            .ainkradTooltip("\(diff.files) file\(diff.files == 1 ? "" : "s") changed against its base")
+                    }
                     Spacer(minLength: skin.size.s4)
                     Text("PR on finish").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 }
