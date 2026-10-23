@@ -16,7 +16,7 @@ final class CompanyModelTests: XCTestCase {
     private func agentJSON(figure: String, palette: String, status: String = "active", avatar: String = "null")
         -> String
     {
-        #"{"id":4,"company_id":1,"name":"Kestrel","role":"dev","org_role":"none","harness":"codex","model":"gpt-5.5","runner_tags":["linux"],"status":"\#(status)","appearance":{"figure_version":"b1","palette_id":"\#(palette)"},"figure_state":"\#(figure)","avatar_url":\#(avatar)}"#
+        #"{"id":4,"company_id":1,"name":"Kestrel","role":"dev","org_role":"none","harness":"codex","model":"gpt-5.5","runner_tags":["linux"],"status":"\#(status)","appearance":{"figure_version":"b1","palette_id":"\#(palette)"},"figure_state":"\#(figure)","avatar_url":\#(avatar),"hired_at":"2026-10-20T09:00:00.000Z","run_token_cap":200000,"issue_token_cap":2000000}"#
     }
 
     // MARK: - Mapping
@@ -160,7 +160,7 @@ final class CompanyModelTests: XCTestCase {
             guard request.url?.path == "/api/v1/runs/418" else { return .init(status: 404) }
             return .init(
                 json:
-                    #"{"id":418,"agent_id":4,"state":"succeeded","harness":"codex","usage":{"input_tokens":90000,"output_tokens":10000,"cache_tokens":0},"queued_at":"2026-10-23T09:50:00.000Z"}"#
+                    #"{"id":418,"agent_id":4,"state":"succeeded","harness":"codex","usage":{"input_tokens":90000,"output_tokens":10000,"cache_tokens":0},"queued_at":"2026-10-23T09:50:00.000Z","diff_repos":[]}"#
             )
         }
         let settings = SettingsStore(documents: MemoryDocs())
