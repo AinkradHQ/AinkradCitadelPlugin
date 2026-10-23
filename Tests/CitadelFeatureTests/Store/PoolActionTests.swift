@@ -17,7 +17,7 @@ final class PoolActionTests: XCTestCase {
             }
             return .init(
                 json:
-                    #"{"id":4,"name":"oracle-arm","status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00.000Z"}"#
+                    #"{"id":4,"name":"oracle-arm","asleep":false,"harnesses":{},"logins":[],"status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00.000Z"}"#
             )
         }
         let (store, model) = try connectedStore()
@@ -33,7 +33,7 @@ final class PoolActionTests: XCTestCase {
     }
 
     func testARefusedWakeSaysWhatTheServerSaidOnTheCard() async throws {
-        FakeServer.serve { _ in .init(status: 409, json: #"{"code":"conflict","message":"It is online."}"#) }
+        FakeServer.serve { _ in .init(status: 409, json: Wire.refusal("conflict", "It is online.")) }
         let (store, model) = try connectedStore()
         CompanyFixture.runnersPage(model)
         store.wakeRunner(4, when: "now")

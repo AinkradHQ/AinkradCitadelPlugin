@@ -33,7 +33,7 @@ final class InboxTests: XCTestCase {
         let issue = IssueInfo(
             try decode(
                 Schemas.Issue.self,
-                #"{"id":8,"key":"MKT-8","number":8,"title":"Launch post","body":"","kind":"task","project_id":3,"rank":1,"state":"in_progress","owner":{"kind":"human","user_id":1},"next_actor":{"kind":"human","user_id":1}}"#
+                #"{"id":8,"key":"MKT-8","number":8,"labels":[],"priority":false,"title":"Launch post","body":"","kind":"task","project_id":3,"rank":1,"state":"in_progress","owner":{"kind":"human","user_id":1},"next_actor":{"kind":"human","user_id":1}}"#
             ))
         XCTAssertEqual(issue.state, "in_progress")
         XCTAssertEqual(issue.nextActor, .human)

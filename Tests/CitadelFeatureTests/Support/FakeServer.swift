@@ -62,6 +62,11 @@ enum Wire {
     static let me =
         #"{"device":{"id":1,"name":"ahmed-mbp"},"user":{"id":1,"name":"Ahmed"},"versions":{"server":"0.1.0","git_sha":"3c51e1c","api":{"major":"v1","minor":1},"runner_protocol":"1.17"},"companies":\#(companies),"latest_seq":18442}"#
 
+    /// An error body: its stable code, its message and the answer's id.
+    static func refusal(_ code: String, _ message: String) -> String {
+        #"{"error_id":"err_01JTEST","code":"\#(code)","message":"\#(message)"}"#
+    }
+
     static func wake(_ seq: Int64) -> String {
         #"{"seq":\#(seq),"at":"2026-10-21T12:00:00.250Z","payload":{"type":"wake","wake_id":\#(seq),"agent_id":3,"source":"timer","reason":"tick"}}"#
     }

@@ -15,7 +15,7 @@ final class ConnectionTests: XCTestCase {
             case "/api/v1/me": .init(json: Wire.me)
             case "/api/v1/companies/7/agents": .init(json: Wire.agents)
             case "/api/v1/events": .init(json: Wire.page([]))
-            default: .init(status: 404, json: #"{"code":"not_found","message":"no"}"#)
+            default: .init(status: 404, json: Wire.refusal("not_found", "no"))
             }
         }
     }
@@ -129,7 +129,7 @@ final class ConnectionTests: XCTestCase {
     }
 
     func testARejectedKeyStoresNothing() async throws {
-        FakeServer.serve { _ in .init(status: 401, json: #"{"code":"unauthorized","message":"no"}"#) }
+        FakeServer.serve { _ in .init(status: 401, json: Wire.refusal("unauthorized", "no")) }
         let docs = MemoryDocs()
         let secrets = MemorySecrets()
         let store = CitadelStore(

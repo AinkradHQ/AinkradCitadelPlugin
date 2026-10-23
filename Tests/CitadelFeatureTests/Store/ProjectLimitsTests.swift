@@ -119,7 +119,7 @@ final class ProjectLimitsTests: XCTestCase {
 
     func testARefusedRepoChangeKeepsTheServersOrderAndSaysWhy() async throws {
         FakeServer.serve { _ in
-            .init(status: 400, json: #"{"code":"repo_in_use","message":"CIT-62 still touches citadel"}"#)
+            .init(status: 400, json: Wire.refusal("repo_in_use", "CIT-62 still touches citadel"))
         }
         let (store, model) = try connectedStore()
         CompanyFixture.projectsPage(model)

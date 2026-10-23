@@ -234,7 +234,7 @@ final class RunnersAccountsTests: XCTestCase {
 
     func testARefusedDecisionSaysWhatTheServerAnsweredAndChangesNothing() async throws {
         FakeServer.serve { _ in
-            .init(status: 409, json: #"{"code":"conflict","message":"Mira changed the scope 20 s ago (now 29 pts)"}"#)
+            .init(status: 409, json: Wire.refusal("conflict", "Mira changed the scope 20 s ago (now 29 pts)"))
         }
         let (store, model) = try connectedStore()
         CompanyFixture.inboxPage(model)

@@ -79,7 +79,7 @@ final class RunControlsTests: XCTestCase {
 
     func testARefusalBecomesTheActionFailureAndNothingElse() async throws {
         FakeServer.serve { _ in
-            .init(status: 409, json: #"{"code":"conflict","message":"The run already ended."}"#)
+            .init(status: 409, json: Wire.refusal("conflict", "The run already ended."))
         }
         let store = try store()
         store.stop(run: 418)
