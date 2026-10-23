@@ -73,6 +73,27 @@ extension CitadelStore {
         }
     }
 
+    /// "+ Add account": sends a checked draft; the new account joins the pool, assigned to no company yet.
+    /// Returns at once; `done` runs when the server took it.
+    func addAccount(_ draft: NewAccountDraft, done: @escaping @MainActor () -> Void) {
+        guard draft.problem == nil, let server, let model else { return }
+        let page = model.accountsPage
+        page.addProblem = nil
+        Task {
+            switch await server.createAccount(draft) {
+            case .success(let account):
+                page.accounts.append(account)
+                done()
+                await fillAccounts(model, server: server)
+            case .failure(let answer):
+                page.addProblem =
+                    ActionFailure(
+                        title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added."
+                    ).message
+            }
+        }
+    }
+
     private func fillAccounts(_ model: CompanyModel, server: CitadelServer) async {
         let page = model.accountsPage
         if let pool = await server.poolUsage() {
@@ -89,6 +110,13 @@ extension CitadelStore {
         for account in page.accounts {
             if let all = await server.settings(scope: "account:\(account.id)") {
                 page.settings[account.id] = Dictionary(all.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+            }
+        }
+        // ponytail: the newest 100 runs, filtered here — the runs list has no "fell back" filter.
+        if let runs = await server.companyRuns(company: model.companyID, limit: 100) {
+            page.fallbackRuns = runs.filter { $0.fallbackReason != nil }
+            for run in page.fallbackRuns where model.issues[run.issueID ?? 0] == nil {
+                if let issue = run.issueID { model.issues[issue] = await server.issue(issue) }
             }
         }
         if page.pickedAccount == nil { page.pickedAccount = page.visible(company: model.companyID).first?.id }

@@ -12,6 +12,8 @@ final class RunnersPage {
     var runners: [RunnerInfo] = []
     /// Each runner's disk as it last reported it.
     var disk: [Int64: RunnerDiskInfo] = [:]
+    /// Why a runner's last action was refused (mockup 11 G, on its card).
+    var failures: [Int64: ActionFailure] = [:]
     /// Each runner's limits at `runner:<id>` (decision #57: server → runner, never per company).
     var settings: [Int64: [String: ScopedSetting]] = [:]
     /// The server's values, what a runner's ↺ goes back to.
@@ -39,6 +41,21 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
     var healthReason: String?
     var lastSeenAt: Date?
     var tags: [String]
+    /// A wake asked for and not yet answered: `now` ("Wake now", pushed to the Mac) or `when_back` (its work waits).
+    var wakeMode: String?
+    var wakeRequestedAt: Date?
+
+    /// A wake asked for and not yet answered: "Wake requested 2m ago." and what happens next.
+    func wakeLine(now: Date) -> (title: String, detail: String)? {
+        guard let wakeMode else { return nil }
+        let age = wakeRequestedAt.map { " \(Fmt.age(now.timeIntervalSince($0))) ago" } ?? ""
+        return wakeMode == "when_back"
+            ? (
+                "Runs when you're back\(age.isEmpty ? "" : " — asked\(age)").",
+                "Nothing was pushed; its work waits until it connects."
+            )
+            : ("Wake requested\(age).", "Pushed to your Mac; its queued work starts when it connects.")
+    }
 
     /// The reason block: unhealthy says why; offline says how long it has been silent.
     func reason(now: Date) -> (title: String, detail: String)? {
@@ -113,7 +130,8 @@ extension RunnerInfo {
     init(_ runner: Schemas.Runner) {
         self.init(
             id: runner.id, name: runner.name, status: runner.status.word, healthReason: runner.healthReason,
-            lastSeenAt: runner.lastSeenAt, tags: runner.tags)
+            lastSeenAt: runner.lastSeenAt, tags: runner.tags, wakeMode: runner.wakeMode,
+            wakeRequestedAt: runner.wakeRequestedAt)
     }
 }
 
