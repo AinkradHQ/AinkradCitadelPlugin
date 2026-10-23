@@ -76,12 +76,16 @@ final class SweepTests: XCTestCase {
             stage(store)
             return store
         }
-        func company(_ screen: Screen, detail: Detail? = nil) -> CitadelStore {
+        func company(
+            _ screen: Screen, detail: Detail? = nil, _ stage: (CompanyModel) -> Void = { _ in }
+        ) -> CitadelStore {
             store(connectedBefore: true) {
                 $0.agentCount = 18
                 $0.phase = .connected
                 $0.streamStatus = .live
-                $0.model = CompanyFixture.model()
+                let model = CompanyFixture.model()
+                stage(model)
+                $0.model = model
                 $0.screen = screen
                 $0.detail = detail
             }
@@ -152,6 +156,8 @@ final class SweepTests: XCTestCase {
         return shots.map { ($0.0, $0.1, small) } + [
             ("02-home", company(.home), CGSize(width: 1280, height: 900)),
             ("03-org", company(.org), CGSize(width: 1280, height: 800)),
+            ("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), CGSize(width: 1280, height: 800)),
+            ("05-run", company(.runs, detail: .run(418), CompanyFixture.runPage), CGSize(width: 1280, height: 1180)),
         ]
     }
 

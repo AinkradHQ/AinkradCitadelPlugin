@@ -65,6 +65,7 @@ extension CitadelStore {
         model.runners = await runners ?? [:]
         model.projects = await projects ?? []
         if let (spend, budgets) = await costs { apply(spend: spend, budgets: budgets, to: model) }
+        await loadSpendToday(model, server: server)
         for key in Self.limitKeys {
             model.limits[key] = await server.setting(scope: "company:\(id)", key: key)
         }
@@ -98,6 +99,9 @@ extension CitadelStore {
         if let run = await server.run(id) { model.runs[id] = run }
         if model.transcripts[id] == nil { model.transcripts[id] = await server.transcript(run: id) ?? [] }
         guard let issueID = model.runs[id]?.issueID else { return }
+        if let costs = await server.issueCosts(company: model.companyID) {
+            model.issueCosts = Dictionary(costs.map { ($0.issueID, $0) }, uniquingKeysWith: { a, _ in a })
+        }
         if model.issues[issueID] == nil { model.issues[issueID] = await server.issue(issueID) }
         if model.issueRepos[issueID] == nil { model.issueRepos[issueID] = await server.issueRepos(issueID) }
         if let project = model.issues[issueID]?.projectID {
@@ -149,6 +153,7 @@ extension CitadelStore {
             if let (spend, budgets) = await server.costs(company: id) {
                 apply(spend: spend, budgets: budgets, to: model)
             }
+            await loadSpendToday(model, server: server)
         case .requirements: model.requirements = await server.requirements() ?? model.requirements
         case .sprint: model.sprint = await server.activeSprint(company: id)
         case .accounts:
@@ -179,6 +184,17 @@ extension CitadelStore {
             guard issue > 0, model.issues[issue] == nil else { return }
             model.issues[issue] = await server.issue(issue)
         }
+    }
+
+    /// Today's spend: the day's issues added up (an unpriced run counts as a run, never as $0).
+    private func loadSpendToday(_ model: CompanyModel, server: CitadelServer) async {
+        guard
+            let costs = await server.issueCosts(
+                company: model.companyID, since: Calendar.current.startOfDay(for: Date()))
+        else { return }
+        model.spendToday = IssueCost(
+            issueID: 0, tokens: costs.map(\.tokens).reduce(0, +), costMicros: costs.map(\.costMicros).reduce(0, +),
+            runs: costs.map(\.runs).reduce(0, +), unpricedRuns: costs.map(\.unpricedRuns).reduce(0, +))
     }
 
     private func apply(spend: SpendInfo, budgets: [Schemas.BudgetStanding], to model: CompanyModel) {

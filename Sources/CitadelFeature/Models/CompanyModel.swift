@@ -31,6 +31,10 @@ final class CompanyModel {
     var requirements: [RequirementInfo] = []
     var sprint: SprintInfo?
     var projects: [ProjectInfo] = []
+    /// Each issue's spend to date, as the run rail's "issue so far" needs it.
+    var issueCosts: [Int64: IssueCost] = [:]
+    /// Spend since local midnight, summed over the day's issues.
+    var spendToday: IssueCost?
     var accounts: [Int64: AccountInfo] = [:]
     var runners: [Int64: String] = [:]
     /// `run.token_cap`, `run.stall_after_secs`, `budget.warn_percent`, `breaker.loop_threshold`.

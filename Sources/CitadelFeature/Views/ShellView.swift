@@ -62,8 +62,8 @@ struct ShellView: View {
     @ViewBuilder
     private func screenView(_ model: CompanyModel) -> some View {
         switch (store.detail, store.screen) {
-        case (.agent(let id)?, _): AgentPlaceholder(id: id)
-        case (.run(let id)?, _): AgentPlaceholder(id: id)
+        case (.agent(let id)?, _): AgentView(store: store, model: model, agentID: id)
+        case (.run(let id)?, _): RunView(store: store, model: model, runID: id)
         case (nil, .home): HomeView(store: store, model: model)
         case (nil, .org): OrgView(store: store, model: model)
         default: placeholder
@@ -82,11 +82,6 @@ struct ShellView: View {
             .offlineDimmed()
         }
     }
-}
-
-private struct AgentPlaceholder: View {
-    let id: Int64
-    var body: some View { AinkradEmptyState(icon: "person", title: "Agent", message: "Arrives in the next build.") }
 }
 
 /// Mockup 11 B, handed to every screen: its title shows the offline crumb and the amber bar, and the screen's

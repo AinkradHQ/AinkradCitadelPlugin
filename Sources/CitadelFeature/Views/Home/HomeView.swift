@@ -104,8 +104,8 @@ struct HomeView: View {
                 detail: Text(
                     "\(model.busyAgents) agents busy · \(model.idleAgents) idle · \(model.pausedAgents) paused"))
             KPITile(
-                label: "Spend", value: spend.map { Fmt.dollars(micros: $0.costMicros) } ?? "—", unit: nil, tone: nil,
-                detail: spendDetail(spend))
+                label: "Spend today", value: model.spendToday.map { Fmt.dollars(micros: $0.costMicros) } ?? "—",
+                unit: nil, tone: nil, detail: spendDetail(spend))
             KPITile(
                 label: model.sprint.map { "Sprint \($0.projectKey) \($0.name)" } ?? "Sprint",
                 value: model.sprint.map { "\($0.completed)" } ?? "—",
@@ -116,10 +116,13 @@ struct HomeView: View {
     }
 
     private func spendDetail(_ spend: SpendInfo?) -> Text {
-        guard let spend else { return Text("No runs yet") }
+        let today = model.spendToday
+        let unpricedRuns = today?.unpricedRuns ?? 0
         let unpriced =
-            spend.unpricedRuns > 0
-            ? Text("\(spend.unpricedRuns) unpriced runs").foregroundStyle(status.warning) : Text("all runs priced")
+            unpricedRuns > 0
+            ? Text("\(unpricedRuns) unpriced run\(unpricedRuns == 1 ? "" : "s")").foregroundStyle(status.warning)
+            : Text("\(Fmt.tokens(today?.tokens ?? 0)) tokens")
+        guard let spend else { return unpriced }
         return unpriced + Text(" · \(Fmt.tokens(spend.subscriptionTokens)) subscription tokens")
     }
 

@@ -179,7 +179,7 @@ struct SpendTile: View {
     var body: some View {
         AinkradCard {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                TileHead(title: "Spend", action: "Cost →") { store.screen = .cost }
+                TileHead(title: "Spend today", action: "Cost →") { store.screen = .cost }
                 // The server reports spend to date; an hourly series for the day is not served yet.
                 AinkradLineChart(title: "Spend today", series: [], emptyMessage: "No hourly spend from the server yet")
                     .frame(height: skin.size.s70)
@@ -190,7 +190,7 @@ struct SpendTile: View {
                         AinkradStatusRun(count: Int(spend.subscriptionTokens), status: .success),
                     ])
                     Text(
-                        "Priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(spend.unpricedRuns) runs · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
+                        "To date: priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(spend.unpricedRuns) runs · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
                     )
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                 }

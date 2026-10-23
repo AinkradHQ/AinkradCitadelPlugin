@@ -174,6 +174,20 @@ extension CitadelServer {
         }
     }
 
+    /// Each issue's spend, from runs queued at or after `since` (all runs without it).
+    func issueCosts(company: Int64, since: Date? = nil) async -> [IssueCost]? {
+        await read("getTaskCosts") {
+            let query = Operations.GetTaskCosts.Input.Query(since: since?.formatted(.iso8601))
+            guard case .ok(let ok) = try await client.getTaskCosts(path: .init(id: company), query: query)
+            else { return nil }
+            return try ok.body.json.map {
+                IssueCost(
+                    issueID: $0.issueId, tokens: $0.inputTokens + $0.outputTokens + $0.cacheTokens,
+                    costMicros: $0.costUsdMicros, runs: $0.runs, unpricedRuns: $0.unpricedRuns)
+            }
+        }
+    }
+
     func runners() async -> [Int64: String]? {
         await read("listRunners") {
             guard case .ok(let ok) = try await client.listRunners() else { return nil }
