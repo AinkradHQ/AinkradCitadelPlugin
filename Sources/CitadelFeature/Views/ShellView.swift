@@ -43,7 +43,7 @@ struct ShellView: View {
         if case .catchingUp(let replayed) = store.streamStatus {
             VStack(spacing: 0) {
                 PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
-                CatchingUpView(replayed: replayed)
+                CatchingUpView(replayed: replayed, total: store.catchUpTotal)
             }
         } else if let model = store.model, model.isLoaded {
             screenView(model)

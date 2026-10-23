@@ -66,9 +66,9 @@ struct ConnectStatusBlock: View {
         return "\(name) · \(agents) agent\(agents == 1 ? "" : "s")"
     }
 
-    /// The server's version is not on the API yet (follow-up), so: host, API, round trip.
+    /// Version, host, API, round trip: `citadel 0.1.0 · citadel.ainkrad.io · api 1 · 42 ms`.
     private var connectedFacts: String {
-        var facts = ["\(store.host)", "api 1"]
+        var facts = [store.serverVersion.map { "citadel \($0)" }, store.host, "api 1"].compactMap { $0 }
         if let latency = store.latency {
             facts.append("\(Int(latency / .milliseconds(1))) ms")
         }

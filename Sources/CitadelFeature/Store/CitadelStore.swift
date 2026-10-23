@@ -38,6 +38,10 @@ final class CitadelStore {
     var companies: [Components.Schemas.Company] = []
     var agentCount: Int?
     var latency: Duration?
+    /// The server's version (`GET /me`), shown on the connected card.
+    var serverVersion: String?
+    /// How many events a catch-up has to replay: the newest seq (`GET /me`) less the saved cursor.
+    var catchUpTotal: Int?
     var streamStatus: EventStream.Status?
     /// Events replayed over HTTP since the stream started ("Replayed 312 events since you were last here").
     var replayed = 0
@@ -199,8 +203,11 @@ final class CitadelStore {
         phase = .connecting(step: 1, label: "Checking key", since: Date())
         let base = CitadelServer(address: address, deviceKey: key, company: nil, session: session)
         do {
-            let companies = try await base.companies()
+            let me = try await base.me()
+            let companies = me.companies
             guard !Task.isCancelled else { return }
+            serverVersion = me.version
+            catchUpTotal = cursor.map { Int(max(0, me.latestSeq - $0)) }
             latency = ContinuousClock.now - started
             // Accepted: only now does the key reach the secret store.
             keys.setKey(key, for: address)

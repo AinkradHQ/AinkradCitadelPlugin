@@ -490,6 +490,35 @@ extension Components {
                 ])
             }
         }
+        /// The contract a server speaks: `/api/<major>` and its additions so far.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ApiVersion`.
+        public struct ApiVersion: Codable, Hashable, Sendable {
+            /// `v1`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ApiVersion/major`.
+            public var major: Swift.String
+            /// Bumped on every additive change within the major.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ApiVersion/minor`.
+            public var minor: Swift.Int32
+            /// Creates a new `ApiVersion`.
+            ///
+            /// - Parameters:
+            ///   - major: `v1`.
+            ///   - minor: Bumped on every additive change within the major.
+            public init(
+                major: Swift.String,
+                minor: Swift.Int32
+            ) {
+                self.major = major
+                self.minor = minor
+            }
+            public enum CodingKeys: String, CodingKey {
+                case major
+                case minor
+            }
+        }
         /// An agent's figure: which version the client draws, in which palette (`listPalettes`).
         ///
         /// - Remark: Generated from `#/components/schemas/Appearance`.
@@ -2908,6 +2937,25 @@ extension Components {
                 case at
             }
         }
+        /// The newest event's seq a client would be shown: the catch-up target.
+        ///
+        /// - Remark: Generated from `#/components/schemas/LatestEvent`.
+        public struct LatestEvent: Codable, Hashable, Sendable {
+            /// 0 when there is none yet.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LatestEvent/seq`.
+            public var seq: Swift.Int64
+            /// Creates a new `LatestEvent`.
+            ///
+            /// - Parameters:
+            ///   - seq: 0 when there is none yet.
+            public init(seq: Swift.Int64) {
+                self.seq = seq
+            }
+            public enum CodingKeys: String, CodingKey {
+                case seq
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/LimitUnit`.
         public struct LimitUnit: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/LimitUnit/value1`.
@@ -2983,6 +3031,56 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case limit
                 case used
+            }
+        }
+        /// The calling device and what it may see.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Me`.
+        public struct Me: Codable, Hashable, Sendable {
+            /// The companies this key may see: every one, or only the acting one when
+            /// `X-Citadel-Company` is sent.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Me/companies`.
+            public var companies: [Components.Schemas.Company]
+            /// - Remark: Generated from `#/components/schemas/Me/device`.
+            public var device: Components.Schemas.Named
+            /// The newest event's seq it would be shown (as `GET /api/v1/events/latest`).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Me/latest_seq`.
+            public var latestSeq: Swift.Int64
+            /// The user it acts as: the one admin.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Me/user`.
+            public var user: Components.Schemas.Named
+            /// - Remark: Generated from `#/components/schemas/Me/versions`.
+            public var versions: Components.Schemas.Versions
+            /// Creates a new `Me`.
+            ///
+            /// - Parameters:
+            ///   - companies: The companies this key may see: every one, or only the acting one when
+            ///   - device:
+            ///   - latestSeq: The newest event's seq it would be shown (as `GET /api/v1/events/latest`).
+            ///   - user: The user it acts as: the one admin.
+            ///   - versions:
+            public init(
+                companies: [Components.Schemas.Company],
+                device: Components.Schemas.Named,
+                latestSeq: Swift.Int64,
+                user: Components.Schemas.Named,
+                versions: Components.Schemas.Versions
+            ) {
+                self.companies = companies
+                self.device = device
+                self.latestSeq = latestSeq
+                self.user = user
+                self.versions = versions
+            }
+            public enum CodingKeys: String, CodingKey {
+                case companies
+                case device
+                case latestSeq = "latest_seq"
+                case user
+                case versions
             }
         }
         /// - Remark: Generated from `#/components/schemas/MergeMethod`.
@@ -3208,6 +3306,31 @@ extension Components {
                     self.value1,
                     self.value2
                 ])
+            }
+        }
+        /// A device or a user: who, by id and name.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Named`.
+        public struct Named: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Named/id`.
+            public var id: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Named/name`.
+            public var name: Swift.String
+            /// Creates a new `Named`.
+            ///
+            /// - Parameters:
+            ///   - id:
+            ///   - name:
+            public init(
+                id: Swift.Int64,
+                name: Swift.String
+            ) {
+                self.id = id
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case name
             }
         }
         /// - Remark: Generated from `#/components/schemas/Network`.
@@ -7742,6 +7865,49 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case average
                 case sprints
+            }
+        }
+        /// What the server is and speaks.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Versions`.
+        public struct Versions: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Versions/api`.
+            public var api: Components.Schemas.ApiVersion
+            /// The commit it was built from (short sha), when the build knew it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Versions/git_sha`.
+            public var gitSha: Swift.String?
+            /// The runner protocol it speaks, `major.minor`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Versions/runner_protocol`.
+            public var runnerProtocol: Swift.String
+            /// The server's crate version, `0.1.0`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Versions/server`.
+            public var server: Swift.String
+            /// Creates a new `Versions`.
+            ///
+            /// - Parameters:
+            ///   - api:
+            ///   - gitSha: The commit it was built from (short sha), when the build knew it.
+            ///   - runnerProtocol: The runner protocol it speaks, `major.minor`.
+            ///   - server: The server's crate version, `0.1.0`.
+            public init(
+                api: Components.Schemas.ApiVersion,
+                gitSha: Swift.String? = nil,
+                runnerProtocol: Swift.String,
+                server: Swift.String
+            ) {
+                self.api = api
+                self.gitSha = gitSha
+                self.runnerProtocol = runnerProtocol
+                self.server = server
+            }
+            public enum CodingKeys: String, CodingKey {
+                case api
+                case gitSha = "git_sha"
+                case runnerProtocol = "runner_protocol"
+                case server
             }
         }
         /// - Remark: Generated from `#/components/schemas/WakeSource`.

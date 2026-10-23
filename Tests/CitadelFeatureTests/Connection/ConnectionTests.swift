@@ -12,7 +12,7 @@ final class ConnectionTests: XCTestCase {
     override func setUp() {
         FakeServer.serve { request in
             switch request.url?.path {
-            case "/api/v1/companies": .init(json: Wire.companies)
+            case "/api/v1/me": .init(json: Wire.me)
             case "/api/v1/companies/7/agents": .init(json: Wire.agents)
             case "/api/v1/events": .init(json: Wire.page([]))
             default: .init(status: 404, json: #"{"code":"not_found","message":"no"}"#)
@@ -26,7 +26,7 @@ final class ConnectionTests: XCTestCase {
         let server = CitadelServer(
             address: try ServerAddress("https://citadel.example.com"), deviceKey: key, company: 7,
             session: FakeServer.session())
-        _ = try await server.companies()
+        _ = try await server.me()
         _ = try await server.agentCount(company: 7)
         _ = try await server.replay(after: 3)
 
@@ -46,7 +46,7 @@ final class ConnectionTests: XCTestCase {
         let server = CitadelServer(
             address: try ServerAddress("https://citadel.example.com"), deviceKey: key, company: nil,
             session: FakeServer.session())
-        _ = try await server.companies()
+        _ = try await server.me()
         XCTAssertNil(FakeServer.requests.first?.value(forHTTPHeaderField: "X-Citadel-Company"))
         XCTAssertEqual(FakeServer.requests.first?.value(forHTTPHeaderField: "Authorization"), "Bearer \(key)")
     }
@@ -105,6 +105,27 @@ final class ConnectionTests: XCTestCase {
         XCTAssertFalse(defaults.contains { $0.contains(key) }, "the key leaked into UserDefaults")
         XCTAssertEqual(store.company?.name, "Ainkrad")
         XCTAssertEqual(store.agentCount, 0)
+        XCTAssertEqual(store.serverVersion, "0.1.0", "GET /me is the key check and names the server")
+        XCTAssertTrue(FakeServer.requests.contains { $0.url?.path == "/api/v1/me" })
+    }
+
+    func testTheCatchUpKnowsHowFarItHasToGoFromTheNewestSeq() async throws {
+        let docs = MemoryDocs()
+        let settings = SettingsStore(documents: docs)
+        settings.update {
+            $0.server = "https://citadel.example.com"
+            $0.companyID = 7
+            $0.cursors["https://citadel.example.com|7"] = 18_000
+        }
+        let store = CitadelStore(
+            settings: settings, secrets: MemorySecrets(), session: FakeServer.session(),
+            connector: FakeSockets().connector)
+        store.serverDraft = "https://citadel.example.com"
+        store.keyDraft = key
+        store.connect()
+        await eventually { store.serverVersion != nil }
+        store.stop()
+        XCTAssertEqual(store.catchUpTotal, 442, "latest_seq 18,442 less the saved cursor 18,000")
     }
 
     func testARejectedKeyStoresNothing() async throws {
