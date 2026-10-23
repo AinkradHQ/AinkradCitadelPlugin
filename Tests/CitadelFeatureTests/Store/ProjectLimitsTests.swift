@@ -189,14 +189,17 @@ final class ProjectLimitsTests: XCTestCase {
         XCTAssertNil(page.refused["artifact.company_quota_bytes"])
     }
 
-    func testOverridesBelowAreTheValuesSetAtEachProjectRunnerAndAccount() async throws {
+    func testOverridesBelowComeFromTheCompanysOneOverriddenCall() async throws {
         FakeServer.serve { request in
             let stall = "run.stall_after_secs"
             switch request.url?.path {
             case "/api/v1/settings": return .init(json: "[\(Self.setting(stall, 900, source: nil))]")
             case "/api/v1/settings/company:1": return .init(json: "[\(Self.setting(stall, 900, source: "server"))]")
-            case "/api/v1/settings/project:1": return .init(json: "[\(Self.setting(stall, 600, source: "project:1"))]")
-            case "/api/v1/settings/project:2": return .init(json: "[\(Self.setting(stall, 900, source: "server"))]")
+            case "/api/v1/companies/1/settings/overridden":
+                return .init(
+                    json:
+                        #"[{"key":"run.stall_after_secs","description":"","unit":"seconds","default":900,"scope":"project:1","value":600,"set_by":{"kind":"agent","agent_id":7},"set_at":"2026-10-22T08:02:00.000Z"}]"#
+                )
             case "/api/v1/settings/company:1/run.stall_after_secs/history",
                 "/api/v1/settings/project:1/run.stall_after_secs/history":
                 return .init(json: "[]")
@@ -216,5 +219,7 @@ final class ProjectLimitsTests: XCTestCase {
             [LimitOverride(scope: "project:1", owner: "CIT", value: "10 min")],
             "a scope that only inherits is not an override")
         XCTAssertEqual(model.limitsPage.setHere(1), 0)
+        let paths = FakeServer.requests.compactMap(\.url?.path)
+        XCTAssertFalse(paths.contains { $0.hasPrefix("/api/v1/settings/project:") && !$0.hasSuffix("/history") })
     }
 }

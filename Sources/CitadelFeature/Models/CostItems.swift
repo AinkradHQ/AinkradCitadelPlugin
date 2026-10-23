@@ -111,6 +111,21 @@ struct ScopeSpend: Equatable, Sendable {
 }
 
 /// "Set a price…": a model's dollars per million tokens, checked before it is sent.
+/// One version of a model's price (`priceHistory`): "v2 · from Oct 12 · $0.30 in · $1.20 out".
+struct PriceVersionInfo: Equatable, Sendable {
+    var version: Int64
+    var input: Double
+    var output: Double
+    var cache: Double
+    var setAt: Date
+
+    var line: String {
+        let usd = { (v: Double) in v.formatted(.currency(code: "USD").precision(.fractionLength(2...4))) }
+        return "v\(version) · from \(setAt.formatted(.dateTime.month(.abbreviated).day())) · \(usd(input)) in · "
+            + "\(usd(output)) out · \(usd(cache)) cache"
+    }
+}
+
 struct PriceDraft: Equatable, Sendable {
     var harness: String
     var model: String
@@ -194,6 +209,10 @@ extension StuckInfo {
 
     /// Its work waits for a runner with the right tags, and the only one sleeps: wake it or run when back.
     var waitsOnASleepingRunner: Bool { kind == "wake_no_runner" }
+    /// A run ended or never got a runner: its newest ended run can be retried on a chosen one.
+    var retries: Bool {
+        issueID != nil && agentID != nil && ["checkout_dead", "run_queued_no_lease", "in_progress_idle"].contains(kind)
+    }
 
     var glyph: String {
         switch kind {

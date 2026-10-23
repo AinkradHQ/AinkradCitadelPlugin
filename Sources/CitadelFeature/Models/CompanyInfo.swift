@@ -77,6 +77,9 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var lastProgressAt: Date?
     /// Each repo's diff against its base, as last measured, in the issue's repo order (`+38 −6`).
     var diffRepos: [RepoDiffInfo] = []
+    /// Why its transcript is gone (`pruned` past `transcript.retention_secs`), and when it went.
+    var transcriptGoneReason: String? = nil
+    var transcriptPrunedAt: Date? = nil
 
     /// What a cap counts: every token, cache included.
     var tokens: Int64 { inputTokens + outputTokens + cacheTokens }

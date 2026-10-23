@@ -83,6 +83,9 @@ extension CitadelStore {
         for key in Self.limitKeys {
             model.limits[key] = await server.setting(scope: "company:\(id)", key: key)
         }
+        // How long transcripts are kept, for 11 H's "was pruned" (server and company scopes only).
+        let retention = "transcript.retention_secs"
+        model.limits[retention] = await server.setting(scope: "company:\(id)", key: retention)
         // The run each busy or waiting agent is on: the live-run cards and the org's "what it's on now".
         for agent in model.agents.values where agent.figure != .idle && agent.figure != .rest {
             await reload(.agentRun(agent.id), model: model, server: server)

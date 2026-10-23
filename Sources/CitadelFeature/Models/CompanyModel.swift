@@ -195,6 +195,13 @@ final class CompanyModel {
         case "account": return [.accounts, .settings]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
+            // Every issue event names its project (API minor 9): one in the active sprint's project moves Home's
+            // sprint count.
+            if let project = details["project_id"].flatMap(Int64.init), let sprint,
+                projects.first(where: { $0.id == project })?.key == sprint.projectKey
+            {
+                reloads.insert(.sprint)
+            }
             guard let entity, kind == nil || kind == "issue" else { return reloads }
             reloads.insert(issues[entity] == nil ? .issue(entity) : .issueFresh(entity))
             if action == "issue.commented", comments[entity] != nil { reloads.insert(.comments(entity)) }

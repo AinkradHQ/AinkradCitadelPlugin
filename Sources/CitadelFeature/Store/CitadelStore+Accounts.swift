@@ -92,6 +92,24 @@ extension CitadelStore {
         }
     }
 
+    /// The account's plan tier (`Max 20x`); empty clears it.
+    func setPlanTier(_ account: Int64, _ tier: String) {
+        guard let server, let page = model?.accountsPage else { return }
+        let trimmed = tier.trimmingCharacters(in: .whitespaces)
+        let label = page.accounts.first { $0.id == account }?.label ?? "the account"
+        Task {
+            switch await server.setPlanTier(account: account, trimmed.isEmpty ? nil : trimmed) {
+            case .success(let saved):
+                if let index = page.accounts.firstIndex(where: { $0.id == account }) {
+                    page.accounts[index].planTier = saved
+                }
+            case .failure(let answer):
+                actionFailure = ActionFailure(
+                    title: "Couldn't set \(label)'s plan", answer: answer, outcome: "Its plan is unchanged.")
+            }
+        }
+    }
+
     private func fillAccounts(_ model: CompanyModel, server: CitadelServer) async {
         let page = model.accountsPage
         if let pool = await server.poolUsage() {

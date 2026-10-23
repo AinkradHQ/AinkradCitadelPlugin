@@ -120,6 +120,16 @@ extension ScopedSetting {
     }
 }
 
+/// A value set at a company or project scope, as `listOverriddenSettings` lists it.
+struct SetValueInfo: Equatable, Sendable {
+    var key: String
+    /// `company:1`, `project:2`.
+    var scope: String
+    var value: Int64
+    var unit: String
+    var setAt: Date
+}
+
 /// One audited set or reset of a setting (screen 16's recent changes).
 struct SettingChangeInfo: Equatable, Sendable {
     var key: String
@@ -165,6 +175,18 @@ extension CitadelServer {
                 return nil
             }
             return ScopedSetting(try ok.body.json)
+        }
+    }
+
+    /// Every value set at the company or one of its projects, in one call (API minor 8).
+    func overriddenSettings(company: Int64) async -> [SetValueInfo]? {
+        await read("listOverriddenSettings") {
+            guard case .ok(let ok) = try await client.listOverriddenSettings(path: .init(id: company)) else {
+                return nil
+            }
+            return try ok.body.json.map {
+                SetValueInfo(key: $0.key, scope: $0.scope, value: $0.value, unit: $0.unit.word, setAt: $0.setAt)
+            }
         }
     }
 

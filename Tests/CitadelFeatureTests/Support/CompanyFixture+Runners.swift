@@ -117,11 +117,14 @@ extension CompanyFixture {
             PoolAccount(
                 id: id, label: label, harness: harness, billing: billing, status: status, statusReason: nil,
                 statusUntil: nil, configDir: "~/.citadel/acct/\(label)", companyIDs: tokens.keys.sorted(), drops: drops,
-                companyTokens: tokens, signalWindows: windows, limits: limits)
+                companyTokens: tokens, signalWindows: windows, limits: limits,
+                planTier: billing == "subscription" ? (harness == "codex" ? "Pro" : "Max 20×") : nil,
+                recentDrops: drops, recentDropsWindowSecs: 86_400)
         }
         var work = account(
             2, "claude-work", status: "limited", tokens: [1: 400, 2: 600],
             windows: [window("five_hour", 1.0, resetsIn: 1.1), window("seven_day", 0.63, resetsIn: 90)])
+        work.planTier = "Max 5×"
         work.statusReason = "the harness reports the plan limit reached"
         work.statusUntil = now.addingTimeInterval(1.1 * 3600)
         page.accounts = [
