@@ -19,6 +19,16 @@ enum Reload: Hashable, Sendable {
     case agentRun(Int64)
     case run(Int64)
     case issue(Int64)
+    /// A requirement's thread and plan (screen 12), once opened.
+    case thread(Int64)
+    /// The artifacts list and the company's storage use (screen 13).
+    case artifacts
+    /// A project's profile and repos (screen 14).
+    case profile(Int64)
+    /// Scoped settings (screens 10, 14, 15, 16).
+    case settings
+    /// Runners and their disk (screen 10).
+    case runners
 }
 
 /// The selected company as the screens read it, kept current by the event stream.
@@ -74,6 +84,13 @@ final class CompanyModel {
     /// Uploaded agent images (decision #61), drawn instead of the orb.
     var avatars: [Int64: NSImage] = [:]
     var isLoaded = false
+    /// Screens 10 and 12–16 keep their own state, loaded when the screen opens and kept current by events.
+    let requirementsPage = RequirementsPage()
+    let artifactsPage = ArtifactsPage()
+    let projectsPage = ProjectsPage()
+    let limitsPage = LimitsPage()
+    let accountsPage = AccountsPage()
+    let runnersPage = RunnersPage()
 
     init(companyID: Int64) {
         self.companyID = companyID
@@ -163,9 +180,16 @@ final class CompanyModel {
         case "question": return [.questions]
         case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
         case "budget": return [.costs]
-        case "requirement": return [.requirements, .questions]
+        case "requirement":
+            var reloads: Set<Reload> = [.requirements, .questions]
+            if let entity { reloads.insert(.thread(entity)) }
+            return reloads
+        case "artifact": return [.artifacts]
+        case "setting": return [.settings]
+        case "runner": return [.runners]
+        case "project": return entity.map { [.profile($0)] } ?? []
         case "sprint": return [.sprint]
-        case "account": return [.accounts]
+        case "account": return [.accounts, .settings]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
             guard let entity, kind == nil || kind == "issue" else { return reloads }
