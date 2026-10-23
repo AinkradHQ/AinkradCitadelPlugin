@@ -17,7 +17,7 @@ final class PoolActionTests: XCTestCase {
             }
             return .init(
                 json:
-                    #"{"id":4,"name":"oracle-arm","status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00Z"}"#
+                    #"{"id":4,"name":"oracle-arm","status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00.000Z"}"#
             )
         }
         let (store, model) = try connectedStore()
@@ -77,7 +77,7 @@ final class PoolActionTests: XCTestCase {
         draft.credential = "~/.citadel/keys/anthropic"
         XCTAssertEqual(draft.body.credentialRef, "~/.citadel/keys/anthropic")
         XCTAssertNil(draft.body.credentialEnv)
-        XCTAssertEqual(draft.body.billing.word, "metered")
+        XCTAssertEqual(draft.body.billing?.word, "metered")
     }
 
     func testAddingAnAccountPostsTheReferenceAndJoinsThePool() async throws {
