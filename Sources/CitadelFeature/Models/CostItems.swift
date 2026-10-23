@@ -194,6 +194,10 @@ extension StuckInfo {
 
     /// Its work waits for a runner with the right tags, and the only one sleeps: wake it or run when back.
     var waitsOnASleepingRunner: Bool { kind == "wake_no_runner" }
+    /// A run ended or never got a runner: its newest ended run can be retried on a chosen one.
+    var retries: Bool {
+        issueID != nil && agentID != nil && ["checkout_dead", "run_queued_no_lease", "in_progress_idle"].contains(kind)
+    }
 
     var glyph: String {
         switch kind {

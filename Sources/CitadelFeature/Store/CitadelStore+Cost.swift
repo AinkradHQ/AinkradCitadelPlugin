@@ -101,6 +101,34 @@ extension CitadelStore {
         }
     }
 
+    /// The engine's `release_checkout`, by hand: the dead run lets go of the issue.
+    func releaseCheckout(_ stuck: StuckInfo) {
+        guard let issue = stuck.issueID else { return }
+        act("Couldn't release \(key(issue))", outcome: "It stays checked out.", issue: issue) {
+            await $0.releaseCheckout(issue: issue)
+        }
+    }
+
+    /// "Bump priority": to the top of its backlog, its wakes first.
+    func bump(_ stuck: StuckInfo) {
+        guard let issue = stuck.issueID else { return }
+        act("Couldn't bump \(key(issue))", outcome: "Its priority is unchanged.", issue: issue) {
+            await $0.bump(issue: issue)
+        }
+    }
+
+    /// "Retry on hetzner-1": the issue's newest ended run again, pinned to that runner.
+    func retry(_ stuck: StuckInfo, on runner: RunnerInfo) {
+        guard let issue = stuck.issueID, let company = model?.companyID else { return }
+        let name = key(issue)
+        act("Couldn't retry \(name) on \(runner.name)", outcome: "Nothing was retried.", issue: issue) {
+            guard let run = await $0.lastEndedRun(issue: issue, company: company) else {
+                return ServerAnswer(status: 404, code: "not_found", message: "\(name) has no ended run to retry")
+            }
+            return await $0.retry(run: run.id, on: runner.id)
+        }
+    }
+
     /// "Set a price…": the model's price from now on; runs before stay unpriced.
     func setPrice(_ price: PriceDraft) {
         act("Couldn't set the price of \(price.model)", outcome: "No price was set.") { await $0.setPrice(price) }

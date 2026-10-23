@@ -44,6 +44,33 @@ extension CitadelServer {
         await act { try await client.moveToBacklog(path: .init(id: issue)) }
     }
 
+    /// Frees an issue whose run ended without letting go of it (`checkout_dead`).
+    func releaseCheckout(issue: Int64) async -> ServerAnswer? {
+        await act { try await client.releaseCheckout(path: .init(id: issue)) }
+    }
+
+    /// Bumps the issue to the top of its backlog, its wakes dispatched first.
+    func bump(issue: Int64) async -> ServerAnswer? {
+        await act { try await client.bumpIssue(path: .init(id: issue), body: .json(.init(priority: true))) }
+    }
+
+    /// The issue's newest ended run, to retry.
+    func lastEndedRun(issue: Int64, company: Int64) async -> RunInfo? {
+        await read("listCompanyRuns") {
+            guard
+                case .ok(let ok) = try await client.listCompanyRuns(
+                    path: .init(id: company), query: .init(issue: issue, limit: 10))
+            else { return nil }
+            return try ok.body.json.items.map(RunInfo.init).first { !$0.isLive }
+        }
+    }
+
+    /// Wakes the ended run's agent again on its issue, pinned to `runner` (refused for a drained runner or one
+    /// without the agent's tags or harness).
+    func retry(run: Int64, on runner: Int64) async -> ServerAnswer? {
+        await act { try await client.retryRun(path: .init(id: run), body: .json(.init(runnerId: runner))) }
+    }
+
     /// A model's price from now on, dollars per million tokens.
     func setPrice(_ price: PriceDraft) async -> ServerAnswer? {
         await act {
