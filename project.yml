@@ -31,9 +31,10 @@ packages:
     # 2c25c3e: the Citadel kit (#119 charts, tool card, chat bubble; #120 violet; workspace switcher,
     #          skeleton row, budget bar, …).
     # ba44099: AinkradAgentFigure, the animated Orb agent avatar (Citadel decisions #61, #63).
-    # This pin is AHEAD of the host's 20fb3db until the planned pin round: the bundle builds and tests
-    # standalone but must not be sideloaded into a host older than that round.
-    revision: ba4409908cadd0d8a163c656d691a9b3ec2975c0
+    # 141d5b8: the Citadel kit options (#123) — card rimTint, tone stacked bars, nav counts, banner action,
+    # sentence-case stat labels. Matches the host's pin once AinkradHQ/Ainkrad chore/appkit-pin-141d5b8 merges;
+    # never sideload into a host behind it.
+    revision: 141d5b80468a5aa43e688c2716e1cc715b17564f
   # The generated Citadel client (swift-openapi-generator output, committed) — see its Package.swift.
   # Statically linked into the bundle with its runtime and URLSession transport; no swift-nio.
   CitadelClient:

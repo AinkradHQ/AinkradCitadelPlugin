@@ -30,12 +30,14 @@ extension CitadelStore {
         Task { await load(model, server: server) }
     }
 
-    /// Approve (or deny) from Home, the agent page or the run's decision bar; the approval's event reloads the list.
-    func decide(_ approval: ApprovalInfo, approve: Bool, raiseTokens: Int64? = nil) {
+    /// Approve (or deny) from Home, the inbox, the agent page or the run's decision bar, with an optional reply to
+    /// the agent that asked; the approval's event reloads the list.
+    func decide(_ approval: ApprovalInfo, approve: Bool, raiseTokens: Int64? = nil, reply: String? = nil) {
         guard let server else { return }
+        let reply = reply.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         Task {
-            if await server.decide(approval: approval.id, approve: approve, raiseTokens: raiseTokens) {
-                model?.approvals.removeAll { $0.id == approval.id }
+            if await server.decide(approval: approval.id, approve: approve, raiseTokens: raiseTokens, reply: reply) {
+                model?.answer(approval, approved: approve, reply: reply)
             }
         }
     }
@@ -58,11 +60,16 @@ extension CitadelStore {
             model.departments = departments
         }
         model.approvals = await approvals ?? []
+        await loadAnswered(model, server: server)
+        await loadQuestions(model, server: server)
         model.stuck = await stuck ?? []
         model.requirements = await requirements ?? []
         model.sprint = await sprint
         model.accounts = Dictionary(uniqueKeysWithValues: (await accounts ?? []).map { ($0.id, $0) })
-        model.runners = await runners ?? [:]
+        if let (names, online) = await runners {
+            model.runners = names
+            model.runnersOnline = online
+        }
         model.projects = await projects ?? []
         if let (spend, budgets) = await costs { apply(spend: spend, budgets: budgets, to: model) }
         await loadSpendToday(model, server: server)
@@ -143,7 +150,14 @@ extension CitadelStore {
                 model.agents = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
                 model.departments = departments
             }
-        case .approvals: model.approvals = await server.approvals(company: id) ?? model.approvals
+        case .approvals:
+            model.approvals = await server.approvals(company: id) ?? model.approvals
+            await loadAnswered(model, server: server)
+        case .questions: await loadQuestions(model, server: server)
+        case .comments(let issue):
+            if let comments = await server.comments(issue: issue) { model.comments[issue] = comments }
+        case .issueFresh(let issue):
+            if let info = await server.issue(issue) { model.issues[issue] = info }
         case .stuck:
             model.stuck = await server.stuck() ?? model.stuck
             for issue in model.stuck.compactMap(\.issueID) where model.issues[issue] == nil {

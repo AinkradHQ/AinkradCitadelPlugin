@@ -33,7 +33,6 @@ struct RunCard: View {
 
     var body: some View {
         let state = model.cardState(of: run)
-        let tone = state.tone.map(color)
         AinkradCard(onTap: open) {
             VStack(alignment: .leading, spacing: skin.size.s4) {
                 HStack(spacing: skin.size.s8) {
@@ -61,7 +60,7 @@ struct RunCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardRim(tone)
+        .rim(state.tone?.chartTone)
     }
 
     private var issueLine: Text {
@@ -91,14 +90,6 @@ struct RunCard: View {
         .citadelFont("t10_5", mono: true)
         .lineLimit(1)
         .truncationMode(.tail)
-    }
-
-    private func color(_ tone: NeedsItem.Tone) -> Color {
-        switch tone {
-        case .accent: theme.accentPrimary
-        case .warning: status.warning
-        case .danger: status.danger
-        }
     }
 }
 
@@ -148,6 +139,9 @@ struct NeedsYouTile: View {
                 case .openRun:
                     AinkradButton(title: "Open run", style: .secondary) { perform(item.action, chevron: false) }
                         .secondaryAccent().compact().fixedSize()
+                case .review:
+                    AinkradButton(title: "Review", style: .secondary) { perform(item.action, chevron: false) }
+                        .secondaryAccent().compact().fixedSize()
                 }
             })
     }
@@ -155,9 +149,17 @@ struct NeedsYouTile: View {
     private func perform(_ action: NeedsItem.Action, chevron: Bool) {
         switch action {
         case .approve(let approval, _):
-            if chevron { store.screen = .approvals } else { store.decide(approval, approve: true) }
+            if chevron {
+                store.selectedApproval = approval.id
+                store.screen = .approvals
+            } else {
+                store.decide(approval, approve: true)
+            }
         case .openRun(let run): store.open(.run(run))
         case .openScreen(let screen, _): store.screen = screen
+        case .review(let id):
+            store.selectedApproval = id
+            store.screen = .approvals
         }
     }
 
@@ -184,11 +186,7 @@ struct SpendTile: View {
                 AinkradLineChart(title: "Spend today", series: [], emptyMessage: "No hourly spend from the server yet")
                     .frame(height: skin.size.s70)
                 if let spend = model.spend {
-                    AinkradStackedStatusBar(runs: [
-                        AinkradStatusRun(count: Int(spend.pricedTokens), status: .neutral),
-                        AinkradStatusRun(count: Int(spend.unpricedTokens), status: .warning),
-                        AinkradStatusRun(count: Int(spend.subscriptionTokens), status: .success),
-                    ])
+                    SpendSplitBar(spend: spend)
                     Text(
                         "To date: priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(spend.unpricedRuns) runs · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
                     )

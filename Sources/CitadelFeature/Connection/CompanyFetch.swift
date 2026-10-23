@@ -79,10 +79,12 @@ extension CitadelServer {
         return chunks
     }
 
-    func approvals(company: Int64) async -> [ApprovalInfo]? {
+    /// Pending approvals; `pending: false` lists every approval, decided ones included.
+    func approvals(company: Int64, pending: Bool = true) async -> [ApprovalInfo]? {
         await read("listApprovals") {
             guard
-                case .ok(let ok) = try await client.listApprovals(path: .init(id: company), query: .init(pending: true))
+                case .ok(let ok) = try await client.listApprovals(
+                    path: .init(id: company), query: .init(pending: pending))
             else { return nil }
             return try ok.body.json.map(ApprovalInfo.init)
         }
@@ -188,10 +190,15 @@ extension CitadelServer {
         }
     }
 
-    func runners() async -> [Int64: String]? {
+    /// Every runner's name, and how many are online.
+    func runners() async -> (names: [Int64: String], online: Int)? {
         await read("listRunners") {
             guard case .ok(let ok) = try await client.listRunners() else { return nil }
-            return Dictionary(uniqueKeysWithValues: try ok.body.json.map { ($0.id, $0.name) })
+            let runners = try ok.body.json
+            return (
+                Dictionary(uniqueKeysWithValues: runners.map { ($0.id, $0.name) }),
+                runners.filter { $0.status.word == "online" }.count
+            )
         }
     }
 
@@ -206,12 +213,14 @@ extension CitadelServer {
         }
     }
 
-    /// Approve or deny; `raiseTokens` approves a budget overrun with that many more tokens.
-    func decide(approval: Int64, approve: Bool, raiseTokens: Int64? = nil) async -> Bool {
+    /// Approve or deny; `raiseTokens` approves a budget overrun with that many more tokens; `reply` goes back to
+    /// the agent that asked and wakes it.
+    func decide(approval: Int64, approve: Bool, raiseTokens: Int64? = nil, reply: String? = nil) async -> Bool {
         await read("decideApproval") {
             guard
                 case .ok = try await client.decideApproval(
-                    path: .init(id: approval), body: .json(.init(approve: approve, raiseTokens: raiseTokens)))
+                    path: .init(id: approval),
+                    body: .json(.init(approve: approve, raiseTokens: raiseTokens, reply: reply)))
             else { return false }
             return true
         } ?? false
@@ -221,7 +230,7 @@ extension CitadelServer {
         try? Date(text, strategy: Date.ISO8601FormatStyle().year().month().day())
     }
 
-    private func read<T>(_ operation: String, _ work: () async throws -> T?) async -> T? {
+    func read<T>(_ operation: String, _ work: () async throws -> T?) async -> T? {
         do {
             return try await work()
         } catch {

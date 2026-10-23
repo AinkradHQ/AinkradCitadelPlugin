@@ -155,12 +155,23 @@ final class SweepTests: XCTestCase {
             ),
         ]
         // The mockups' window sizes (Designs/citadel/base.css `.window`, and each screen's override).
-        return shots.map { ($0.0, $0.1, small) } + [
-            ("02-home", company(.home), CGSize(width: 1280, height: 900)),
-            ("03-org", company(.org), CGSize(width: 1280, height: 800)),
-            ("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), CGSize(width: 1280, height: 800)),
-            ("05-run", company(.runs, detail: .run(418), CompanyFixture.runPage), CGSize(width: 1280, height: 1180)),
-        ]
+        let wide = CGSize(width: 1280, height: 800)
+        var all: [(String, CitadelStore, CGSize)] = shots.map { ($0.0, $0.1, small) }
+        all.append(("02-home", company(.home), CGSize(width: 1280, height: 900)))
+        all.append(("03-org", company(.org), wide))
+        all.append(("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), wide))
+        all.append(
+            ("05-run", company(.runs, detail: .run(418), CompanyFixture.runPage), CGSize(width: 1280, height: 1180)))
+        let inbox = company(.approvals, CompanyFixture.inboxPage)
+        inbox.selectedApproval = 21
+        all.append(("06-approvals", inbox, wide))
+        for (id, kind) in [(Int64(22), "merge"), (24, "budget"), (25, "hire"), (23, "permission")] {
+            let store = company(.approvals, CompanyFixture.inboxPage)
+            store.selectedApproval = id
+            all.append(("06-approvals-\(kind)", store, wide))
+        }
+        all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
+        return all
     }
 
     /// The host registers its bundled faces (Exo 2, JetBrains Mono) at launch; the test runner doesn't, so borrow

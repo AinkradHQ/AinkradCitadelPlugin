@@ -97,7 +97,7 @@ struct HomeView: View {
         return HStack(alignment: .top, spacing: skin.size.s14) {
             KPITile(
                 label: "Needs you", value: "\(model.needsYouCount)", unit: nil,
-                tone: model.needsYouCount > 0 ? status.warning : nil,
+                tone: model.needsYouCount > 0 ? status.warning : nil, rim: model.needsYouCount > 0 ? .warning : nil,
                 detail: Text("\(approvals) approval\(approvals == 1 ? "" : "s") · \(stuck) stuck"))
             KPITile(
                 label: "Working now", value: "\(model.liveRuns.count)", unit: "runs", tone: nil,
@@ -155,6 +155,7 @@ private struct KPITile: View {
     let value: String
     let unit: String?
     let tone: Color?
+    var rim: AinkradChartTone?
     let detail: Text?
     var progress: (Double, Double)?
     @Environment(\.ainkradSkin) private var skin
@@ -190,7 +191,7 @@ private struct KPITile: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .cardRim(tone)
+        .rim(rim)
     }
 }
 
@@ -222,7 +223,7 @@ private struct RequirementCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardRim(needsPlan ? status.warning : nil)
+        .rim(needsPlan ? .warning : nil)
     }
 
     private var meta: Text {
@@ -242,14 +243,8 @@ private struct RequirementCard: View {
 private struct AccountWarning: View {
     let text: String
     let open: () -> Void
-    @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        AinkradBanner(message: text, status: .warning)
-            .overlay(alignment: .trailing) {
-                AinkradButton(title: "Accounts →", style: .ghost, action: open)
-                    .borderless().secondaryAccent().compact().fixedSize()
-                    .padding(.trailing, skin.size.s12)
-            }
+        AinkradBanner(message: text, status: .warning, actionTitle: "Accounts →", action: open)
     }
 }

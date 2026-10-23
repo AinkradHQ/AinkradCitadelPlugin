@@ -182,6 +182,7 @@ enum CompanyFixture {
                 windowSecs: 18_000, warnPercent: 80),
         ]
         model.runners = [1: "hetzner-1", 2: "hetzner-2", 3: "ahmed-mbp"]
+        model.runnersOnline = 2
         model.limits = [
             "run.token_cap": LimitSetting(value: 200_000, source: "company:1"),
             "run.stall_after_secs": LimitSetting(value: 600, source: "project:1"),

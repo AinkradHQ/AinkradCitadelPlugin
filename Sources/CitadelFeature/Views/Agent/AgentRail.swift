@@ -31,19 +31,25 @@ struct AgentRail: View {
                 VStack(spacing: skin.size.s4) {
                     if let cap = model.limit("run.token_cap") {
                         AinkradStatRow(label: "Per-run cap", value: "\(Fmt.tokens(cap.value)) tokens")
+                            .sentenceCaseLabel()
                     }
                     if let loop = model.limit("breaker.loop_threshold") {
-                        AinkradStatRow(label: "Loop breaker", value: "\(loop.value) same failures")
+                        AinkradStatRow(label: "Loop breaker", value: "\(loop.value) same failures").sentenceCaseLabel()
                     }
                 }
                 RailLabel(title: "Setup").padding(.top, skin.size.s6)
                 VStack(spacing: skin.size.s4) {
                     let version = model.agentRuns[agent.id]?.first?.harnessVersion
                     AinkradStatRow(label: "Harness", value: "\(agent.harnessName)\(version.map { " \($0)" } ?? "")")
-                    AinkradStatRow(label: "Model", value: agent.model)
+                        .sentenceCaseLabel()
+                    AinkradStatRow(label: "Model", value: agent.model).sentenceCaseLabel()
                     AinkradStatRow(label: "Runner tags", value: agent.runnerTags.joined(separator: " "))
-                    if let boss = model.agent(agent.reportsTo) { AinkradStatRow(label: "Reports to", value: boss.name) }
+                        .sentenceCaseLabel()
+                    if let boss = model.agent(agent.reportsTo) {
+                        AinkradStatRow(label: "Reports to", value: boss.name).sentenceCaseLabel()
+                    }
                     AinkradStatRow(label: "Status", value: agent.status.replacingOccurrences(of: "_", with: " "))
+                        .sentenceCaseLabel()
                 }
                 RailLabel(title: "This week").padding(.top, skin.size.s6)
                 let week = WeekOfRuns(runs: model.agentRuns[agent.id] ?? [])

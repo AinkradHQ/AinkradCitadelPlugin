@@ -92,6 +92,18 @@ struct IssueInfo: Identifiable, Equatable, Sendable {
     var title: String
     var projectID: Int64
     var requirementID: Int64?
+    /// `backlog`, `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`.
+    var state = ""
+    /// Who moves it next (the engine invariant): an agent, you, or a timer.
+    var nextActor: NextActorInfo?
+    var points: Int?
+}
+
+/// Who moves an issue next.
+enum NextActorInfo: Equatable, Sendable {
+    case agent(Int64)
+    case human
+    case timer(String)
 }
 
 struct ApprovalInfo: Identifiable, Equatable, Sendable {
@@ -104,6 +116,42 @@ struct ApprovalInfo: Identifiable, Equatable, Sendable {
     var expiresAt: Date?
     /// The payload's flat string and number fields (`name`, `key`, `title`, `tool`, `run`, `points`, …).
     var fields: [String: String]
+    /// `pending`, `approved`, `rejected`, `expired`.
+    var status = "pending"
+    /// What the person replied with the decision.
+    var reply: String?
+    var sprintID: Int64?
+    /// The payload's lists, each row flattened: `issues` (sprint commit), `prs` (PR merge), `tasks` (plan).
+    var lists: [String: [[String: String]]] = [:]
+}
+
+/// An agent's question for the person (E15.11): open until answered in the issue or its requirement thread.
+struct QuestionInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var agentID: Int64
+    var issueID: Int64
+    var issueKey: String
+    var requirementID: Int64?
+    var runID: Int64?
+    var text: String
+    /// Quick replies the agent offered.
+    var options: [String]
+    /// `open`, `answered`, `cancelled`.
+    var state: String
+    var askedAt: Date
+
+    var isOpen: Bool { state == "open" }
+}
+
+/// One comment on an issue: the conversation of an agent thread (screen 07).
+struct CommentInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var issueID: Int64
+    /// The agent who wrote it; `nil` is a person (you).
+    var agentID: Int64?
+    var body: String
+    /// The run an agent wrote it from.
+    var runID: Int64?
 }
 
 struct StuckInfo: Equatable, Sendable {
@@ -112,6 +160,11 @@ struct StuckInfo: Equatable, Sendable {
     var agentID: Int64?
     var reason: String
     var action: String
+    /// What the scheduler does about it by itself: the engine's recommendation (`rewake`, `reassign_to_lead`, …).
+    var repair: String?
+    /// The last automatic repair and when.
+    var lastRepair: String?
+    var lastRepairAt: Date?
 }
 
 struct RequirementInfo: Identifiable, Equatable, Sendable {

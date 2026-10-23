@@ -52,15 +52,18 @@ struct RunRail: View {
                 warnFraction: model.warnFraction)
             VStack(spacing: skin.size.s4) {
                 AinkradStatRow(
-                    label: "Input", value: "\(Fmt.tokens(run.inputTokens)) · \(Fmt.tokens(run.cacheTokens)) cached")
-                AinkradStatRow(label: "Output", value: Fmt.tokens(run.outputTokens))
+                    label: "Input", value: "\(Fmt.tokens(run.inputTokens)) · \(Fmt.tokens(run.cacheTokens)) cached"
+                ).sentenceCaseLabel()
+                AinkradStatRow(label: "Output", value: Fmt.tokens(run.outputTokens)).sentenceCaseLabel()
                 AinkradStatRow(
-                    label: "Cost", value: run.costMicros.map { "\(Fmt.dollars(micros: $0)) priced" } ?? "unpriced")
+                    label: "Cost", value: run.costMicros.map { "\(Fmt.dollars(micros: $0)) priced" } ?? "unpriced"
+                ).sentenceCaseLabel()
                 if let rate = meter.perMinute {
-                    AinkradStatRow(label: "Rate", value: "~\(Fmt.tokens(Int64(rate))) / min")
+                    AinkradStatRow(label: "Rate", value: "~\(Fmt.tokens(Int64(rate))) / min").sentenceCaseLabel()
                 }
                 if let left = meter.minutesLeft {
                     AinkradStatRow(label: "Cap at this rate", value: "~\(Int(left.rounded(.up))) min", status: .warning)
+                        .sentenceCaseLabel()
                 }
             }
         }
@@ -70,7 +73,8 @@ struct RunRail: View {
         if let issue = model.issue(run.issueID), let cost = model.issueCosts[issue.id] {
             RailLabel(title: "Issue \(issue.key) so far").padding(.top, skin.size.s6)
             AinkradStatRow(label: "All runs", value: "\(Fmt.tokens(cost.tokens)) tok · \(cost.runs) runs")
-            AinkradStatRow(label: "Spend", value: Fmt.dollars(micros: cost.costMicros))
+                .sentenceCaseLabel()
+            AinkradStatRow(label: "Spend", value: Fmt.dollars(micros: cost.costMicros)).sentenceCaseLabel()
         }
     }
 
@@ -130,8 +134,13 @@ struct RunRail: View {
                     ?? "Stage timings"
             )
             .padding(.top, skin.size.s6)
+            AinkradStackedStatusBar(
+                toneRuns: stages.rows.enumerated().map {
+                    AinkradToneRun(
+                        value: $0.element.seconds, tone: StageTimings.tones[$0.offset % StageTimings.tones.count])
+                })
             ForEach(stages.rows, id: \.name) { row in
-                AinkradStatRow(label: row.name, value: String(format: "%.1f s", row.seconds))
+                AinkradStatRow(label: row.name, value: String(format: "%.1f s", row.seconds)).sentenceCaseLabel()
             }
         }
     }
@@ -143,12 +152,13 @@ struct RunRail: View {
             RailLabel(title: "Account & model").padding(.top, skin.size.s6)
             if let account = run.accountID.flatMap({ model.accounts[$0] }) {
                 let window = account.windowUse.map { " · \(Int($0 * 100))%" } ?? ""
-                AinkradStatRow(label: "Account", value: "\(account.label)\(window)")
+                AinkradStatRow(label: "Account", value: "\(account.label)\(window)").sentenceCaseLabel()
             }
-            AinkradStatRow(label: "Model", value: run.model ?? "—")
+            AinkradStatRow(label: "Model", value: run.model ?? "—").sentenceCaseLabel()
             AinkradStatRow(label: "Chain", value: run.fallbackReason == nil ? "primary" : "fallback")
+                .sentenceCaseLabel()
             if let reason = run.fallbackReason {
-                AinkradStatRow(label: "Fallback", value: reason, status: .warning)
+                AinkradStatRow(label: "Fallback", value: reason, status: .warning).sentenceCaseLabel()
             }
         }
     }
@@ -156,17 +166,19 @@ struct RunRail: View {
     private var runFacts: some View {
         VStack(alignment: .leading, spacing: skin.size.s4) {
             RailLabel(title: "Run").padding(.top, skin.size.s6)
-            AinkradStatRow(label: "State", value: run.endWord)
+            AinkradStatRow(label: "State", value: run.endWord).sentenceCaseLabel()
             if let runner = run.runnerID.flatMap({ model.runners[$0] }) {
-                AinkradStatRow(label: "Runner", value: runner)
+                AinkradStatRow(label: "Runner", value: runner).sentenceCaseLabel()
             }
-            if let tier = run.harnessVersion { AinkradStatRow(label: "Harness", value: tier) }
+            if let tier = run.harnessVersion { AinkradStatRow(label: "Harness", value: tier).sentenceCaseLabel() }
             if let requirement = model.issue(run.issueID)?.requirementID.flatMap({ id in
                 model.requirements.first { $0.id == id }
             }) {
-                AinkradStatRow(label: "Requirement", value: requirement.key)
+                AinkradStatRow(label: "Requirement", value: requirement.key).sentenceCaseLabel()
             }
-            if let reason = run.terminalReason { AinkradStatRow(label: "Ended", value: reason, status: .danger) }
+            if let reason = run.terminalReason {
+                AinkradStatRow(label: "Ended", value: reason, status: .danger).sentenceCaseLabel()
+            }
         }
     }
 
@@ -221,6 +233,9 @@ struct RunMeter {
 
 /// Wake → claim → workspace → harness → first token, from the run's stamps (E15.6).
 struct StageTimings {
+    /// The mockup's stage colours, in order: violet, accent, cyan, tertiary.
+    static let tones: [AinkradChartTone] = [.accentViolet, .accentPrimary, .accentSecondary, .accentTertiary]
+
     let rows: [(name: String, seconds: Double)]
     let total: Double?
 

@@ -145,7 +145,7 @@ final class CompanyModelTests: XCTestCase {
         XCTAssertEqual(try audit("run.succeeded", run: 418), [.run(418), .costs])
         XCTAssertEqual(try audit("issue.blocked", entity: 77), [.stuck, .issue(77)])
         XCTAssertEqual(try audit("budget.warning"), [.costs])
-        XCTAssertEqual(try audit("requirement.plan_submitted"), [.requirements])
+        XCTAssertEqual(try audit("requirement.plan_submitted"), [.requirements, .questions])
         XCTAssertEqual(try audit("weather.sunny"), [])
         _ = try audit("run.provider_dropped", run: 418)
         XCTAssertEqual(model.notes[418]?.first?.text.hasPrefix("Provider dropped (overloaded)"), true)
