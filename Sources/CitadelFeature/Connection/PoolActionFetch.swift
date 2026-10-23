@@ -57,6 +57,6 @@ extension CitadelServer {
 extension ServerAnswer {
     /// A refusal as the server worded it (`ErrorBody`), or just its status.
     static func refusal(_ status: Int, _ body: Schemas.ErrorBody?) -> ServerAnswer {
-        ServerAnswer(status: status, code: body?.code ?? "", message: body?.message ?? "")
+        ServerAnswer(status: status, code: body?.code ?? "", message: body?.message ?? "", errorID: body?.errorId)
     }
 }

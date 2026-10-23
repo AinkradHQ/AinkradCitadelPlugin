@@ -70,7 +70,7 @@ extension CitadelStore {
             case .success(let saved): page.repos[project] = saved
             case .failure(let refusal):
                 page.repos[project] = before
-                page.problem = refusal.message
+                page.problem = refusal
             }
         }
     }
@@ -93,14 +93,14 @@ extension CitadelStore {
         Task {
             switch await server.addRepo(project: project, body) {
             case .success(let repo): page.repos[project, default: []].append(repo)
-            case .failure(let refusal): page.problem = refusal.message
+            case .failure(let refusal): page.problem = refusal
             }
         }
     }
 
     /// A repo action that answers with the project's repos; `project` is found from the repo.
     private func repoChange(
-        project repo: Int64, _ call: @escaping (CitadelServer) async -> Result<[RepoInfo], RepoRefusal>
+        project repo: Int64, _ call: @escaping (CitadelServer) async -> Result<[RepoInfo], ServerAnswer>
     ) {
         guard let server, let model else { return }
         let page = model.projectsPage
@@ -110,7 +110,7 @@ extension CitadelStore {
             case .success(let repos):
                 page.repos[project] = repos
                 page.problem = nil
-            case .failure(let refusal): page.problem = refusal.message
+            case .failure(let refusal): page.problem = refusal
             }
         }
     }

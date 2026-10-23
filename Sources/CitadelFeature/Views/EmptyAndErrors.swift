@@ -40,13 +40,28 @@ struct ActionFailureView: View {
             actionTitle: failure.answer.status == 409 ? "Review the new scope" : "Back to the approval",
             action: { store.actionFailure = nil }
         )
-        .secondaryAction("Copy error") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(failure.answer.line, forType: .string)
-        }
+        .secondaryAction("Copy error") { failure.answer.copy() }
         .iconTint(status.danger).compact()
         .frame(maxWidth: skin.size.s440)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A refusal shown in place (a card, a sheet): what failed in red, and Copy error with the server's error id.
+struct RefusalLine: View {
+    let failure: ActionFailure
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: skin.size.s8) {
+            Text("\(failure.title). \(failure.message)").citadelFont("t12").foregroundStyle(status.danger)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            AinkradButton(title: "Copy error", style: .ghost) { failure.answer.copy() }
+                .borderless().compact().fixedSize()
+        }
+        .transition(.opacity)
     }
 }
 

@@ -78,7 +78,7 @@ extension CitadelStore {
     func addAccount(_ draft: NewAccountDraft, done: @escaping @MainActor () -> Void) {
         guard draft.problem == nil, let server, let model else { return }
         let page = model.accountsPage
-        page.addProblem = nil
+        page.addFailure = nil
         Task {
             switch await server.createAccount(draft) {
             case .success(let account):
@@ -86,10 +86,8 @@ extension CitadelStore {
                 done()
                 await fillAccounts(model, server: server)
             case .failure(let answer):
-                page.addProblem =
-                    ActionFailure(
-                        title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added."
-                    ).message
+                page.addFailure = ActionFailure(
+                    title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added.")
             }
         }
     }

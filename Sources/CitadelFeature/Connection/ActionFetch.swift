@@ -1,3 +1,4 @@
+import AppKit
 import CitadelClient
 import Foundation
 
@@ -6,9 +7,17 @@ struct ServerAnswer: Error, Equatable, Sendable {
     var status: Int
     var code: String
     var message: String
+    /// `err_…`: the server's id of this answer, logged and audited with it (API minor 6).
+    var errorID: String? = nil
 
-    /// "409 conflict: Mira changed the scope 20 s ago (now 29 pts)" — what Copy error copies.
-    var line: String { "\(status) \(code): \(message)" }
+    /// "409 conflict: Mira changed the scope 20 s ago (now 29 pts) · err_01J…" — what Copy error copies.
+    var line: String { "\(status) \(code): \(message)\(errorID.map { " · \($0)" } ?? "")" }
+
+    /// Copy error: the line, error id included, on the pasteboard.
+    func copy() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(line, forType: .string)
+    }
 }
 
 /// A server action that failed (mockup 11 G): what was tried, and the server's answer.
@@ -31,9 +40,7 @@ struct ActionFailure: Equatable, Sendable {
 extension CitadelServer {
     /// Approve or deny, saying why when the server refuses (`nil` = done).
     func decision(approval: Int64, approve: Bool, raiseTokens: Int64?, reply: String?) async -> ServerAnswer? {
-        func refused(_ status: Int, _ body: Schemas.ErrorBody?) -> ServerAnswer {
-            ServerAnswer(status: status, code: body?.code ?? "", message: body?.message ?? "")
-        }
+        let refused = ServerAnswer.refusal
         do {
             let output = try await client.decideApproval(
                 path: .init(id: approval), body: .json(.init(approve: approve, raiseTokens: raiseTokens, reply: reply)))

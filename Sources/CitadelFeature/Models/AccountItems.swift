@@ -31,7 +31,7 @@ final class AccountsPage {
     /// "All →" on Last fallbacks: every one read, not the newest four.
     var showsAllFallbacks = false
     /// Why the last "Add account" was refused, in the server's words.
-    var addProblem: String?
+    var addFailure: ActionFailure?
 
     /// The accounts on screen: the company's, or the whole pool.
     func visible(company: Int64) -> [PoolAccount] {

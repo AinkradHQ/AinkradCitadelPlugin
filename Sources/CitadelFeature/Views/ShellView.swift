@@ -33,10 +33,7 @@ struct ShellView: View {
         if let failure = store.actionFailure, store.screen != .approvals || store.detail != nil {
             AinkradBanner(
                 message: "\(failure.title). \(failure.message)", status: .danger, actionTitle: "Copy error",
-                action: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(failure.answer.line, forType: .string)
-                }, onDismiss: { store.actionFailure = nil }
+                action: { failure.answer.copy() }, onDismiss: { store.actionFailure = nil }
             )
             .padding(skin.size.s14)
             .transition(.move(edge: .bottom).combined(with: .opacity))

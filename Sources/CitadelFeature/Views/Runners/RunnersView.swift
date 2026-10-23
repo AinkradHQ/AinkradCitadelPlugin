@@ -185,10 +185,7 @@ private struct RunnerCard: View {
             }
         default: EmptyView()
         }
-        if let failure = model.runnersPage.failures[runner.id] {
-            Text("\(failure.title). \(failure.message)").citadelFont("t12").foregroundStyle(status.danger)
-                .transition(.opacity)
-        }
+        if let failure = model.runnersPage.failures[runner.id] { RefusalLine(failure: failure) }
     }
 }
 

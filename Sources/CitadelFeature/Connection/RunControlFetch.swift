@@ -32,14 +32,27 @@ extension CitadelServer {
             return ServerAnswer(status: status, code: "", message: "")
         }
         let body = (child.value as? CarriesErrorBody)?.errorBody
-        return ServerAnswer(status: statuses[label] ?? 0, code: body?.code ?? "", message: body?.message ?? "")
+        return .refusal(statuses[label] ?? 0, body)
     }
 
-    private func act(_ work: () async throws -> Any) async -> ServerAnswer? {
+    func act(_ work: () async throws -> Any) async -> ServerAnswer? {
         do {
             return Self.refusal(try await work())
         } catch {
             return ServerAnswer(status: 0, code: "unreachable", message: error.localizedDescription)
+        }
+    }
+
+    /// A write that answers with something on `ok` (`ok` returns it), else the server's refusal.
+    func attempt<Output, Value>(
+        _ work: () async throws -> Output, ok: (Output) throws -> Value?
+    ) async -> Result<Value, ServerAnswer> {
+        do {
+            let output = try await work()
+            if let value = try ok(output) { return .success(value) }
+            return .failure(Self.refusal(output) ?? ServerAnswer(status: 200, code: "unreadable", message: ""))
+        } catch {
+            return .failure(ServerAnswer(status: 0, code: "unreachable", message: error.localizedDescription))
         }
     }
 

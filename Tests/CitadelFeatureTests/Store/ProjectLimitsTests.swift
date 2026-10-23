@@ -126,7 +126,8 @@ final class ProjectLimitsTests: XCTestCase {
         let before = try XCTUnwrap(model.projectsPage.repos[1])
         store.reorderRepos(project: 1, before.reversed())
         await eventually { model.projectsPage.problem != nil }
-        XCTAssertEqual(model.projectsPage.problem, "CIT-62 still touches citadel")
+        XCTAssertEqual(model.projectsPage.problem?.message, "CIT-62 still touches citadel")
+        XCTAssertEqual(model.projectsPage.problem?.errorID, "err_01JTEST")
         XCTAssertEqual(model.projectsPage.repos[1], before)
         store.removeRepo(before[0])
         await eventually { FakeServer.requests.contains { $0.httpMethod == "DELETE" } }

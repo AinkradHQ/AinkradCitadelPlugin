@@ -28,7 +28,7 @@ final class ProjectsPage {
     /// An open issue of the project and the repos it declares (decision #51), for the "declare" row.
     var declared: [Int64: (issue: IssueInfo, repos: [String])] = [:]
     /// Why the last repo action was refused ("an open issue still touches it").
-    var problem: String?
+    var problem: ServerAnswer?
 }
 
 /// One git repo of a project (decision #51).
