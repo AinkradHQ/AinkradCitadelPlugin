@@ -126,7 +126,8 @@ final class CostActionTests: XCTestCase {
         XCTAssertEqual(
             store.actionFailure?.answer,
             ServerAnswer(
-                status: 400, code: "invalid_argument", message: "the issue waits on no agent"))
+                status: 400, code: "invalid_argument", message: "the issue waits on no agent",
+                errorID: "err_01JTEST"))
         XCTAssertEqual(store.actionFailure?.title, "Couldn't wake CIT-60's agent")
         XCTAssertEqual(store.actionFailure?.outcome, "Nobody was woken.")
     }

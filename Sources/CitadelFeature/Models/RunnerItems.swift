@@ -111,7 +111,9 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
 
     /// Drained: "Drained 2h ago." and what that means.
     func drainLine(now: Date) -> (title: String, detail: String)? {
-        drainedAt.map { ("Drained \(Fmt.age(now.timeIntervalSince($0))) ago.", "It takes no new run; its runs finish.") }
+        drainedAt.map {
+            ("Drained \(Fmt.age(now.timeIntervalSince($0))) ago.", "It takes no new run; its runs finish.")
+        }
     }
 
     /// The reason block: unhealthy says why; offline says how long it has been silent.

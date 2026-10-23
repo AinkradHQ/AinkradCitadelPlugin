@@ -15,9 +15,11 @@ struct AddRunnerSheet: View {
         VStack(alignment: .leading, spacing: skin.size.s12) {
             Text("Add runner").citadelFont("t15", weight: "semibold")
             if let registered = page.registered {
-                Text("Run this on \(registered.runner.name)'s host. The key is shown only now; copy it before you close.")
-                    .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    "Run this on \(registered.runner.name)'s host. The key is shown only now; copy it before you close."
+                )
+                .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+                .fixedSize(horizontal: false, vertical: true)
                 let command = store.address.map { registered.command(server: $0.origin) } ?? registered.key
                 AinkradCodeBlock(command, language: "sh")
                 HStack(spacing: skin.size.s8) {

@@ -40,12 +40,22 @@ struct RunnersView: View {
             .offlineDimmed()
         }
         .task { store.loadRunnersPage() }
-        .ainkradSheet(isPresented: $adding) { AddRunnerSheet(store: store, page: page, isPresented: $adding) }
+        // Open while a new runner's key is on screen, so it is never lost to a redraw.
+        .ainkradSheet(
+            isPresented: Binding(
+                get: { adding || page.registered != nil },
+                set: {
+                    adding = $0
+                    if !$0 { page.registered = nil }
+                })
+        ) { AddRunnerSheet(store: store, page: page, isPresented: $adding) }
         .ainkradSheet(
             isPresented: Binding(get: { page.log != nil }, set: { if !$0 { page.log = nil } })
         ) {
-            RunnerLogSheet(name: page.runners.first { $0.id == page.log?.runner }?.name ?? "Runner",
-                lines: page.log?.lines ?? []) { page.log = nil }
+            RunnerLogSheet(
+                name: page.runners.first { $0.id == page.log?.runner }?.name ?? "Runner",
+                lines: page.log?.lines ?? []
+            ) { page.log = nil }
         }
     }
 
@@ -284,7 +294,8 @@ private struct RunnerCard: View {
     private var powerNapTip: String {
         let on = runner.powerNap == true
         let applied = runner.powerNapApplied.map { $0 == on ? " The Mac holds it." : " The Mac has not taken it yet." }
-        return (on ? "Power Nap is on: the Mac wakes for queued jobs." : "Turns Power Nap on so queued jobs wake the Mac.")
+        return
+            (on ? "Power Nap is on: the Mac wakes for queued jobs." : "Turns Power Nap on so queued jobs wake the Mac.")
             + (applied ?? "")
     }
 }

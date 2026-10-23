@@ -65,8 +65,10 @@ extension CitadelStore {
 
     /// Drain (it takes no new run; its runs finish) or put it back to work.
     func setDrained(_ runner: RunnerInfo, _ drained: Bool) {
-        runnerChange(runner, drained ? "Couldn't drain \(runner.name)" : "Couldn't undrain \(runner.name)",
-            outcome: drained ? "It still takes work." : "It stays drained.") { await $0.drain(runner: runner.id, drained) }
+        runnerChange(
+            runner, drained ? "Couldn't drain \(runner.name)" : "Couldn't undrain \(runner.name)",
+            outcome: drained ? "It still takes work." : "It stays drained."
+        ) { await $0.drain(runner: runner.id, drained) }
     }
 
     /// "Keep awake while jobs queue": the Mac's Power Nap preference.

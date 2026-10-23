@@ -25,24 +25,34 @@ extension CompanyFixture {
         model.issues[58] = IssueInfo(
             id: 58, key: "CIT-58", title: "Device registration", projectID: 1, requirementID: 12)
         model.runners = [1: "hetzner-1", 2: "hetzner-2", 3: "ahmed-mbp", 4: "oracle-arm"]
-        model.runnersOnline = 2
+        model.runnersOnline = 1
         model.issueRepos[58] = ["citadel"]
         model.issueRepos[61] = ["citadel", "plugin"]
         model.issueRepos[63] = ["citadel"]
         model.issueRepos[108] = ["mac-client"]
         let page = model.runnersPage
+        func login(_ harness: String, _ state: String = "logged_in") -> RunnerLoginInfo {
+            RunnerLoginInfo(dir: harness, harness: harness, state: state)
+        }
         page.runners = [
             RunnerInfo(
                 id: 1, name: "hetzner-1", status: "online", healthReason: nil, lastSeenAt: now.addingTimeInterval(-2),
-                tags: ["linux", "docker", "rust"]),
+                tags: ["linux", "docker", "rust"],
+                harnesses: ["claude": "2.1.296", "codex": "0.88.0", "opencode": "1.4.2", "agy": "0.9.1"],
+                logins: [login("claude"), login("codex"), login("opencode", "unknown")], slots: 4,
+                uptimeSecs: 6 * 86_400, reportedAt: now),
             RunnerInfo(
                 id: 2, name: "hetzner-2", status: "unhealthy",
                 healthReason:
                     "Claude login expired 2h 10m ago. The runner is up, but its harness probe fails, so the engine stopped sending it Claude work.",
-                lastSeenAt: now.addingTimeInterval(-4), tags: ["linux", "docker"]),
+                lastSeenAt: now.addingTimeInterval(-4), tags: ["linux", "docker"],
+                harnesses: ["claude": "2.1.296", "codex": "0.88.0"],
+                logins: [login("claude", "logged_out"), login("codex")], slots: 2, uptimeSecs: 11 * 86_400,
+                reportedAt: now),
             RunnerInfo(
-                id: 3, name: "ahmed-mbp", status: "online", healthReason: nil, lastSeenAt: now.addingTimeInterval(-6),
-                tags: ["macos", "xcode-27", "swift"]),
+                id: 3, name: "ahmed-mbp", status: "offline", healthReason: nil,
+                lastSeenAt: now.addingTimeInterval(-6 * 3600), tags: ["macos", "xcode-27", "swift"], asleep: true,
+                harnesses: ["claude": "2.1.296"], logins: [login("claude")], slots: 2),
             RunnerInfo(
                 id: 4, name: "oracle-arm", status: "offline", healthReason: nil,
                 lastSeenAt: now.addingTimeInterval(-3 * 86_400 - 600), tags: ["linux", "arm64"]),
