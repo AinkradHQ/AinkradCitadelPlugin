@@ -69,6 +69,9 @@ extension SweepTests {
                     $0.issues[12] = IssueInfo(
                         id: 12, key: "CIT-12", title: "Org chart API", projectID: 1, requirementID: nil)
                     $0.transcripts[212] = []
+                    $0.runs[212]?.transcriptGoneReason = "pruned"
+                    $0.runs[212]?.transcriptPrunedAt = Date().addingTimeInterval(-86_400)
+                    $0.limits["transcript.retention_secs"] = LimitSetting(value: 30 * 86_400, source: nil)
                 }, wide
             ))
         return shots

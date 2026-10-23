@@ -171,7 +171,14 @@ final class SweepTests: XCTestCase {
             all.append(("06-approvals-\(kind)", store, wide))
         }
         all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
-        all.append(("08-stuck", company(.stuck, CompanyFixture.stuckPage), wide))
+        all.append(
+            (
+                "08-stuck",
+                company(.stuck) {
+                    CompanyFixture.stuckPage($0)
+                    CompanyFixture.runnersPage($0)
+                }, wide
+            ))
         all.append(("09-cost", company(.cost, CompanyFixture.costPage), CGSize(width: 1280, height: 1100)))
         let stage: SweepStage = { company($0, detail: $1, $2) }
         all += Self.requirementsShots(stage)

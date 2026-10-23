@@ -159,8 +159,8 @@ private struct StuckCard: View {
                 ) { Text("Retry on…") }
             }
             if stuck.issueID != nil, stuck.isSlowing {
-                AinkradButton(title: "Bump priority", style: .secondary) { store.bump(stuck) }
-                    .compact().fixedSize()
+                AinkradButton(title: "Bump priority", style: .ghost) { store.bump(stuck) }
+                    .borderless().secondaryAccent().compact().fixedSize()
             }
             if stuck.issueID != nil, !stuck.isSlowing {
                 AinkradButton(title: "Move to backlog", style: .secondary) { store.moveToBacklog(stuck) }
