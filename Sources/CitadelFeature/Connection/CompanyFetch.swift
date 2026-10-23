@@ -105,7 +105,7 @@ extension CitadelServer {
         }
     }
 
-    /// Open requirements with their progress by points.
+    /// Requirements (done ones too, for screen 12's Done filter) with their progress by points.
     func requirements() async -> [RequirementInfo]? {
         let all: [Schemas.Requirement]? = await read("listRequirements") {
             guard case .ok(let ok) = try await client.listRequirements() else { return nil }
@@ -113,7 +113,7 @@ extension CitadelServer {
         }
         guard let all else { return nil }
         var out: [RequirementInfo] = []
-        for requirement in all where !["done", "cancelled"].contains(requirement.state.word) {
+        for requirement in all where requirement.state.word != "cancelled" {
             let tree: Schemas.RequirementTree? = await read("getRequirementTree") {
                 guard case .ok(let ok) = try await client.getRequirementTree(path: .init(id: requirement.id))
                 else { return nil }
