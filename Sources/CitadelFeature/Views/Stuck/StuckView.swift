@@ -17,7 +17,6 @@ struct StuckView: View {
         let lists = model.stuckList(project: project)
         VStack(alignment: .leading, spacing: 0) {
             PaneTitle(title: "Why stuck", crumb: crumb(lists)) { filters }
-            ActionFailureBanner(store: store)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s12) {
                     if lists.stuck.isEmpty && lists.slowing.isEmpty {
@@ -206,28 +205,6 @@ private struct StuckCard: View {
         guard let first = text.first else { return text }
         let capped = capitalized ? first.uppercased() + text.dropFirst() : text
         return capped.hasSuffix(".") ? capped : capped + "."
-    }
-}
-
-/// An action the server refused on this screen (mockup 11 G, inline): what failed and what it said; Copy error.
-struct ActionFailureBanner: View {
-    let store: CitadelStore
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        if let failure = store.actionFailure {
-            AinkradBanner(
-                message: "\(failure.title). \(failure.message)", status: .danger, actionTitle: "Copy error",
-                action: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(failure.answer.line, forType: .string)
-                },
-                onDismiss: { store.actionFailure = nil }
-            )
-            .padding(.horizontal, skin.size.s20)
-            .padding(.bottom, skin.size.s10)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        }
     }
 }
 

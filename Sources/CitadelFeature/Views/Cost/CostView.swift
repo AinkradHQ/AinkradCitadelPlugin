@@ -28,7 +28,6 @@ struct CostView: View {
                     .outlineBox().disabled(model.costTasks.isEmpty)
                 }
             }
-            ActionFailureBanner(store: store)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s14) {
                     kpis

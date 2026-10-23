@@ -92,7 +92,7 @@ extension CitadelStore {
                     outcome: "Nothing was sent.")
                 return
             }
-            if let answer = await server.wake(runner: runner.id, when: when) {
+            if case .failure(let answer) = await server.wake(runner: runner.id, when: when) {
                 actionFailure = ActionFailure(
                     title: "Couldn't wake \(runner.name)", answer: answer, outcome: "Nothing was sent.")
             } else {

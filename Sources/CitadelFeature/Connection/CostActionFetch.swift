@@ -44,11 +44,6 @@ extension CitadelServer {
         await act { try await client.moveToBacklog(path: .init(id: issue)) }
     }
 
-    /// "Wake my Mac" (`now`, pushed to the Mac at once) or "Run when I'm back" (`when_back`).
-    func wake(runner: Int64, when: String) async -> ServerAnswer? {
-        await act { try await client.wakeRunner(path: .init(id: runner), body: .json(.init(when: when))) }
-    }
-
     /// A model's price from now on, dollars per million tokens.
     func setPrice(_ price: PriceDraft) async -> ServerAnswer? {
         await act {
@@ -81,40 +76,12 @@ extension CitadelServer {
     /// Runs a generated call: `nil` when it answered 200, else its refusal.
     private func act(_ call: () async throws -> some Sendable) async -> ServerAnswer? {
         do {
-            return refusal(try await call())
+            return Self.refusal(try await call())
         } catch {
             return ServerAnswer(status: 0, code: "unreachable", message: error.localizedDescription)
         }
     }
 }
-
-/// A generated output's refusal: its case names the status, its error body the reason; `nil` for `.ok`.
-func refusal(_ output: Any) -> ServerAnswer? {
-    let statuses = [
-        "badRequest": 400, "unauthorized": 401, "forbidden": 403, "notFound": 404, "conflict": 409,
-        "tooManyRequests": 429, "internalServerError": 500,
-    ]
-    guard let child = Mirror(reflecting: output).children.first, let label = child.label else { return nil }
-    if label == "ok" { return nil }
-    if label == "undocumented" {
-        let status = Mirror(reflecting: child.value).children.first?.value as? Int ?? 0
-        return ServerAnswer(status: status, code: "", message: "")
-    }
-    let body = (child.value as? ErrorResponse)?.errorBody
-    return ServerAnswer(status: statuses[label] ?? 0, code: body?.code ?? "", message: body?.message ?? "")
-}
-
-/// The shared error responses, read for their body.
-protocol ErrorResponse { var errorBody: Schemas.ErrorBody? { get } }
-extension Components.Responses.BadRequest: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
-extension Components.Responses.Unauthorized: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
-extension Components.Responses.Forbidden: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
-extension Components.Responses.NotFound: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
-extension Components.Responses.Conflict: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
-extension Components.Responses.TooManyRequests: ErrorResponse {
-    var errorBody: Schemas.ErrorBody? { try? body.json }
-}
-extension Components.Responses.InternalError: ErrorResponse { var errorBody: Schemas.ErrorBody? { try? body.json } }
 
 extension BudgetInfo {
     /// `agent:3`, `company:1`, … as the wire's budget scope.
