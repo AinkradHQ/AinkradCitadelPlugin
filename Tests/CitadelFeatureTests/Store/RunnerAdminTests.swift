@@ -71,7 +71,7 @@ final class RunnerAdminTests: XCTestCase {
         let registered = try XCTUnwrap(model.runnersPage.registered)
         XCTAssertEqual(
             registered.command(server: URL(string: "https://citadel.example.com")!),
-            "CITADEL_RUNNER_KEY=rk_live_once citadel-runner wss://citadel.example.com/runner/v1/connect --tags linux,docker"
+            "CITADEL_RUNNER_KEY=rk_live_once \\\n  citadel-runner wss://citadel.example.com/runner/v1/connect \\\n  --tags linux,docker"
         )
     }
 

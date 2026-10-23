@@ -88,7 +88,11 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
 
     /// One row per harness, in name order: its version and whether it is logged in on the runner.
     var harnessRows: [(name: String, version: String, login: String?)] {
-        harnesses.keys.sorted().map { name in
+        let order = ["claude", "codex", "opencode", "agy"]
+        let names = harnesses.keys.sorted {
+            (order.firstIndex(of: $0) ?? 99, $0) < (order.firstIndex(of: $1) ?? 99, $1)
+        }
+        return names.map { name in
             let states = logins.filter { $0.harness == name && !$0.dir.hasPrefix("accounts/") }.map(\.state)
             return (name, harnesses[name] ?? "", states.first)
         }
@@ -176,8 +180,8 @@ struct RegisteredRunnerInfo: Equatable, Sendable {
         var parts = URLComponents(url: server, resolvingAgainstBaseURL: false) ?? URLComponents()
         parts.scheme = parts.scheme == "http" ? "ws" : "wss"
         parts.path = "/runner/v1/connect"
-        let tags = runner.tags.isEmpty ? "" : " --tags \(runner.tags.joined(separator: ","))"
-        return "CITADEL_RUNNER_KEY=\(key) citadel-runner \(parts.string ?? "")\(tags)"
+        let tags = runner.tags.isEmpty ? "" : " \\\n  --tags \(runner.tags.joined(separator: ","))"
+        return "CITADEL_RUNNER_KEY=\(key) \\\n  citadel-runner \(parts.string ?? "")\(tags)"
     }
 }
 

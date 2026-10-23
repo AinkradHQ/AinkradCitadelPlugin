@@ -130,7 +130,8 @@ private struct RunnerCard: View {
                 head
                 if let reason = runner.reason(now: Date()) {
                     ReasonBlock(
-                        title: reason.title, detail: reason.detail, tone: runner.status == "unhealthy" ? .danger : nil
+                        title: reason.title, detail: reason.detail,
+                        tone: runner.status == "unhealthy" ? .danger : runner.state == "asleep" ? .warning : nil
                     )
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -190,11 +191,12 @@ private struct RunnerCard: View {
         Grid(alignment: .leading, horizontalSpacing: skin.size.s10, verticalSpacing: skin.size.s3) {
             ForEach(runner.harnessRows, id: \.name) { row in
                 GridRow {
-                    Text(AgentLook.harnessName(row.name)).foregroundStyle(skin.color(skin.text.muted))
-                    Text(row.version).citadelFont("t11_5", mono: true)
-                    loginText(row.login).gridColumnAlignment(.trailing).frame(maxWidth: .infinity, alignment: .trailing)
+                    Text(AgentLook.harnessName(row.name)).citadelFont("t11")
+                        .foregroundStyle(skin.color(skin.text.muted))
+                    Text(row.version).citadelFont("t11", mono: true)
+                    loginText(row.login).citadelFont("t11", mono: true)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                .citadelFont("t11_5")
             }
         }
     }

@@ -24,11 +24,6 @@ struct AddRunnerSheet: View {
                 AinkradCodeBlock(command, language: "sh")
                 HStack(spacing: skin.size.s8) {
                     Spacer()
-                    AinkradButton(title: "Copy command", style: .secondary) {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(command, forType: .string)
-                    }
-                    .secondaryAccent().fixedSize()
                     AinkradButton(title: "Done") { close() }.fixedSize()
                 }
             } else {
@@ -104,8 +99,13 @@ struct RunnerLogSheet: View {
             if lines.isEmpty {
                 Text("The log is empty.").citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
             } else {
-                ScrollView { AinkradCodeBlock(lines.joined(separator: "\n")) }
-                    .frame(maxHeight: skin.size.s440)
+                let block = AinkradCodeBlock(lines.joined(separator: "\n"))
+                // A short tail sizes to itself; a long one scrolls.
+                if lines.count <= 20 {
+                    block
+                } else {
+                    ScrollView { block }.frame(height: skin.size.s440)
+                }
             }
             HStack {
                 Spacer()

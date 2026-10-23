@@ -9,7 +9,7 @@ extension SweepTests {
         // Live runs make the sidebar taller than 720.
         let wide = CGSize(width: 1280, height: 800)
         var shots: [(String, CitadelStore, CGSize)] = [
-            ("10-runners", stage(.runners, nil, CompanyFixture.runnersPage), CGSize(width: 1280, height: 900)),
+            ("10-runners", stage(.runners, nil, CompanyFixture.runnersPage), CGSize(width: 1280, height: 1040)),
             (
                 "10-runners-added",
                 stage(.runners, nil) {
@@ -19,7 +19,7 @@ extension SweepTests {
                             id: 9, name: "hetzner-3", status: "offline", healthReason: nil, lastSeenAt: nil,
                             tags: ["linux", "docker"]),
                         key: "rk_7f3a9c2e5b8d1f4a6c0e9b2d")
-                }, CGSize(width: 1280, height: 900)
+                }, CGSize(width: 1280, height: 1040)
             ),
             (
                 "10-runners-log",
@@ -33,7 +33,7 @@ extension SweepTests {
                             "12:11:04 probe claude: not logged in (2h 10m)",
                         ]
                     )
-                }, CGSize(width: 1280, height: 900)
+                }, CGSize(width: 1280, height: 1040)
             ),
         ]
         let accounts = stage(.accounts, nil, CompanyFixture.accountsPage)
