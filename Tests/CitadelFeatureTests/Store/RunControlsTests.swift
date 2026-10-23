@@ -69,7 +69,8 @@ final class RunControlsTests: XCTestCase {
         let store = try store()
         var cleared = false
         store.message(run: 418, "  carry on with the sandbox key \n") { cleared = true }
-        let request = try XCTUnwrap(await sent("/api/v1/runs/418/messages"))
+        let sentRequest = await sent("/api/v1/runs/418/messages")
+        let request = try XCTUnwrap(sentRequest)
         XCTAssertEqual(body(request)?["body"] as? String, "carry on with the sandbox key")
         await eventually { cleared }
         XCTAssertTrue(cleared)
@@ -90,7 +91,12 @@ final class RunControlsTests: XCTestCase {
     }
 
     func testAllowForIssueApprovesWithTheReplyAndClearsTheCard() async throws {
-        FakeServer.serve { _ in .init(json: "{}") }
+        FakeServer.serve { _ in
+            .init(
+                json:
+                    #"{"id":23,"company_id":1,"kind":"permission_escalation","requested_by":4,"status":"approved","payload":{}}"#
+            )
+        }
         let store = try store()
         let model = try XCTUnwrap(store.model)
         let approval = ApprovalInfo(
@@ -98,7 +104,8 @@ final class RunControlsTests: XCTestCase {
             fields: ["run": "418"])
         model.approvals = [approval]
         store.allowForIssue(approval, reply: "fine for this issue")
-        let request = try XCTUnwrap(await sent("/api/v1/approvals/23/allow-for-issue"))
+        let sentRequest = await sent("/api/v1/approvals/23/allow-for-issue")
+        let request = try XCTUnwrap(sentRequest)
         XCTAssertEqual(body(request)?["reply"] as? String, "fine for this issue")
         await eventually { model.approvals.isEmpty }
         XCTAssertTrue(model.approvals.isEmpty)
@@ -110,15 +117,14 @@ final class RunControlsTests: XCTestCase {
             return
                 #"{"id":\#(id),"asked_by_agent_id":4,"issue_id":\#(issue),"issue_key":"CIT-\#(issue)","question":"q\#(id)","options":[],"state":"\#(state)","created_at":"2026-10-23T09:0\#(id):00.000Z"\#(req)}"#
         }
+        // Built here: the fake server answers off the main actor.
+        let open = "[\(question(2, 62, "open")), \(question(5, 70, "open"))]"
+        let thread =
+            #"{"requirement_id":12,"items":[{"kind":"question","question":\#(question(1, 58, "answered", requirement: 12))},{"kind":"question","question":\#(question(2, 62, "open", requirement: 12))}]}"#
         FakeServer.serve { request in
             switch request.url?.path {
-            case "/api/v1/companies/1/questions":
-                .init(json: "[\(question(2, 62, "open")), \(question(5, 70, "open"))]")
-            case "/api/v1/requirements/12/thread":
-                .init(
-                    json:
-                        #"{"requirement_id":12,"items":[{"kind":"question","question":\#(question(1, 58, "answered", requirement: 12))},{"kind":"question","question":\#(question(2, 62, "open", requirement: 12))}]}"#
-                )
+            case "/api/v1/companies/1/questions": .init(json: open)
+            case "/api/v1/requirements/12/thread": .init(json: thread)
             default: .init(status: 404, json: "{}")
             }
         }
