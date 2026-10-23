@@ -4,25 +4,27 @@ import SwiftUI
 /// Mockup 11 A: a new server with no agents yet — what fills it, and the action that does.
 struct NoAgentsView: View {
     let store: CitadelStore
+    let model: CompanyModel
+    @State private var proposing = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
         VStack(spacing: 0) {
             PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
-            // TODO(citadel#hire-template): both actions create hire approvals; they need the template and propose-agent
-            // endpoints.
             AinkradEmptyState(
                 icon: "building.columns", title: "Your company has no agents yet",
                 message:
                     "Start from the Engineering template — a CTO and one scrum team (PO, Lead, two devs, QA, DevOps) with their skills — or propose agents one by one. Every new agent is a hire you approve.",
-                actionTitle: "Use Engineering template", action: {}
+                actionTitle: "Use Engineering template", action: { store.useTemplate() }
             )
-            .secondaryAction("Propose an agent…") {}
+            .secondaryAction("Propose an agent…") { proposing = true }
             .glyph("⛫").iconTint(theme.accentSecondary).secondaryAccent().compact()
-            .disabled(true)
             .frame(maxWidth: skin.size.s520)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s440) {
+            ProposeAgentSheet(store: store, model: model, isPresented: $proposing)
         }
     }
 }

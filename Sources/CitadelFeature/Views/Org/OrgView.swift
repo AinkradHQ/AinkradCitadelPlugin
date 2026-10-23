@@ -25,6 +25,7 @@ struct OrgView: View {
     let model: CompanyModel
     @State private var filter: OrgFilter = .all
     @State private var width: CGFloat = 0
+    @State private var proposing = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -35,8 +36,10 @@ struct OrgView: View {
                 HStack(spacing: skin.size.s8) {
                     AinkradSegmentedPicker(items: OrgFilter.allCases, selection: $filter) { $0.rawValue }.fixedSize()
                         .controlSize(.small)
-                    AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "Hire an agent") {}
-                        .outlineBox().disabled(true)
+                    AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "Propose an agent") {
+                        proposing = true
+                    }
+                    .outlineBox()
                 }
             }
             ScrollView {
@@ -65,6 +68,9 @@ struct OrgView: View {
                 .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: filter)
             }
             .offlineDimmed()
+        }
+        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s440) {
+            ProposeAgentSheet(store: store, model: model, isPresented: $proposing)
         }
     }
 
