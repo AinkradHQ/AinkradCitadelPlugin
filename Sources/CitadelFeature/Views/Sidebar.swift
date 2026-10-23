@@ -45,7 +45,6 @@ enum Screen: String, CaseIterable, Hashable {
 /// by fill, never by a line.
 struct Sidebar: View {
     @Bindable var store: CitadelStore
-    @Binding var screen: Screen
     @State private var search = ""
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTypography) private var typo
@@ -67,6 +66,7 @@ struct Sidebar: View {
             AinkradSearchField(text: $search, placeholder: "Search agents, issues, runs").keyHint("⌘K")
             AinkradNavList(items: Screen.allCases, selection: navSelection, icon: { $0.icon }, label: { $0.title })
                 .fixedSize(horizontal: false, vertical: true)
+            if let model = store.model, !model.liveRuns.isEmpty { liveNow(model) }
             Spacer(minLength: 0)
             footer
         }
@@ -80,9 +80,10 @@ struct Sidebar: View {
 
     private var navSelection: Binding<Screen> {
         Binding(
-            get: { screen },
+            get: { store.screen },
             set: {
-                screen = $0
+                store.screen = $0
+                store.detail = nil
                 store.isShowingSettings = false
             })
     }
@@ -101,6 +102,19 @@ struct Sidebar: View {
     static func workspace(_ company: Components.Schemas.Company) -> AinkradWorkspace {
         AinkradWorkspace(
             id: String(company.id), name: company.name, kind: company.kind.value1 == .client ? .client : .own)
+    }
+
+    /// "Live now": every run in flight, one click from its transcript.
+    private func liveNow(_ model: CompanyModel) -> some View {
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            Text(skin.labelCased("Live now")).citadelFont("t10", weight: "semibold")
+                .foregroundStyle(skin.color(skin.text.muted))
+                .padding(.horizontal, skin.size.s4)
+            ForEach(model.liveRuns.prefix(5)) { run in
+                LiveNowRow(run: run, model: model) { store.open(.run(run.id)) }
+            }
+        }
+        .padding(.top, skin.size.s16)
     }
 
     /// `● citadel.ainkrad.io      live · seq 18,442`.
@@ -132,5 +146,53 @@ struct Sidebar: View {
         case (.connected, _): return (status.success, "live\(seq)")
         default: return (skin.color(skin.text.faint), "connecting")
         }
+    }
+}
+
+private struct LiveNowRow: View {
+    let run: RunInfo
+    let model: CompanyModel
+    let open: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradTheme) private var theme
+
+    var body: some View {
+        let agent = model.agent(run.agentID)
+        let issue = model.issue(run.issueID)
+        HStack(alignment: .top, spacing: skin.size.s10) {
+            Circle().fill(theme.accentSecondary).frame(width: skin.size.s7, height: skin.size.s7)
+                .padding(.top, skin.size.s6).breathing(run.state == "running")
+            VStack(alignment: .leading, spacing: skin.size.s2) {
+                HStack(spacing: skin.size.s6) {
+                    Text("\(agent?.name ?? "Agent") · \(issue?.title ?? "run #\(run.id)")").citadelFont("t13")
+                        .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                    Spacer(minLength: skin.size.s4)
+                    Text(Fmt.age(Date().timeIntervalSince(run.startedAt ?? run.queuedAt))).citadelFont(
+                        "t10_5", mono: true
+                    )
+                    .foregroundStyle(skin.color(skin.text.faint))
+                }
+                HStack(spacing: skin.size.s6) {
+                    AinkradBadge(
+                        text: AgentLook.harnessName(run.harness),
+                        tint: AgentLook.harness(run.harness)?.color ?? theme.foreground)
+                    if let issue {
+                        Text(issue.key).citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, skin.size.s4)
+        .padding(.vertical, skin.size.s2)
+        .background(
+            RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous)
+                .fill(skin.color(skin.palette.white).opacity(hovering ? skin.opacity.o05 : 0))
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .onTapGesture(perform: open)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 }

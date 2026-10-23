@@ -1,0 +1,181 @@
+import AinkradAppKit
+import AppKit
+import CitadelClient
+import Foundation
+import Observation
+
+/// What the server must be asked again after an event: the event says *that* something changed, the fetch says
+/// what it is now. Pushed, never polled.
+enum Reload: Hashable, Sendable {
+    case org, approvals, stuck, costs, requirements, sprint, accounts
+    case agent(Int64)
+    /// An agent's newest run (the one it is on now).
+    case agentRun(Int64)
+    case run(Int64)
+    case issue(Int64)
+}
+
+/// The selected company as the screens read it, kept current by the event stream.
+@MainActor
+@Observable
+final class CompanyModel {
+    var companyID: Int64
+    var agents: [Int64: AgentInfo] = [:]
+    var departments: [DepartmentInfo] = []
+    var runs: [Int64: RunInfo] = [:]
+    var issues: [Int64: IssueInfo] = [:]
+    var approvals: [ApprovalInfo] = []
+    var stuck: [StuckInfo] = []
+    var spend: SpendInfo?
+    var budgets: [BudgetInfo] = []
+    var requirements: [RequirementInfo] = []
+    var sprint: SprintInfo?
+    var projects: [ProjectInfo] = []
+    var accounts: [Int64: AccountInfo] = [:]
+    var runners: [Int64: String] = [:]
+    /// `run.token_cap`, `run.stall_after_secs`, `budget.warn_percent`, `breaker.loop_threshold`.
+    var limits: [String: LimitSetting] = [:]
+    /// Each loaded run's transcript, in `seq` order.
+    var transcripts: [Int64: [TranscriptChunkInfo]] = [:]
+    /// Each run's system lines (provider drops, fallbacks) seen on the stream.
+    var notes: [Int64: [RunNote]] = [:]
+    /// The repos each issue touches (decision #51), for the run's worktrees.
+    var issueRepos: [Int64: [String]] = [:]
+    /// The agent page's runs, newest first.
+    var agentRuns: [Int64: [RunInfo]] = [:]
+    /// The newest tool call of each live run ("Bash cargo test -p citadel-server replay").
+    var toolNow: [Int64: String] = [:]
+    /// Uploaded agent images (decision #61), drawn instead of the orb.
+    var avatars: [Int64: NSImage] = [:]
+    var isLoaded = false
+
+    init(companyID: Int64) {
+        self.companyID = companyID
+    }
+
+    // MARK: - Reading
+
+    var ceo: AgentInfo? { agents.values.first { $0.orgRole == "ceo" } }
+
+    /// Running, claimed and queued runs, oldest first.
+    var liveRuns: [RunInfo] {
+        runs.values.filter(\.isLive).sorted { ($0.startedAt ?? $0.queuedAt) < ($1.startedAt ?? $1.queuedAt) }
+    }
+
+    /// The run an agent is on now, or its newest.
+    func currentRun(of agent: Int64) -> RunInfo? {
+        let mine = runs.values.filter { $0.agentID == agent }
+        return mine.filter(\.isLive).max { $0.queuedAt < $1.queuedAt } ?? mine.max { $0.queuedAt < $1.queuedAt }
+    }
+
+    /// The pending permission escalation a run waits on.
+    func waitingApproval(run: Int64) -> ApprovalInfo? {
+        approvals.first { $0.kind == "permission_escalation" && $0.fields["run"] == String(run) }
+    }
+
+    var busyAgents: Int { agents.values.filter { [.working, .thinking, .loading].contains($0.figure) }.count }
+    var pausedAgents: Int { agents.values.filter(\.isPaused).count }
+    var idleAgents: Int { agents.count - busyAgents - pausedAgents }
+    var needsYouCount: Int { approvals.count + stuck.count }
+
+    func agent(_ id: Int64?) -> AgentInfo? { id.flatMap { agents[$0] } }
+    func issue(_ id: Int64?) -> IssueInfo? { id.flatMap { issues[$0] } }
+
+    /// A limit as it applies to a project: its own override, else the company's.
+    func limit(_ key: String, project: Int64? = nil) -> LimitSetting? {
+        project.flatMap { limits["project:\($0)|\(key)"] } ?? limits[key]
+    }
+    var stallAfter: TimeInterval? { limits["run.stall_after_secs"].map { TimeInterval($0.value) } }
+    var runCap: Int64? { limits["run.token_cap"]?.value }
+    var warnFraction: Double { Double(limits["budget.warn_percent"]?.value ?? 80) / 100 }
+
+    // MARK: - The event stream
+
+    /// Folds one event in: a transcript chunk is applied here; anything else names what to fetch again.
+    func apply(_ event: Schemas.Event) -> Set<Reload> {
+        switch event.payload {
+        case .transcript(let t):
+            return received(TranscriptChunkInfo(t.chunk), run: t.runId)
+        case .wake(let wake):
+            var reloads: Set<Reload> = [.agent(wake.agentId)]
+            if let issue = wake.issueId, issues[issue] == nil { reloads.insert(.issue(issue)) }
+            return reloads
+        case .audit(let audit):
+            return audited(
+                action: audit.action, entity: audit.entityId, kind: audit.entityKind, run: audit.runId,
+                details: flatFields(audit.details.value), at: event.at)
+        }
+    }
+
+    func received(_ chunk: TranscriptChunkInfo, run: Int64) -> Set<Reload> {
+        if var chunks = transcripts[run], !chunks.contains(where: { $0.seq == chunk.seq }) {
+            chunks.append(chunk)
+            chunks.sort { $0.seq < $1.seq }
+            transcripts[run] = chunks
+        }
+        if chunk.kind == "tool_use" { toolNow[run] = ToolLine.line(chunk.fields) }
+        guard var info = runs[run] else { return [.run(run)] }
+        info.lastProgressAt = max(info.lastProgressAt ?? chunk.at, chunk.at)
+        runs[run] = info
+        // A turn's usage moves the meter; the run's totals are the server's to add up.
+        return chunk.kind == "usage" ? [.run(run)] : []
+    }
+
+    func audited(
+        action: String, entity: Int64?, kind: String?, run: Int64?, details: [String: String], at: Date
+    ) -> Set<Reload> {
+        let family = action.split(separator: ".").first.map(String.init) ?? action
+        let runID = run ?? (family == "run" ? entity : nil)
+        switch family {
+        case "run":
+            guard let runID else { return [] }
+            if action == "run.provider_dropped" || action == "run.fallback" {
+                notes[runID, default: []].append(RunNote(at: at, action: action, text: RunNote.text(action, details)))
+            }
+            return [.run(runID), .costs]
+        case "approval": return [.approvals]
+        case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
+        case "budget": return [.costs]
+        case "requirement": return [.requirements]
+        case "sprint": return [.sprint]
+        case "account": return [.accounts]
+        case "issue":
+            var reloads: Set<Reload> = [.stuck]
+            if let entity, kind == nil || kind == "issue" { reloads.insert(.issue(entity)) }
+            return reloads
+        default: return []
+        }
+    }
+}
+
+extension RunNote {
+    /// "Provider dropped (overloaded) · resumed the same session after backoff".
+    static func text(_ action: String, _ details: [String: String]) -> String {
+        switch action {
+        case "run.provider_dropped":
+            let why = details["reason"].map { " (\($0))" } ?? ""
+            let count = details["drops"].map { " · drop \($0)" } ?? ""
+            return "Provider dropped\(why) · resumed the same session after backoff\(count)"
+        case "run.fallback":
+            let to = [details["harness"], details["model"]].compactMap { $0 }.joined(separator: " · ")
+            return "Fell back to \(to.isEmpty ? "the next entry" : to) — \(details["reason"] ?? details["class"] ?? "")"
+        default: return action
+        }
+    }
+}
+
+/// A tool call as one line: its name and its most telling argument.
+enum ToolLine {
+    static func argument(_ fields: [String: String]) -> String {
+        for key in ["input.command", "input.file_path", "input.path", "input.url", "input.pattern", "input.query"] {
+            if let value = fields[key], !value.isEmpty { return value }
+        }
+        return fields.filter { $0.key.hasPrefix("input.") }.sorted { $0.key < $1.key }.first?.value ?? ""
+    }
+
+    static func line(_ fields: [String: String]) -> String {
+        let name = fields["name"] ?? fields["tool"] ?? "Tool"
+        let argument = argument(fields)
+        return argument.isEmpty ? name : "\(name) \(argument)"
+    }
+}
