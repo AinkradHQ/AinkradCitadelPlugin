@@ -9,6 +9,7 @@ struct ApprovalsView: View {
     let model: CompanyModel
     @State private var filter: ApprovalFilter = .all
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
@@ -36,7 +37,9 @@ struct ApprovalsView: View {
                     AinkradEmptyState(
                         icon: "checkmark", title: "Nothing waits on you",
                         message: [model.lastDecisionLine(), "New approvals arrive here and as a notification."]
-                            .compactMap { $0 }.joined(separator: " "))
+                            .compactMap { $0 }.joined(separator: " ")
+                    )
+                    .iconTint(status.success)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
