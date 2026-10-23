@@ -9,16 +9,20 @@ struct RunnersView: View {
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @State private var adding = false
 
     private var page: RunnersPage { model.runnersPage }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PaneTitle(title: "Runners", crumb: crumb) {
-                // TODO(citadel#runner-register): "Add runner" needs the one-time registration token endpoint.
-                AinkradButton(title: "+ Add runner", style: .secondary) {}
-                    .secondaryAccent().compact().fixedSize().disabled(true)
-                    .ainkradTooltip("Needs the server's runner registration endpoint")
+                AinkradButton(title: "+ Add runner", style: .secondary) {
+                    page.registered = nil
+                    page.registerFailure = nil
+                    adding = true
+                }
+                .secondaryAccent().compact().fixedSize()
+                .ainkradTooltip("Registers a runner and shows its start command with a key, once")
             }
             ScrollView {
                 if page.isLoaded && page.runners.isEmpty {
@@ -36,6 +40,13 @@ struct RunnersView: View {
             .offlineDimmed()
         }
         .task { store.loadRunnersPage() }
+        .ainkradSheet(isPresented: $adding) { AddRunnerSheet(store: store, page: page, isPresented: $adding) }
+        .ainkradSheet(
+            isPresented: Binding(get: { page.log != nil }, set: { if !$0 { page.log = nil } })
+        ) {
+            RunnerLogSheet(name: page.runners.first { $0.id == page.log?.runner }?.name ?? "Runner",
+                lines: page.log?.lines ?? []) { page.log = nil }
+        }
     }
 
     /// Two columns, each row as tall as its taller card (the mockup's `cols c2`).
@@ -47,7 +58,8 @@ struct RunnersView: View {
             ForEach(rows, id: \.first?.id) { row in
                 GridRow {
                     ForEach(row) { runner in
-                        RunnerCard(store: store, model: model, runner: runner).frame(maxWidth: .infinity)
+                        RunnerCard(store: store, model: model, runner: runner, running: running[runner.id] ?? 0)
+                            .frame(maxWidth: .infinity)
                     }
                     if row.count == 1 { Color.clear.gridCellUnsizedAxes([.horizontal, .vertical]) }
                 }
@@ -58,7 +70,12 @@ struct RunnersView: View {
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.runners)
     }
 
-    /// `1 online · 1 unhealthy · 1 offline · disk 87 GB used`.
+    /// Live runs per runner: the slot meters.
+    private var running: [Int64: Int] {
+        Dictionary(grouping: model.liveRuns.compactMap(\.runnerID), by: { $0 }).mapValues(\.count)
+    }
+
+    /// `1 online · 1 unhealthy · 1 asleep · 1 offline · 5 of 8 slots free · disk 87 GB used`.
     private var crumb: Text {
         let counts = page.counts
         let muted = skin.color(skin.text.muted)
@@ -67,8 +84,14 @@ struct RunnersView: View {
         if counts.unhealthy > 0 {
             text = text + dot + Text("\(counts.unhealthy) unhealthy").foregroundStyle(status.danger)
         }
+        if counts.asleep > 0 {
+            text = text + dot + Text("\(counts.asleep) asleep").foregroundStyle(status.warning)
+        }
         if counts.offline > 0 {
             text = text + dot + Text("\(counts.offline) offline").foregroundStyle(skin.color(skin.text.faint))
+        }
+        if let slots = page.freeSlots(running: running) {
+            text = text + dot + Text("\(slots.free) of \(slots.total) slots free").foregroundStyle(muted)
         }
         if counts.diskUsed > 0 {
             text = text + dot + Text("disk \(ScopedSetting.bytes(counts.diskUsed)) used").foregroundStyle(muted)
@@ -82,9 +105,12 @@ private struct RunnerCard: View {
     let store: CitadelStore
     let model: CompanyModel
     let runner: RunnerInfo
+    let running: Int
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
+    @State private var confirmsRemove = false
+    @State private var relogin = false
 
     private var disk: RunnerDiskInfo? { model.runnersPage.disk[runner.id] }
 
@@ -98,6 +124,10 @@ private struct RunnerCard: View {
                     )
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                if let drain = runner.drainLine(now: Date()) {
+                    ReasonBlock(title: drain.title, detail: drain.detail, tone: .warning)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if let wake = runner.wakeLine(now: Date()) {
                     ReasonBlock(title: wake.title, detail: wake.detail, tone: .warning)
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -107,13 +137,65 @@ private struct RunnerCard: View {
                         ForEach(runner.tags, id: \.self) { AinkradBadge(text: $0, tint: theme.accentSecondary) }
                     }
                 }
+                if let slots = runner.slots, runner.status != "offline" { slotRow(slots) }
+                if !runner.harnesses.isEmpty { harnessRows }
                 if let disk { DiskSection(store: store, model: model, runner: runner, disk: disk) }
                 actions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .rim(runner.status == "unhealthy" ? .danger : nil)
-        .opacity(runner.status == "offline" ? skin.opacity.o80 : 1)
+        .rim(runner.status == "unhealthy" ? .danger : runner.state == "asleep" ? .warning : nil)
+        .opacity(runner.state == "offline" ? skin.opacity.o80 : 1)
+        .ainkradConfirmDialog(
+            isPresented: $confirmsRemove, title: "Remove \(runner.name)?",
+            message: "Its key stops working at once. Register it again to bring the machine back.",
+            confirmTitle: "Remove", isDestructive: true
+        ) { store.removeRunner(runner) }
+        .ainkradSheet(isPresented: $relogin) { ReloginSheet(runner: runner, isPresented: $relogin) }
+    }
+
+    /// `SLOTS ▮▮▮▯ 3 running · heartbeat 2s ago · up 6d`.
+    private func slotRow(_ slots: Int) -> some View {
+        HStack(spacing: skin.size.s10) {
+            Text(skin.labelCased("Slots")).citadelFont("t10", weight: "semibold")
+                .foregroundStyle(skin.color(skin.text.muted))
+            AinkradStatusBar(
+                value: Double(min(running, slots)), total: Double(max(slots, 1)), kind: .accent,
+                segments: max(slots, 1)
+            )
+            .frame(width: CGFloat(max(slots, 1)) * skin.size.s18, height: skin.size.s6)
+            Text(slotLine).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+        }
+    }
+
+    private var slotLine: String {
+        var parts = ["\(running) running"]
+        if let seen = runner.lastSeenAt { parts.append("heartbeat \(Fmt.age(Date().timeIntervalSince(seen))) ago") }
+        if let up = runner.uptime(now: Date()) { parts.append(up) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Each harness: its version and whether it is logged in on the runner.
+    private var harnessRows: some View {
+        Grid(alignment: .leading, horizontalSpacing: skin.size.s10, verticalSpacing: skin.size.s3) {
+            ForEach(runner.harnessRows, id: \.name) { row in
+                GridRow {
+                    Text(AgentLook.harnessName(row.name)).foregroundStyle(skin.color(skin.text.muted))
+                    Text(row.version).citadelFont("t11_5", mono: true)
+                    loginText(row.login).gridColumnAlignment(.trailing).frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .citadelFont("t11_5")
+            }
+        }
+    }
+
+    @ViewBuilder private func loginText(_ state: String?) -> some View {
+        switch state {
+        case "logged_in": Text("✓ logged in").foregroundStyle(status.success)
+        case "logged_out": Text("✗ logged out").foregroundStyle(status.danger)
+        case "unknown": Text("keychain login").foregroundStyle(skin.color(skin.text.faint))
+        default: Text("")
+        }
     }
 
     private var head: some View {
@@ -128,7 +210,7 @@ private struct RunnerCard: View {
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 Text(runner.name).citadelFont("t15", weight: "semibold")
                     .foregroundStyle(skin.color(runner.status == "offline" ? skin.text.muted : skin.text.primary))
-                if let seen = runner.lastSeenAt, runner.status != "offline" {
+                if let seen = runner.lastSeenAt, runner.status != "offline", runner.slots == nil {
                     Text("heartbeat \(Fmt.age(Date().timeIntervalSince(seen))) ago").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
                 }
@@ -138,54 +220,72 @@ private struct RunnerCard: View {
         }
     }
 
-    private var pill: some View {
-        switch runner.status {
+    @ViewBuilder private var pill: some View {
+        switch runner.state {
+        case "online" where runner.drainedAt != nil: AinkradBadge(text: "◐ drained", status: .warning)
         case "online": AinkradBadge(text: "● online", status: .success)
         case "unhealthy": AinkradBadge(text: "● unhealthy", status: .danger)
+        case "asleep": AinkradBadge(text: "☾ asleep", status: .warning)
         default: AinkradBadge(text: "○ \(runner.status)")
         }
     }
 
-    /// Actions follow the state. Waking has an endpoint; the rest wait on the server.
+    /// Actions follow the state: re-login, drain and the probe log when unhealthy; drain when online; wake and
+    /// Power Nap when asleep; the last log and remove when offline.
     @ViewBuilder private var actions: some View {
-        switch runner.status {
-        case "unhealthy":
-            HStack(spacing: skin.size.s8) {
-                // TODO(citadel#runner-relogin): the guided re-login sheet needs the runner's probe detail endpoint.
-                AinkradButton(title: "Re-login on server…", style: .primary) {}.compact().fixedSize().disabled(true)
-                // TODO(citadel#runner-drain): Drain needs the runner drain endpoint.
-                AinkradButton(title: "Drain", style: .secondary) {}.secondaryAccent().compact().fixedSize()
-                    .disabled(true)
-                // TODO(citadel#runner-log): Probe log needs the runner log endpoint.
-                AinkradButton(title: "Probe log", style: .ghost) {}.borderless().secondaryAccent().compact()
-                    .fixedSize().disabled(true)
-            }
-            .ainkradTooltip("Needs the server's runner actions")
-        case "offline":
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                HStack(spacing: skin.size.s8) {
-                    AinkradButton(title: "Wake now", style: .primary) { store.wakeRunner(runner.id, when: "now") }
-                        .compact().fixedSize()
-                        .ainkradTooltip("Pushes a wake to the Mac; its queued work starts when it connects")
-                    AinkradButton(title: "Run when I'm back", style: .secondary) {
-                        store.wakeRunner(runner.id, when: "when_back")
-                    }
+        HStack(spacing: skin.size.s8) {
+            switch runner.state {
+            case "unhealthy":
+                AinkradButton(title: "Re-login on server…", style: .primary) { relogin = true }.compact().fixedSize()
+                    .disabled(runner.loggedOut.isEmpty)
+                    .ainkradTooltip(
+                        runner.loggedOut.isEmpty
+                            ? "The runner reports no logged-out harness" : "The command to run on the runner's host")
+                drainButton
+                AinkradButton(title: "Probe log", style: .ghost) { store.showRunnerLog(runner) }.borderless()
                     .secondaryAccent().compact().fixedSize()
-                    .ainkradTooltip("Nothing is pushed; its work waits until it connects")
-                }
-                HStack(spacing: skin.size.s8) {
-                    // TODO(citadel#runner-log): Show last log needs the runner log endpoint.
-                    AinkradButton(title: "Show last log", style: .secondary) {}.secondaryAccent().compact()
-                        .fixedSize().disabled(true)
-                    // TODO(citadel#runner-remove): Remove needs the runner delete endpoint.
-                    AinkradButton(title: "Remove runner…", style: .ghost) {}.borderless().secondaryAccent()
-                        .compact().fixedSize().disabled(true)
-                }
-                .ainkradTooltip("Needs the server's runner actions")
+            case "online":
+                drainButton
+                AinkradButton(title: "Show log", style: .ghost) { store.showRunnerLog(runner) }.borderless()
+                    .secondaryAccent().compact().fixedSize()
+            case "asleep":
+                AinkradButton(title: "Wake now", style: .primary) { store.wakeRunner(runner.id, when: "now") }
+                    .compact().fixedSize()
+                    .ainkradTooltip("Pushes a wake to the Mac; its queued work starts when it connects")
+                AinkradButton(
+                    title: runner.powerNap == true ? "Keeping awake while jobs queue" : "Keep awake while jobs queue",
+                    style: runner.powerNap == true ? .primary : .secondary
+                ) { store.setPowerNap(runner, runner.powerNap != true) }
+                .secondaryAccent().compact().fixedSize()
+                .ainkradTooltip(powerNapTip)
+            default:
+                AinkradButton(title: "Show last log", style: .secondary) { store.showRunnerLog(runner) }
+                    .secondaryAccent().compact().fixedSize()
+                AinkradButton(title: "Remove runner…", style: .ghost) { confirmsRemove = true }.borderless()
+                    .secondaryAccent().compact().fixedSize()
             }
-        default: EmptyView()
         }
         if let failure = model.runnersPage.failures[runner.id] { RefusalLine(failure: failure) }
+    }
+
+    @ViewBuilder private var drainButton: some View {
+        if runner.drainedAt == nil {
+            AinkradButton(title: "Drain", style: .secondary) { store.setDrained(runner, true) }
+                .secondaryAccent().compact().fixedSize()
+                .ainkradTooltip("Stops new work; its runs finish")
+        } else {
+            AinkradButton(title: "Undrain", style: .secondary) { store.setDrained(runner, false) }
+                .secondaryAccent().compact().fixedSize()
+                .ainkradTooltip("Takes work again")
+        }
+    }
+
+    /// The preference and whether the Mac took it yet.
+    private var powerNapTip: String {
+        let on = runner.powerNap == true
+        let applied = runner.powerNapApplied.map { $0 == on ? " The Mac holds it." : " The Mac has not taken it yet." }
+        return (on ? "Power Nap is on: the Mac wakes for queued jobs." : "Turns Power Nap on so queued jobs wake the Mac.")
+            + (applied ?? "")
     }
 }
 

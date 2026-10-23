@@ -23,6 +23,58 @@ extension CitadelServer {
         }
     }
 
+    /// "+ Add runner": a new runner and its key, which the server shows only now.
+    func registerRunner(name: String, tags: [String]) async -> Result<RegisteredRunnerInfo, ServerAnswer> {
+        await attempt({
+            try await scoped(to: nil).client.registerRunner(body: .json(.init(name: name, tags: tags)))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            let body = try ok.body.json
+            return RegisteredRunnerInfo(runner: RunnerInfo(body.runner), key: body.key)
+        }
+    }
+
+    /// Drain (no new run; its runs finish) or undrain; the runner after.
+    func drain(runner: Int64, _ drained: Bool) async -> Result<RunnerInfo, ServerAnswer> {
+        let client = scoped(to: nil).client
+        if drained {
+            return await attempt({ try await client.drainRunner(path: .init(id: runner)) }) {
+                guard case .ok(let ok) = $0 else { return nil }
+                return RunnerInfo(try ok.body.json)
+            }
+        }
+        return await attempt({ try await client.undrainRunner(path: .init(id: runner)) }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return RunnerInfo(try ok.body.json)
+        }
+    }
+
+    /// "Keep awake while jobs queue" (Power Nap on the Mac); the runner after.
+    func setPowerNap(runner: Int64, _ enabled: Bool) async -> Result<RunnerInfo, ServerAnswer> {
+        await attempt({
+            try await scoped(to: nil).client.setRunnerPowerNap(
+                path: .init(id: runner), body: .json(.init(enabled: enabled)))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return RunnerInfo(try ok.body.json)
+        }
+    }
+
+    /// "Remove runner…": its key stops working.
+    func removeRunner(_ runner: Int64) async -> ServerAnswer? {
+        await act { try await scoped(to: nil).client.removeRunner(path: .init(id: runner)) }
+    }
+
+    /// The end of the runner's own log, redacted by the runner and the server.
+    func runnerLog(_ runner: Int64, limit: Int32 = 200) async -> Result<[String], ServerAnswer> {
+        await attempt({
+            try await scoped(to: nil).client.getRunnerLogs(path: .init(id: runner), query: .init(limit: limit))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return try ok.body.json.lines
+        }
+    }
+
     /// Adds an account to the pool (active, assigned to no company yet).
     func createAccount(_ draft: NewAccountDraft) async -> Result<PoolAccount, ServerAnswer> {
         do {
