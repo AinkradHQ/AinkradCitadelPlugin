@@ -116,7 +116,8 @@ struct PlanRail: View {
 
     private func epicRow(_ epic: PlanEpic) -> some View {
         epicHead(
-            glyph: epic.started ? "◆" : "◇", title: epic.title, count: "\(epic.donePoints) / \(epic.points)",
+            glyph: epic.started ? "◆" : "◇", title: epic.key.map { "\($0) · \(epic.title)" } ?? epic.title,
+            count: "\(epic.donePoints) / \(epic.points)",
             started: epic.started)
     }
 

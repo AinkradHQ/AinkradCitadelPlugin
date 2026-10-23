@@ -39,13 +39,25 @@ extension CitadelServer {
     }
 
     /// The requirement's live plan.
+    /// The requirement's live plan, its epics named by their keys (`CIT-E3`, API minor 9) from each project's epics.
     func plan(requirement: Int64) async -> PlanTree? {
-        await read("getRequirementTree") {
+        let tree = await read("getRequirementTree") { () -> PlanTree? in
             guard case .ok(let ok) = try await client.getRequirementTree(path: .init(id: requirement)) else {
                 return nil
             }
             return PlanTree(try ok.body.json)
         }
+        guard var tree else { return nil }
+        var keys: [Int64: String] = [:]
+        for project in Set(tree.epics.map(\.projectID)) {
+            let epics = await read("listEpics") { () -> [Schemas.Epic]? in
+                guard case .ok(let ok) = try await client.listEpics(path: .init(id: project)) else { return nil }
+                return try ok.body.json
+            }
+            for epic in epics ?? [] { keys[epic.id] = epic.key }
+        }
+        for index in tree.epics.indices { tree.epics[index].key = keys[tree.epics[index].id] }
+        return tree
     }
 
     /// A new request for the CEO to route (the list's ＋); the intake issue it became.

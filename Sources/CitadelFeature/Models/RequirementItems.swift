@@ -172,6 +172,8 @@ struct PlanEpic: Identifiable, Equatable, Sendable {
     var points: Int
     var donePoints: Int
     var tasks: [PlanTask]
+    /// `CIT-E3`, once the project's epics were read.
+    var key: String? = nil
 
     /// ◆ once any task moved, ◇ while every task is still to do.
     var started: Bool { tasks.contains { !["todo", "backlog"].contains($0.state) } }
