@@ -193,6 +193,9 @@ extension StuckInfo {
             .contains(kind)
     }
 
+    /// Its work waits for a runner with the right tags, and the only one sleeps: wake it or run when back.
+    var waitsOnASleepingRunner: Bool { kind == "wake_no_runner" || kind == "run_queued_no_lease" }
+
     var glyph: String {
         switch kind {
         case "wake_no_runner", "run_queued_no_lease": "☾"

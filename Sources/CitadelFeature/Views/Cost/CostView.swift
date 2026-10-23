@@ -8,6 +8,8 @@ struct CostView: View {
     let store: CitadelStore
     let model: CompanyModel
     @State private var period: CostPeriod = .month
+    @State private var pricing = false
+    @State private var editing: BudgetInfo?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -26,13 +28,15 @@ struct CostView: View {
                     .outlineBox().disabled(model.costTasks.isEmpty)
                 }
             }
+            ActionFailureBanner(store: store)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s14) {
                     kpis
-                    PerDayChart(days: model.costDays)
+                    PerDayChart(days: model.costDays, hourly: period == .today)
                     HStack(alignment: .top, spacing: skin.size.s14) {
+                        ByDepartmentTile(model: model)
                         ByProjectTile(rows: model.costByProject())
-                        ByAgentTile()
+                        ByAgentTile(store: store, model: model)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     HStack(alignment: .top, spacing: skin.size.s14) {
@@ -40,7 +44,7 @@ struct CostView: View {
                         PerTaskTile(tasks: model.costTasks)
                     }
                     .fixedSize(horizontal: false, vertical: true)
-                    BudgetsTile(model: model)
+                    BudgetsTile(model: model) { editing = $0 }
                 }
                 .padding(.horizontal, skin.size.s20)
                 .padding(.bottom, skin.size.s20)
@@ -50,7 +54,24 @@ struct CostView: View {
         .onChange(of: period, initial: true) { _, period in
             if model.costPeriod != period { store.loadCost(period) }
         }
+        .ainkradPanelModal(isPresented: $pricing, contentWidth: skin.size.s440) {
+            SetPriceForm(store: store, isPresented: $pricing)
+        }
+        .ainkradPanelModal(
+            isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } }),
+            contentWidth: skin.size.s440
+        ) {
+            if let editing {
+                EditBudgetForm(
+                    store: store, budget: editing, inherited: inheritedWarn,
+                    overridden: { if case .overridden = model.warnScope(editing) { true } else { false } }(),
+                    isPresented: Binding(get: { self.editing != nil }, set: { if !$0 { self.editing = nil } }))
+            }
+        }
     }
+
+    /// The company's (or server's) warn %, what an empty Warn at inherits.
+    private var inheritedWarn: String { "\(model.limits["budget.warn_percent"]?.value ?? 80)%" }
 
     /// "October · day 22 of 31 · 3 budgets".
     private var crumb: Text {
@@ -77,9 +98,8 @@ struct CostView: View {
                     unit: "run\(t.unpricedRuns == 1 ? "" : "s") · \(Fmt.tokens(t.unpricedTokens)) tokens",
                     tone: t.unpricedRuns > 0 ? .warning : nil,
                     detail: Text("A model with no price set — counted in tokens, never as $0"),
-                    // Decision #37: "Set a price…" inline. Prices are set with the server's admin CLI only.
-                    // TODO(citadel#prices): enable once the server takes a price over the API.
-                    action: "Set a price…")
+                    // Decision #37: "Set a price…" inline (POST /prices).
+                    action: ("Set a price…", { pricing = true }))
                 CostKPI(
                     label: "Subscription", value: Fmt.tokens(t.subscriptionTokens), unit: "tokens", tone: nil,
                     detail: Text("\(t.subscriptionRuns) runs on Claude Max / Codex Pro logins — tokens, not dollars"))
@@ -97,7 +117,7 @@ private struct CostKPI: View {
     let unit: String?
     let tone: AinkradChartTone?
     let detail: Text
-    var action: String?
+    var action: (title: String, perform: () -> Void)?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
@@ -114,10 +134,8 @@ private struct CostKPI: View {
                 detail.citadelFont("t11_5").foregroundStyle(skin.color(skin.text.muted))
                     .fixedSize(horizontal: false, vertical: true)
                 if let action {
-                    AinkradButton(title: action, style: .ghost) {}
-                        .borderless().secondaryAccent().compact().fixedSize().disabled(true)
-                        .ainkradTooltip(
-                            "Prices are set with the server's admin CLI (`citadel price`) until the API takes them")
+                    AinkradButton(title: action.title, style: .ghost, action: action.perform)
+                        .borderless().secondaryAccent().compact().fixedSize()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

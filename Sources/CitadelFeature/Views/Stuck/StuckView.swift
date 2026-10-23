@@ -1,4 +1,5 @@
 import AinkradAppKit
+import AppKit
 import SwiftUI
 
 /// Screen 08: issues that stopped moving and the engine's reason — stuck (red, nothing moves them without you)
@@ -16,6 +17,7 @@ struct StuckView: View {
         let lists = model.stuckList(project: project)
         VStack(alignment: .leading, spacing: 0) {
             PaneTitle(title: "Why stuck", crumb: crumb(lists)) { filters }
+            ActionFailureBanner(store: store)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s12) {
                     if lists.stuck.isEmpty && lists.slowing.isEmpty {
@@ -90,6 +92,13 @@ private struct StuckCard: View {
                         + Text(issue?.title ?? stuck.kind.replacingOccurrences(of: "_", with: " "))
                         .foregroundStyle(skin.color(skin.text.primary)))
                         .citadelFont("t14", weight: "semibold").lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .trailing) {
+                            if let since = stuck.since {
+                                Text(stuckAge(Date().timeIntervalSince(since))).citadelFont("t11", mono: true)
+                                    .foregroundStyle(skin.color(skin.text.muted))
+                            }
+                        }
                     (Text(sentence(stuck.reason)).foregroundStyle(skin.color(skin.text.primary)).bold()
                         + Text(" \(sentence(stuck.action, capitalized: false))").foregroundStyle(
                             skin.color(skin.text.muted)))
@@ -121,7 +130,16 @@ private struct StuckCard: View {
     @ViewBuilder private var fixes: some View {
         let lead = model.lead(ofProject: issue?.projectID)
         HStack(spacing: skin.size.s8) {
-            recommended(lead: lead)
+            if stuck.waitsOnASleepingRunner {
+                AinkradButton(title: "Wake my Mac", style: .primary) { store.wakeRunner(for: stuck, when: "now") }
+                    .compact().fixedSize()
+                AinkradButton(title: "Run when I'm back", style: .secondary) {
+                    store.wakeRunner(for: stuck, when: "when_back")
+                }
+                .compact().fixedSize()
+            } else {
+                recommended(lead: lead)
+            }
             if stuck.issueID != nil {
                 AinkradMenuButton(
                     items: model.agents.values.filter { $0.status == "active" }.sorted { $0.name < $1.name }.map {
@@ -131,6 +149,10 @@ private struct StuckCard: View {
                         }
                     }
                 ) { Text("Reassign…") }
+            }
+            if stuck.issueID != nil, !stuck.isSlowing {
+                AinkradButton(title: "Move to backlog", style: .secondary) { store.moveToBacklog(stuck) }
+                    .compact().fixedSize()
             }
             if let agent = stuck.agentID {
                 AinkradButton(title: "Open \(model.agent(agent)?.name ?? "agent")", style: .ghost) {
@@ -152,17 +174,27 @@ private struct StuckCard: View {
                 AinkradButton(title: "Reassign to \(lead.name)", style: .primary) { store.reassign(stuck, to: lead.id) }
                     .compact().fixedSize()
             }
+        case "rewake" where stuck.issueID != nil:
+            AinkradButton(title: "Wake \(model.agent(stuck.agentID)?.name ?? "the agent") again", style: .primary) {
+                store.nudge(stuck)
+            }
+            .compact().fixedSize()
+        case "requeue" where stuck.issueID != nil:
+            AinkradButton(title: "Requeue", style: .primary) { store.nudge(stuck) }.compact().fixedSize()
         case let repair?:
-            // TODO(citadel#nudge): rewake / requeue / release_checkout need the server's nudge endpoint.
+            // TODO(citadel#release-checkout): release_checkout (and drop_wake / notify) have no manual endpoint; the
+            // engine runs them by itself.
             AinkradButton(title: repair.replacingOccurrences(of: "_", with: " ").capitalized, style: .primary) {}
                 .compact().fixedSize().disabled(true)
-                .ainkradTooltip("The engine does this by itself; a manual nudge needs the server's nudge endpoint")
+                .ainkradTooltip("The engine does this by itself")
         case nil: EmptyView()
         }
     }
 
     private func why(lead: AgentInfo?) -> String {
-        switch stuck.repair {
+        if stuck.waitsOnASleepingRunner { return "Wake sends a push to the sleeping runner" }
+        return switch stuck.repair {
+        case "rewake", "requeue": "the engine recommends waking its next actor again"
         case "reassign_to_lead", "escalate": lead.map { "the engine recommends \($0.name), the team lead" } ?? ""
         case "unblock": "its blockers are closed"
         case let repair?: "the engine will \(repair.replacingOccurrences(of: "_", with: " ")) on its own"
@@ -175,4 +207,34 @@ private struct StuckCard: View {
         let capped = capitalized ? first.uppercased() + text.dropFirst() : text
         return capped.hasSuffix(".") ? capped : capped + "."
     }
+}
+
+/// An action the server refused on this screen (mockup 11 G, inline): what failed and what it said; Copy error.
+struct ActionFailureBanner: View {
+    let store: CitadelStore
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        if let failure = store.actionFailure {
+            AinkradBanner(
+                message: "\(failure.title). \(failure.message)", status: .danger, actionTitle: "Copy error",
+                action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(failure.answer.line, forType: .string)
+                },
+                onDismiss: { store.actionFailure = nil }
+            )
+            .padding(.horizontal, skin.size.s20)
+            .padding(.bottom, skin.size.s10)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+}
+
+/// A stuck card's age: `48m`, `2h 04m`, `1d`.
+func stuckAge(_ seconds: TimeInterval) -> String {
+    let s = max(0, Int(seconds))
+    if s < 3600 { return "\(s / 60)m" }
+    if s < 86_400 { return String(format: "%dh %02dm", s / 3600, s % 3600 / 60) }
+    return "\(s / 86_400)d"
 }
