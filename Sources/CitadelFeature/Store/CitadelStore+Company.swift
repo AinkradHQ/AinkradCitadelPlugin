@@ -198,6 +198,11 @@ extension CitadelStore {
         case .issue(let issue):
             guard issue > 0, model.issues[issue] == nil else { return }
             model.issues[issue] = await server.issue(issue)
+        case .thread(let requirement): await reloadThread(requirement, model: model, server: server)
+        case .artifacts: await reloadArtifacts(model, server: server)
+        case .profile(let project): await reloadProfile(project, model: model, server: server)
+        case .settings: await reloadSettings(model, server: server)
+        case .runners: await reloadRunners(model, server: server)
         }
     }
 

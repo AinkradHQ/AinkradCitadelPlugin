@@ -15,8 +15,7 @@ struct ShellView: View {
             Sidebar(store: store)
             VStack(alignment: .leading, spacing: 0) {
                 if store.isShowingSettings {
-                    PaneTitle(title: "Settings", crumb: nil)
-                    SettingsView(store: store)
+                    CompanySettingsView(store: store)
                 } else {
                     content.environment(\.citadelOffline, isOffline ? Offline(store: store, crumb: offlineCrumb) : nil)
                 }
@@ -70,6 +69,11 @@ struct ShellView: View {
         case (nil, .threads): ThreadsView(store: store, model: model)
         case (nil, .stuck): StuckView(store: store, model: model)
         case (nil, .cost): CostView(store: store, model: model)
+        case (nil, .requirements): RequirementsView(store: store, model: model)
+        case (nil, .artifacts): ArtifactsView(store: store, model: model)
+        case (nil, .projects): ProjectsView(store: store, model: model)
+        case (nil, .accounts): AccountsView(store: store, model: model)
+        case (nil, .runners): RunnersView(store: store, model: model)
         default: placeholder
         }
     }
