@@ -231,6 +231,8 @@ struct SprintInfo: Equatable, Sendable {
 struct AccountInfo: Identifiable, Equatable, Sendable {
     let id: Int64
     var label: String
+    /// `metered` (API, dollars) or `subscription` (Claude Max, Codex Pro: tokens).
+    var billing = "metered"
     /// `active`, `limited`, `unhealthy`, `disabled`.
     var status: String
     var statusReason: String?

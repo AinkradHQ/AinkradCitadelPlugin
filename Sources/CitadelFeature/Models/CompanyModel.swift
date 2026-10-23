@@ -41,6 +41,12 @@ final class CompanyModel {
     var velocity: [Int64: Double] = [:]
     /// Runners online now, for the sidebar's "3/4".
     var runnersOnline = 0
+    /// The Cost screen's period: its issues, its days (oldest first), this company's account use.
+    var costTasks: [TaskCostInfo] = []
+    var costDays: [DaySpend] = []
+    var accountUse: [AccountUseInfo] = []
+    /// The period the cost data is for; `nil` until the Cost screen first loads.
+    var costPeriod: CostPeriod?
     var stuck: [StuckInfo] = []
     var spend: SpendInfo?
     var budgets: [BudgetInfo] = []

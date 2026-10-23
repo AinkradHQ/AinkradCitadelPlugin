@@ -68,6 +68,8 @@ struct ShellView: View {
         case (nil, .org): OrgView(store: store, model: model)
         case (nil, .approvals): ApprovalsView(store: store, model: model)
         case (nil, .threads): ThreadsView(store: store, model: model)
+        case (nil, .stuck): StuckView(store: store, model: model)
+        case (nil, .cost): CostView(store: store, model: model)
         default: placeholder
         }
     }
