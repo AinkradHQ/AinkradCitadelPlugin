@@ -23,27 +23,36 @@ extension CitadelStore {
         }
     }
 
-    // ponytail: one list request per project, runner and account, then a history request per set value; fine
-    // for tens of scopes — a server-side "list overridden" call would make it one.
+    /// The company's and its projects' values come from one call (`listOverriddenSettings`); runners and accounts
+    /// are server-wide / pool-wide (#56, #57), outside it, so each is read at its scope. Recent changes read the
+    /// history of the newest values only.
     private func reloadLimits(_ model: CompanyModel, server: CitadelServer) async {
         let page = model.limitsPage
         let companyScope = "company:\(model.companyID)"
         if let all = await server.settings(scope: "server") { page.server = all }
         if let company = await server.settings(scope: companyScope) { page.company = company }
-        var scopes: [(scope: String, owner: String)] = model.projects.map { ("project:\($0.id)", $0.key) }
-        scopes += model.runners.sorted { $0.key < $1.key }.map { ("runner:\($0.key)", $0.value) }
-        scopes += model.accounts.values.sorted { $0.id < $1.id }.map { ("account:\($0.id)", $0.label) }
+        let overridden = await server.overriddenSettings(company: model.companyID) ?? []
         var below: [String: [LimitOverride]] = [:]
-        for (scope, owner) in scopes {
+        for value in overridden where value.scope != companyScope {
+            let owner = model.projects.first { "project:\($0.id)" == value.scope }?.key ?? value.scope
+            below[value.key, default: []].append(
+                LimitOverride(scope: value.scope, owner: owner, value: ScopedSetting.format(value.value, unit: value.unit)))
+        }
+        var pooled: [(scope: String, owner: String)] = model.runners.sorted { $0.key < $1.key }.map {
+            ("runner:\($0.key)", $0.value)
+        }
+        pooled += model.accounts.values.sorted { $0.id < $1.id }.map { ("account:\($0.id)", $0.label) }
+        var pooledSet: [(scope: String, key: String)] = []
+        for (scope, owner) in pooled {
             for setting in await server.settings(scope: scope) ?? [] where setting.isSet(at: scope) {
                 below[setting.key, default: []].append(LimitOverride(scope: scope, owner: owner, value: setting.text))
+                pooledSet.append((scope, setting.key))
             }
         }
         page.below = below
+        let newest = overridden.sorted { $0.setAt > $1.setAt }.prefix(4).map { (scope: $0.scope, key: $0.key) }
         var changes: [SettingChangeInfo] = []
-        let setHere = page.company.filter { $0.isSet(at: companyScope) }.map { (companyScope, $0.key) }
-        let setBelow = below.flatMap { key, overrides in overrides.map { ($0.scope, key) } }
-        for (scope, key) in setHere + setBelow {
+        for (scope, key) in newest + pooledSet {
             changes += await server.settingHistory(scope: scope, key: key) ?? []
         }
         page.changes = Array(changes.sorted { $0.seq > $1.seq }.prefix(4))
