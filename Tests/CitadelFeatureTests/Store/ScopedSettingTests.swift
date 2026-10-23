@@ -16,7 +16,8 @@ final class ScopedSettingTests: XCTestCase {
         XCTAssertEqual(stall().bounds, "1 min–2 h")
         XCTAssertEqual(ScopedSetting.format(50_000_000_000, unit: "bytes"), "50 GB")
         XCTAssertEqual(ScopedSetting.format(200_000, unit: "tokens"), "200k")
-        XCTAssertEqual(ScopedSetting.format(86_400, unit: "seconds"), "1 d")
+        XCTAssertEqual(ScopedSetting.format(86_400, unit: "seconds"), "24 h", "a day reads in hours, as the mockups")
+        XCTAssertEqual(ScopedSetting.format(7 * 86_400, unit: "seconds"), "7 d")
         XCTAssertEqual(ScopedSetting.format(80, unit: "percent"), "80%")
     }
 
