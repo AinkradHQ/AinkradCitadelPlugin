@@ -129,6 +129,22 @@ extension CitadelStore {
         }
     }
 
+    /// "Allow Power Nap runs…": the sleeping runner the waiting agent needs keeps its queued jobs moving.
+    func allowPowerNap(for stuck: StuckInfo) {
+        guard let server, let model else { return }
+        let tags = model.agent(stuck.agentID)?.runnerTags ?? []
+        Task {
+            guard let runner = sleepingRunner(for: tags, in: await server.runnerList() ?? []) else { return }
+            if case .failure(let answer) = await server.setPowerNap(runner: runner.id, true) {
+                actionFailure = ActionFailure(
+                    title: "Couldn't allow Power Nap on \(runner.name)", answer: answer,
+                    outcome: "Its preference is unchanged.")
+            } else {
+                schedule([.stuck, .runners])
+            }
+        }
+    }
+
     /// "Set a price…": the model's price from now on; runs before stay unpriced.
     func setPrice(_ price: PriceDraft) {
         act("Couldn't set the price of \(price.model)", outcome: "No price was set.") { await $0.setPrice(price) }

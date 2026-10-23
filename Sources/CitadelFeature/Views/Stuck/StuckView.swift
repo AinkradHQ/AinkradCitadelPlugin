@@ -77,6 +77,7 @@ private struct StuckCard: View {
     let stuck: StuckInfo
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
+    @State private var confirmsPowerNap = false
 
     private var issue: IssueInfo? { model.issue(stuck.issueID) }
     private var tone: AinkradChartTone { stuck.isSlowing ? .warning : .danger }
@@ -136,6 +137,14 @@ private struct StuckCard: View {
                     store.wakeRunner(for: stuck, when: "when_back")
                 }
                 .compact().fixedSize()
+                AinkradButton(title: "Allow Power Nap runs…", style: .ghost) { confirmsPowerNap = true }
+                    .borderless().compact().fixedSize()
+                    .ainkradConfirmDialog(
+                        isPresented: $confirmsPowerNap, title: "Allow Power Nap runs?",
+                        message:
+                            "The sleeping Mac wakes for queued jobs under Power Nap, without you. Turn it off on the runner's card.",
+                        confirmTitle: "Allow"
+                    ) { store.allowPowerNap(for: stuck) }
             } else {
                 recommended(lead: lead)
             }

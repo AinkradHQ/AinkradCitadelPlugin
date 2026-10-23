@@ -107,7 +107,9 @@ final class EventStreamTests: XCTestCase {
         await eventually { !sockets.sockets.isEmpty }
         stream.stop()
         XCTAssertNil(sockets.sockets.first?.request.value(forHTTPHeaderField: "Last-Event-ID"))
-        XCTAssertTrue(FakeServer.requests.isEmpty, "no replay without a resume point")
+        // Only the replay counts: another test's late reload may still land on the shared fake server.
+        XCTAssertFalse(
+            FakeServer.requests.contains { $0.url?.path == "/api/v1/events" }, "no replay without a resume point")
     }
 
     // MARK: - Reconnect

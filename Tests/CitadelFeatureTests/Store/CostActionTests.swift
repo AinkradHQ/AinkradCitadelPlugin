@@ -64,6 +64,29 @@ final class CostActionTests: XCTestCase {
         XCTAssertFalse(model.stuck[0].waitsOnASleepingRunner, "a queued run with no lease is not a sleeping Mac")
     }
 
+    func testAllowPowerNapTurnsItOnForTheSleepingRunner() async throws {
+        let store = try store()
+        let model = try XCTUnwrap(store.model)
+        FakeServer.serve { request in
+            request.url?.path == "/api/v1/runners"
+                ? .init(
+                    json:
+                        #"[{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"logins":[],"tags":["macos","xcode-27"],"status":"offline"}]"#
+                )
+                : .init(
+                    json:
+                        #"{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"logins":[],"tags":["macos"],"status":"offline","power_nap":true}"#
+                )
+        }
+        store.allowPowerNap(for: model.stuck[1])
+        await eventually { FakeServer.requests.contains { $0.url?.path == "/api/v1/runners/3/power-nap" } }
+        let request = try XCTUnwrap(FakeServer.requests.first { $0.url?.path == "/api/v1/runners/3/power-nap" })
+        XCTAssertEqual(request.httpMethod, "PUT")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(request.sentBody)) as? [String: Bool])
+        XCTAssertEqual(body["enabled"], true)
+        XCTAssertNil(store.actionFailure)
+    }
+
     func testSleepingRunnerNeedsEveryTag() {
         let runners = [
             RunnerInfo(id: 1, name: "a", status: "online", healthReason: nil, lastSeenAt: nil, tags: ["macos"]),
