@@ -1,0 +1,202 @@
+import AinkradAppKit
+import AppKit
+import CitadelClient
+import SwiftUI
+import XCTest
+
+@testable import CitadelFeature
+
+/// Citadel's screens under Neon and Liquid Glass, written as `<dir>/<name>-neon.png` / `-glass.png` for
+/// screen-by-screen review against `Designs/citadel/_renders`. A tool, not a check: it runs only with
+/// AINKRAD_SWEEP_DIR and AINKRAD_THEMES_DIR (the catalog's `themes/`) set. Live window captures — off-screen
+/// `cacheDisplay` cannot draw Liquid Glass. XCTest, not Swift Testing: a Swift Testing `@MainActor` test runs on
+/// the main queue, so the window's own main-queue work never runs while it waits.
+@MainActor
+final class SweepTests: XCTestCase {
+    private let server = "https://citadel.ainkrad.io"
+    private let key = "ck_dev_4d9f0a7c1b2e8f3a6c5d7Q2m"
+
+    func testShootConnectAndSharedStates() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let out = env["AINKRAD_SWEEP_DIR"], let themes = env["AINKRAD_THEMES_DIR"] else {
+            throw XCTSkip("set AINKRAD_SWEEP_DIR and AINKRAD_THEMES_DIR to shoot the screens")
+        }
+        let glass = try Self.glassSkin(themes: URL(fileURLWithPath: themes))
+        Self.registerHostFonts()
+        try FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
+
+        for (theme, skin) in [("neon", AinkradSkin.standard), ("glass", glass)] {
+            let hostTheme = HostTheme(HostThemeTokens(skin: skin))
+            hostTheme.updateStatusColors(
+                HostStatusColors(
+                    success: skin.color(skin.palette.success), warning: skin.color(skin.palette.warning),
+                    danger: skin.color(skin.palette.danger)))
+            for (name, store) in screens() {
+                try LiveCapture.shoot(
+                    RootView(store: store, theme: hostTheme)
+                        .frame(width: 1200, height: 720)
+                        .background(skin.color(skin.palette.background))
+                        .ainkradSkin(skin)
+                        // As the host: Exo 2 under Neon, the system face under Glass.
+                        .environment(
+                            \.ainkradTypography, AinkradTypography(fontFamilyName: theme == "neon" ? "Exo 2" : nil)
+                        )
+                        .environment(\.colorScheme, .dark),
+                    size: CGSize(width: 1200, height: 720),
+                    to: URL(fileURLWithPath: out).appendingPathComponent("\(name)-\(theme).png"))
+            }
+        }
+    }
+
+    /// Every state, staged on a store that never touches the network.
+    private func screens() -> [(String, CitadelStore)] {
+        let companies = [
+            Components.Schemas.Company(accountIds: [], id: 1, kind: .init(value1: .own), name: "Ainkrad"),
+            Components.Schemas.Company(accountIds: [], id: 2, kind: .init(value1: .client), name: "AutomotiveAi"),
+            Components.Schemas.Company(accountIds: [], id: 3, kind: .init(value1: .client), name: "Optimus"),
+        ]
+        func store(connectedBefore: Bool, _ stage: (CitadelStore) -> Void) -> CitadelStore {
+            let docs = MemoryDocs()
+            let secrets = MemorySecrets()
+            let settings = SettingsStore(documents: docs)
+            settings.update {
+                $0.server = server
+                $0.companyID = 1
+                $0.hasConnected = connectedBefore
+                $0.lastSeen = Date().addingTimeInterval(-180)
+                $0.cursors["\(server)|1"] = 18_442
+            }
+            if connectedBefore { secrets.storage["device-key \(server)"] = key }
+            let store = CitadelStore(
+                settings: settings, secrets: secrets, session: FakeServer.session(), connector: FakeSockets().connector)
+            store.companies = companies
+            stage(store)
+            return store
+        }
+        return [
+            ("01-connect-setup", store(connectedBefore: false) { _ in }),
+            (
+                "01-connect-connecting",
+                store(connectedBefore: false) {
+                    $0.keyDraft = key
+                    $0.phase = .connecting(step: 2, label: "Checking key", since: Date().addingTimeInterval(-0.18))
+                }
+            ),
+            (
+                "01-connect-connected",
+                store(connectedBefore: false) {
+                    $0.phase = .connected
+                    $0.agentCount = 18
+                    $0.latency = .milliseconds(42)
+                    $0.replayed = 312
+                }
+            ),
+            (
+                "01-connect-rejected",
+                store(connectedBefore: false) {
+                    $0.keyDraft = key
+                    $0.phase = .rejected
+                }
+            ),
+            (
+                "01-connect-offline",
+                store(connectedBefore: false) {
+                    $0.phase = .offline(attempt: 4, retryAt: Date().addingTimeInterval(8), reason: "timed out")
+                }
+            ),
+            (
+                "11-b-offline-with-cache",
+                store(connectedBefore: true) {
+                    $0.agentCount = 18
+                    $0.phase = .offline(attempt: 5, retryAt: Date().addingTimeInterval(12), reason: "timed out")
+                }
+            ),
+            (
+                "11-c-catching-up",
+                store(connectedBefore: true) {
+                    $0.agentCount = 18
+                    $0.phase = .connected
+                    $0.streamStatus = .catchingUp(replayed: 312)
+                }
+            ),
+            (
+                "11-d-first-load",
+                store(connectedBefore: true) {
+                    $0.phase = .connecting(step: 2, label: "Loading Ainkrad", since: Date())
+                }
+            ),
+            (
+                "shell-live",
+                store(connectedBefore: true) {
+                    $0.agentCount = 18
+                    $0.phase = .connected
+                    $0.streamStatus = .live
+                }
+            ),
+        ]
+    }
+
+    /// The host registers its bundled faces (Exo 2, JetBrains Mono) at launch; the test runner doesn't, so borrow
+    /// the installed app's for true-to-app shots.
+    static func registerHostFonts() {
+        let resources = URL(fileURLWithPath: "/Applications/Ainkrad.app/Contents/Resources")
+        let fonts = (try? FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)) ?? []
+        for font in fonts where font.pathExtension == "ttf" {
+            CTFontManagerRegisterFontsForURL(font as CFURL, .process, nil)
+        }
+    }
+
+    /// `glass-dark.theme` on the standard skin, coloured by `glass-dark.scheme`, composed the way the host's
+    /// `ThemeCatalog.compose` does.
+    static func glassSkin(themes: URL) throws -> AinkradSkin {
+        let dir = themes.appendingPathComponent("glass")
+        let base = try JSONEncoder().encode(AinkradSkin.standard)
+        let theme = try Data(contentsOf: dir.appendingPathComponent("glass-dark.theme"))
+        let variant = try XCTUnwrap(ainkradLoadThemes([base, theme]).themes["glass.dark"])
+        var scheme = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("glass-dark.scheme")))
+                as? [String: Any])
+        scheme.removeValue(forKey: "appearance")
+        scheme.removeValue(forKey: "host")
+        scheme["base"] = "glass.dark"
+        return try AinkradThemeFile(
+            decoding: JSONSerialization.data(withJSONObject: scheme), bases: ["glass.dark": variant]
+        ).skin
+    }
+}
+
+/// Captures a desktop-level window by id (`screencapture -l`): never the user's screen, never focus.
+@MainActor
+enum LiveCapture {
+    private final class KeyAppearancePanel: NSPanel {
+        override var isKeyWindow: Bool { true }
+        override var isMainWindow: Bool { true }
+        override var canBecomeKey: Bool { false }
+        @objc var hasKeyAppearance: Bool { true }
+        @objc var hasMainAppearance: Bool { true }
+        @objc var _hasActiveAppearance: Bool { true }
+        @objc var _hasActiveAppearanceIgnoringKeyFocus: Bool { true }
+    }
+
+    static func shoot(_ view: some View, size: CGSize, to url: URL) throws {
+        let panel = KeyAppearancePanel(
+            contentRect: NSRect(origin: CGPoint(x: 200, y: 200), size: size),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        panel.hasShadow = false
+        panel.animationBehavior = .none
+        panel.contentView = NSHostingView(
+            rootView: view.environment(\.ainkradMotionBudget, .frozen).environment(\.controlActiveState, .key))
+        panel.orderFrontRegardless()
+        defer { panel.orderOut(nil) }
+        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-o", "-l", String(panel.windowNumber), url.path]
+        try capture.run()
+        capture.waitUntilExit()
+        XCTAssertEqual(capture.terminationStatus, 0, "no capture for \(url.lastPathComponent)")
+    }
+}

@@ -6,15 +6,18 @@ import XCTest
 
 @MainActor
 final class SettingsStoreTests: XCTestCase {
-    func testSettingsDocumentRoundTripsThroughTheDocumentStore() {
+    func testSettingsRoundTripThroughTheDocumentStore() {
         let docs = MemoryDocs()
-        XCTAssertTrue(SettingsStore(documents: docs).showGreeting, "an empty store reads the default")
+        XCTAssertNil(SettingsStore(documents: docs).document.server, "an empty store reads the default")
 
-        SettingsStore(documents: docs).showGreeting = false
+        SettingsStore(documents: docs).update {
+            $0.server = "https://citadel.example.com"
+            $0.cursors["https://citadel.example.com|7"] = 42
+        }
 
-        XCTAssertFalse(SettingsStore(documents: docs).showGreeting, "the saved value did not survive a reload")
-        let saved = try? JSONDecoder().decode(SettingsDocument.self, from: docs.storage[SettingsStore.key] ?? Data())
-        XCTAssertEqual(saved, SettingsDocument(showGreeting: false))
+        let reloaded = SettingsStore(documents: docs).document
+        XCTAssertEqual(reloaded.server, "https://citadel.example.com")
+        XCTAssertEqual(reloaded.cursors["https://citadel.example.com|7"], 42)
     }
 
     func testUnreadableSettingsAreSetAsideNotOverwritten() {
@@ -23,12 +26,12 @@ final class SettingsStoreTests: XCTestCase {
         docs.storage[SettingsStore.key] = garbage
 
         let settings = SettingsStore(documents: docs)
-        XCTAssertTrue(settings.showGreeting, "unreadable settings fall back to the default")
+        XCTAssertEqual(settings.document, SettingsDocument(), "unreadable settings fall back to the default")
         XCTAssertEqual(
             docs.storage.first { $0.key.hasPrefix("\(SettingsStore.key).corrupt-") }?.value, garbage,
             "the unreadable bytes must be kept under a .corrupt- key")
 
-        settings.showGreeting = false
+        settings.update { $0.companyID = 7 }
         XCTAssertNotNil(docs.storage[SettingsStore.key], "after setting aside, saving works again")
     }
 }

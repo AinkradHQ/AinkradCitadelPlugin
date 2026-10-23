@@ -1,6 +1,6 @@
 import AinkradAppKit
-import Foundation
 import CitadelFeature
+import Foundation
 
 /// The bundle's principal class (matches `NSPrincipalClass` in Info.plist).
 @objc(CitadelPluginEntryPoint)

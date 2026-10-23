@@ -9,18 +9,29 @@ final class MemoryDocs: PluginDocumentStore {
     func setData(_ data: Data?, forKey key: String) { storage[key] = data }
 }
 
-/// The smallest `HostServices` that lets `CitadelApp.makeRootView(host:)` run: real
-/// in-memory documents and a fixed theme, no-op everything else. Each fake has
-/// its own `instanceID`, so two fakes never share a store.
+/// In-memory `PluginSecretStore`, standing in for the host's Keychain.
+final class MemorySecrets: PluginSecretStore {
+    var storage: [String: String] = [:]
+    func secret(forKey key: String) -> String? { storage[key] }
+    func setSecret(_ value: String?, forKey key: String) { storage[key] = value }
+}
+
+/// The smallest `HostServices` that lets `CitadelApp.makeRootView(host:)` run: real in-memory documents and
+/// secrets and a fixed theme, no-op everything else. Each fake has its own `instanceID`, so two fakes never share
+/// a store.
 @MainActor
 struct FakeHost: HostServices, PluginInstanceIdentity {
     let docs: MemoryDocs
+    let keychain: MemorySecrets
     let instanceID = PluginInstanceID()
 
-    init(docs: MemoryDocs = MemoryDocs()) { self.docs = docs }
+    init(docs: MemoryDocs = MemoryDocs(), keychain: MemorySecrets = MemorySecrets()) {
+        self.docs = docs
+        self.keychain = keychain
+    }
 
     var documents: PluginDocumentStore { docs }
-    var secrets: PluginSecretStore { NoSecrets() }
+    var secrets: PluginSecretStore { keychain }
     var theme: HostTheme {
         HostTheme(
             .init(
@@ -37,10 +48,6 @@ struct FakeHost: HostServices, PluginInstanceIdentity {
     var signals: PluginSignalEmitter { NoopSignalEmitter() }
 }
 
-private struct NoSecrets: PluginSecretStore {
-    func secret(forKey key: String) -> String? { nil }
-    func setSecret(_ value: String?, forKey key: String) {}
-}
 private struct NoLog: PluginLogger {
     func info(_ message: String) {}
     func error(_ message: String) {}

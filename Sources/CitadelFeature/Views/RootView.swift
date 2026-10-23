@@ -1,25 +1,27 @@
 import AinkradAppKit
 import SwiftUI
 
-/// The app's window. Built from kit components, so it follows the host's skin
-/// and typography; it reads `store`, so the "Show greeting" toggle on the
-/// settings page shows and hides the greeting live.
+/// The window: the connect card on first run (or when the key stops working), the shell otherwise.
 struct RootView: View {
-    let store: SettingsStore
+    let store: CitadelStore
     let theme: HostTheme
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
-            if store.showGreeting {
-                AinkradEmptyState(
-                    icon: CitadelApp.icon,
-                    title: "Hello from \(CitadelApp.displayName)",
-                    message: "Start building in Sources/CitadelFeature.")
+            if store.showsConnectCard {
+                ConnectView(store: store)
+                    .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .scale(scale: 0.98))))
             } else {
-                AinkradCaption("Greeting hidden. Turn it back on in Settings.")
+                ShellView(store: store).transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.showsConnectCard)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.tokens.background)
+        .foregroundStyle(theme.tokens.foreground)
+        .ainkradHostTheme(theme)
+        .task { store.start() }
     }
 }
