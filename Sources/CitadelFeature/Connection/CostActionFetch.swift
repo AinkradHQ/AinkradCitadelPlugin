@@ -100,6 +100,42 @@ extension CitadelServer {
         }
     }
 
+    /// "＋ New budget": a cap for a scope (`company:1`, `project:2`, …) and period; `warnPercent` `nil` inherits.
+    func createBudget(company: Int64, scope: String, period: String, cap: Int64, warnPercent: Int?) async
+        -> ServerAnswer?
+    {
+        guard let wire = BudgetInfo.wireScope(scope) else {
+            return ServerAnswer(status: 400, code: "bad_scope", message: "Unknown budget scope \(scope)")
+        }
+        let known = Schemas.BudgetPeriod.Value1Payload(rawValue: period)
+        return await act {
+            try await client.createBudget(
+                path: .init(id: company),
+                body: .json(
+                    .init(
+                        period: .init(value1: known, value2: known == nil ? period : nil), scope: wire, tokenCap: cap,
+                        warnAtPercent: warnPercent.map(Int32.init))))
+        }
+    }
+
+    func deleteBudget(_ budget: Int64) async -> ServerAnswer? {
+        await act { try await client.deleteBudget(path: .init(id: budget)) }
+    }
+
+    /// Every version of a model's price, as each took effect.
+    func priceHistory(harness: String, model: String) async -> [PriceVersionInfo]? {
+        await read("priceHistory") {
+            let query = Operations.PriceHistory.Input.Query(
+                harness: .init(value1: .init(rawValue: harness), value2: harness), model: model)
+            guard case .ok(let ok) = try await client.priceHistory(query: query) else { return nil }
+            return try ok.body.json.map {
+                PriceVersionInfo(
+                    version: $0.value1.version, input: $0.value1.inputUsdPerMtok, output: $0.value1.outputUsdPerMtok,
+                    cache: $0.value1.cacheUsdPerMtok, setAt: $0.value2.setAt)
+            }
+        }
+    }
+
     /// Runs a generated call: `nil` when it answered 200, else its refusal.
     private func act(_ call: () async throws -> some Sendable) async -> ServerAnswer? {
         do {

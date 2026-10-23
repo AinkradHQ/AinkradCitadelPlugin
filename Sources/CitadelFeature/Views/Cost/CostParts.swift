@@ -187,6 +187,8 @@ struct BudgetsTile: View {
     let model: CompanyModel
     /// A row's Edit (shown on hover): its cap and warn %.
     var edit: (BudgetInfo) -> Void = { _ in }
+    /// "＋ New budget".
+    var add: () -> Void = {}
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
@@ -200,6 +202,8 @@ struct BudgetsTile: View {
                     )
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                     Spacer(minLength: 0)
+                    AinkradButton(title: "＋ New budget", style: .ghost, action: add)
+                        .borderless().secondaryAccent().compact().fixedSize()
                 }
                 if model.budgets.isEmpty {
                     Text("No budgets set").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))

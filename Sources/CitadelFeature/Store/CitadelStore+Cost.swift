@@ -142,6 +142,26 @@ extension CitadelStore {
         }
     }
 
+    /// "＋ New budget".
+    func createBudget(scope: String, label: String, period: String, cap: Int64, warnPercent: Int?) {
+        guard let company = model?.companyID else { return }
+        act("Couldn't add a budget for \(label)", outcome: "No budget was added.") {
+            await $0.createBudget(company: company, scope: scope, period: period, cap: cap, warnPercent: warnPercent)
+        }
+    }
+
+    /// Delete on a budget's Edit: its cap goes; spend stays counted.
+    func deleteBudget(_ budget: BudgetInfo) {
+        act("Couldn't delete the \(budget.label) budget", outcome: "The budget stays.") {
+            await $0.deleteBudget(budget.id)
+        }
+    }
+
+    /// A model's earlier prices, for the Set a price form.
+    func priceHistory(harness: String, model name: String) async -> [PriceVersionInfo] {
+        await server?.priceHistory(harness: harness, model: name) ?? []
+    }
+
     private func key(_ issue: Int64) -> String { model?.issue(issue)?.key ?? "the issue" }
 
     /// Sends an action; a refusal becomes the 11 G banner, success asks for the reads its event will also ask for.

@@ -80,6 +80,7 @@ struct SetPriceForm: View {
     @State private var output = ""
     @State private var cache = ""
     @State private var problem: PriceProblem?
+    @State private var history: [PriceVersionInfo] = []
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -97,6 +98,15 @@ struct SetPriceForm: View {
             AinkradFormRow(title: "Input") { AinkradTextField(text: $input, placeholder: "0.30").monospaced() }
             AinkradFormRow(title: "Output") { AinkradTextField(text: $output, placeholder: "1.20").monospaced() }
             AinkradFormRow(title: "Cache read") { AinkradTextField(text: $cache, placeholder: "0").monospaced() }
+            if !history.isEmpty {
+                VStack(alignment: .leading, spacing: skin.size.s3) {
+                    Text(skin.labelCased("Earlier prices")).citadelFont("t10", weight: "semibold")
+                        .foregroundStyle(skin.color(skin.text.muted))
+                    ForEach(history.reversed(), id: \.version) {
+                        Text($0.line).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    }
+                }
+            }
             if let problem { AinkradBanner(message: problem.message, status: .danger) }
             HStack(spacing: skin.size.s8) {
                 Spacer()
@@ -105,7 +115,15 @@ struct SetPriceForm: View {
                     .disabled(modelName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
+        .task(id: priced) {
+            let name = modelName.trimmingCharacters(in: .whitespaces)
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            history = name.isEmpty ? [] : await store.priceHistory(harness: harness, model: name)
+        }
     }
+
+    private var priced: String { "\(harness)|\(modelName.trimmingCharacters(in: .whitespaces))" }
 
     private func save() {
         switch PriceDraft.parse(harness: harness, model: modelName, input: input, output: output, cache: cache) {
@@ -151,11 +169,86 @@ struct EditBudgetForm: View {
                 Text(why.message).citadelFont("t11_5").foregroundStyle(status.danger)
             }
             HStack(spacing: skin.size.s8) {
+                AinkradButton(title: "Delete budget", style: .ghost) {
+                    store.deleteBudget(budget)
+                    isPresented = false
+                }
+                .borderless().fixedSize()
                 Spacer()
                 AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
                 AinkradButton(title: "Save") {
                     guard case .success(let edit) = edit else { return }
                     store.setBudget(budget, cap: edit.cap, warnPercent: edit.warnPercent)
+                    isPresented = false
+                }
+                .fixedSize()
+                .disabled((try? edit.get()) == nil)
+            }
+        }
+    }
+}
+
+/// "＋ New budget": a scope (the company, a department, project or agent), a period, its cap and warn %.
+struct NewBudgetForm: View {
+    let store: CitadelStore
+    let model: CompanyModel
+    @Binding var isPresented: Bool
+    @State private var scope: String
+    @State private var period = "month"
+    @State private var cap = ""
+    @State private var warn = ""
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
+
+    init(store: CitadelStore, model: CompanyModel, isPresented: Binding<Bool>) {
+        self.store = store
+        self.model = model
+        self._isPresented = isPresented
+        self._scope = State(initialValue: "company:\(model.companyID)")
+    }
+
+    /// Every scope a budget can take here, labelled as the budget rows read.
+    private var scopes: [(scope: String, label: String)] {
+        [("company:\(model.companyID)", "Company")]
+            + model.departments.map { ("department:\($0.id)", $0.name) }
+            + model.projects.map { ("project:\($0.id)", "\($0.key) · \($0.name)") }
+            + model.agents.values.sorted { $0.name < $1.name }.map { ("agent:\($0.id)", $0.name) }
+    }
+
+    var body: some View {
+        let edit = BudgetEdit.parse(cap: cap, warn: warn)
+        let label = scopes.first { $0.scope == scope }?.label ?? scope
+        VStack(alignment: .leading, spacing: skin.size.s12) {
+            Text("New budget").citadelFont("t15", weight: "semibold")
+            AinkradFormRow(title: "Scope") {
+                AinkradMenuButton(
+                    items: scopes.map { item in
+                        AinkradMenuItem(title: item.label, systemName: nil) { scope = item.scope }
+                    }
+                ) { Text(label) }
+            }
+            AinkradFormRow(title: "Period") {
+                AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) {
+                    $0.capitalized
+                }
+                .fixedSize()
+            }
+            AinkradFormRow(title: "Cap", help: "Tokens; runs stop at it until you approve a raise.") {
+                AinkradTextField(text: $cap, placeholder: "2M").monospaced()
+            }
+            AinkradFormRow(title: "Warn at", help: "50–99%; empty inherits the company's.") {
+                AinkradTextField(text: $warn, placeholder: "80").monospaced()
+            }
+            if !cap.isEmpty, case .failure(let why) = edit {
+                Text(why.message).citadelFont("t11_5").foregroundStyle(status.danger)
+            }
+            HStack(spacing: skin.size.s8) {
+                Spacer()
+                AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
+                AinkradButton(title: "Add budget") {
+                    guard case .success(let edit) = edit else { return }
+                    store.createBudget(
+                        scope: scope, label: label, period: period, cap: edit.cap, warnPercent: edit.warnPercent)
                     isPresented = false
                 }
                 .fixedSize()
