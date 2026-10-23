@@ -31,10 +31,13 @@ final class SweepTests: XCTestCase {
                 HostStatusColors(
                     success: skin.color(skin.palette.success), warning: skin.color(skin.palette.warning),
                     danger: skin.color(skin.palette.danger)))
-            for (name, store) in screens() {
+            let only = env["AINKRAD_SWEEP_ONLY"].flatMap {
+                $0.isEmpty ? nil : $0.split(separator: ",").map(String.init)
+            }
+            for (name, store, size) in screens() where only?.contains(where: name.hasPrefix) ?? true {
                 try LiveCapture.shoot(
                     RootView(store: store, theme: hostTheme)
-                        .frame(width: 1200, height: 720)
+                        .frame(width: size.width, height: size.height)
                         .background(skin.color(skin.palette.background))
                         .ainkradSkin(skin)
                         // As the host: Exo 2 under Neon, the system face under Glass.
@@ -42,14 +45,14 @@ final class SweepTests: XCTestCase {
                             \.ainkradTypography, AinkradTypography(fontFamilyName: theme == "neon" ? "Exo 2" : nil)
                         )
                         .environment(\.colorScheme, .dark),
-                    size: CGSize(width: 1200, height: 720),
+                    size: size,
                     to: URL(fileURLWithPath: out).appendingPathComponent("\(name)-\(theme).png"))
             }
         }
     }
 
     /// Every state, staged on a store that never touches the network.
-    private func screens() -> [(String, CitadelStore)] {
+    private func screens() -> [(String, CitadelStore, CGSize)] {
         let companies = [
             Components.Schemas.Company(accountIds: [], id: 1, kind: .init(value1: .own), name: "Ainkrad"),
             Components.Schemas.Company(accountIds: [], id: 2, kind: .init(value1: .client), name: "AutomotiveAi"),
@@ -73,7 +76,22 @@ final class SweepTests: XCTestCase {
             stage(store)
             return store
         }
-        return [
+        func company(
+            _ screen: Screen, detail: Detail? = nil, _ stage: (CompanyModel) -> Void = { _ in }
+        ) -> CitadelStore {
+            store(connectedBefore: true) {
+                $0.agentCount = 18
+                $0.phase = .connected
+                $0.streamStatus = .live
+                let model = CompanyFixture.model()
+                stage(model)
+                $0.model = model
+                $0.screen = screen
+                $0.detail = detail
+            }
+        }
+        let small = CGSize(width: 1200, height: 720)
+        let shots: [(String, CitadelStore)] = [
             ("01-connect-setup", store(connectedBefore: false) { _ in }),
             (
                 "01-connect-connecting",
@@ -135,6 +153,13 @@ final class SweepTests: XCTestCase {
                     $0.streamStatus = .live
                 }
             ),
+        ]
+        // The mockups' window sizes (Designs/citadel/base.css `.window`, and each screen's override).
+        return shots.map { ($0.0, $0.1, small) } + [
+            ("02-home", company(.home), CGSize(width: 1280, height: 900)),
+            ("03-org", company(.org), CGSize(width: 1280, height: 800)),
+            ("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), CGSize(width: 1280, height: 800)),
+            ("05-run", company(.runs, detail: .run(418), CompanyFixture.runPage), CGSize(width: 1280, height: 1180)),
         ]
     }
 

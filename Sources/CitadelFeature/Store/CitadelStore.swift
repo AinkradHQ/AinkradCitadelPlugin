@@ -51,13 +51,20 @@ final class CitadelStore {
     var hasOpenedHome: Bool
     /// The window's main pane shows Settings.
     var isShowingSettings = false
+    /// The sidebar's screen, and the agent or run opened from it (screens 04 and 05).
+    var screen: Screen = .home
+    var detail: Detail?
+    /// The selected company's data, once loaded; kept current by the event stream.
+    var model: CompanyModel?
 
     let settings: SettingsStore
     private let keys: DeviceKeyStore
     private let session: URLSession
     private let connector: EventSocketConnector
     private let timing: EventStream.Timing
-    @ObservationIgnored private var server: CitadelServer?
+    @ObservationIgnored var server: CitadelServer?
+    @ObservationIgnored var pendingReloads: Set<Reload> = []
+    @ObservationIgnored var reloadTask: Task<Void, Never>?
     @ObservationIgnored private var stream: EventStream?
     @ObservationIgnored private var work: Task<Void, Never>?
     @ObservationIgnored private var connectAttempt = 0
@@ -161,6 +168,7 @@ final class CitadelStore {
         settings.update { $0.hasConnected = false }
         hasOpenedHome = false
         companies = []
+        model = nil
         phase = .setup
     }
 
@@ -172,6 +180,8 @@ final class CitadelStore {
         settings.update { $0.companyID = id }
         recentEvents = []
         agentCount = nil
+        model = nil
+        detail = nil
         stream?.stop()
         startStream(server.scoped(to: id))
         Task { agentCount = try? await server.scoped(to: id).agentCount(company: id) }
@@ -255,6 +265,7 @@ final class CitadelStore {
         replayed = stream?.replayed ?? replayed
         switch status {
         case .live, .polling:
+            if model?.companyID != company?.id { loadCompany() }
             if phase != .connected {
                 phase = .connected
                 settings.update {
@@ -272,7 +283,8 @@ final class CitadelStore {
         }
     }
 
-    private func received(_ event: Components.Schemas.Event) {
+    func received(_ event: Components.Schemas.Event) {
+        if let model { schedule(model.apply(event)) }
         recentEvents.append(event)
         if recentEvents.count > Self.recentLimit { recentEvents.removeFirst(recentEvents.count - Self.recentLimit) }
     }

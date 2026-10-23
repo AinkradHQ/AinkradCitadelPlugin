@@ -1,0 +1,221 @@
+import AinkradAppKit
+import Foundation
+
+// The screens' view of one company: plain values mapped from the generated client (`Mapping.swift`), so a view
+// never reads a wire type and a test can build any state without JSON.
+
+struct AgentInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var name: String
+    var role: String
+    /// `ceo`, `cto` or `none`.
+    var orgRole: String
+    var harness: String
+    var model: String
+    var runnerTags: [String]
+    /// `active`, `paused`, `pending_approval` or `terminated`.
+    var status: String
+    var figure: AinkradFigureState
+    var paletteID: String
+    /// The uploaded image's path on the server (decision #61), drawn instead of the orb.
+    var avatarPath: String?
+    var reportsTo: Int64?
+
+    var isPaused: Bool { status == "paused" }
+    var isHirePending: Bool { status == "pending_approval" }
+    /// The figure's palette: the stored one, Muted while paused or retired.
+    var palette: AinkradFigurePalette { AgentLook.palette(id: paletteID, status: status) }
+    var figureHarness: AinkradFigureHarness? { AgentLook.harness(harness) }
+    var harnessName: String { AgentLook.harnessName(harness) }
+}
+
+struct DepartmentInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var name: String
+    var teams: [TeamInfo]
+
+    var agentIDs: [Int64] { teams.flatMap { $0.seats.map(\.agentID) } }
+}
+
+struct TeamInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var name: String
+    var seats: [SeatInfo]
+}
+
+struct SeatInfo: Equatable, Sendable {
+    var agentID: Int64
+    /// `product_owner`, `team_lead` or `member`.
+    var teamRole: String
+}
+
+struct RunInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var agentID: Int64
+    var issueID: Int64?
+    /// `queued`, `claimed`, `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `runner_lost`.
+    var state: String
+    var harness: String
+    var harnessVersion: String?
+    var model: String?
+    var accountID: Int64?
+    var runnerID: Int64?
+    var fallbackReason: String?
+    var terminalReason: String?
+    var inputTokens: Int64 = 0
+    var outputTokens: Int64 = 0
+    var cacheTokens: Int64 = 0
+    var costMicros: Int64?
+    var contextTokens: Int64?
+    var queuedAt: Date
+    var wokenAt: Date?
+    var claimedAt: Date?
+    var startedAt: Date?
+    var harnessStartedAt: Date?
+    var firstTokenAt: Date?
+    var endedAt: Date?
+    var lastProgressAt: Date?
+
+    /// What a cap counts: every token, cache included.
+    var tokens: Int64 { inputTokens + outputTokens + cacheTokens }
+    var isLive: Bool { ["queued", "claimed", "running"].contains(state) }
+    /// The run's end in the words of screen 04: `cap hit` is a failure the token cap caused.
+    var endWord: String {
+        if state == "failed", terminalReason?.contains("cap") == true { return "cap hit" }
+        return state.replacingOccurrences(of: "_", with: " ")
+    }
+}
+
+struct IssueInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var key: String
+    var title: String
+    var projectID: Int64
+    var requirementID: Int64?
+}
+
+struct ApprovalInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    /// `sprint_commit`, `pr_merge`, `budget_overrun`, `hire_agent`, `permission_escalation`, `plan_approval`.
+    var kind: String
+    var agentID: Int64?
+    var issueID: Int64?
+    var requestedBy: Int64
+    var expiresAt: Date?
+    /// The payload's flat string and number fields (`name`, `key`, `title`, `tool`, `run`, `points`, …).
+    var fields: [String: String]
+}
+
+struct StuckInfo: Equatable, Sendable {
+    var kind: String
+    var issueID: Int64?
+    var agentID: Int64?
+    var reason: String
+    var action: String
+}
+
+struct RequirementInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var key: String
+    var title: String
+    /// `planning`, `plan_review`, `in_progress`, `done`, `cancelled`.
+    var state: String
+    var ownerAgentID: Int64?
+    var points: Int = 0
+    var donePoints: Int = 0
+    var percentDone: Int = 0
+    /// `YYYY-MM-DD`.
+    var eta: String?
+}
+
+struct BudgetInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    /// What VoiceOver and the row read: "Company · day", "Kestrel · month".
+    var label: String
+    /// `agent:3`, `company:1`, `project:2`, `department:4`, `sprint:9`.
+    var scope: String
+    /// `day`, `week`, `month`, `total`.
+    var period: String
+    var periodKey: String
+    var spent: Int64
+    var cap: Int64
+    var warnPercent: Int
+
+    var warnFraction: Double { Double(warnPercent) / 100 }
+    var fraction: Double { cap > 0 ? Double(spent) / Double(cap) : 0 }
+}
+
+struct SpendInfo: Equatable, Sendable {
+    var costMicros: Int64
+    var runs: Int64
+    var pricedRuns: Int64
+    var unpricedRuns: Int64
+    var unpricedTokens: Int64
+    var subscriptionRuns: Int64
+    var subscriptionTokens: Int64
+    var pricedTokens: Int64
+}
+
+struct ProjectInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var key: String
+    var name: String
+    var teamID: Int64?
+    /// `scrum` or `kanban`.
+    var mode: String
+}
+
+struct SprintInfo: Equatable, Sendable {
+    var id: Int64
+    var name: String
+    var projectKey: String
+    var startsOn: Date?
+    var endsOn: Date?
+    var committed: Int
+    var completed: Int
+}
+
+struct AccountInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var label: String
+    /// `active`, `limited`, `unhealthy`, `disabled`.
+    var status: String
+    var statusReason: String?
+    var statusUntil: Date?
+    /// The fullest window: its share used (0…1+), its length and warn line.
+    var windowUse: Double?
+    var windowSecs: Int64?
+    var warnPercent: Int64?
+}
+
+/// What one issue's runs used (`getTaskCosts`).
+struct IssueCost: Equatable, Sendable {
+    var issueID: Int64
+    var tokens: Int64
+    var costMicros: Int64
+    var runs: Int64
+    var unpricedRuns: Int64
+}
+
+/// A scoped setting as the run rail shows it: its value and where it was set (`company:1`; nil = the default).
+struct LimitSetting: Equatable, Sendable {
+    var value: Int64
+    var source: String?
+}
+
+/// One chunk of a run's transcript (redacted by the server).
+struct TranscriptChunkInfo: Equatable, Sendable {
+    var seq: Int64
+    var at: Date
+    /// The harness event's `type`: `assistant_text`, `tool_use`, `approval_requested`, `usage`, `turn_ended`, ….
+    var kind: String
+    /// Its flat string fields, with `input.<key>` for a tool's input.
+    var fields: [String: String]
+}
+
+/// A system line in a run (an audit event): a provider drop, a fallback.
+struct RunNote: Equatable, Sendable {
+    var at: Date
+    var action: String
+    var text: String
+}
