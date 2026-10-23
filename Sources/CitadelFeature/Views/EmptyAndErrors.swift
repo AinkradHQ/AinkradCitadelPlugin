@@ -106,7 +106,8 @@ extension RunInfo {
         guard transcriptGoneReason == "pruned" else {
             return "Nothing of it is on the server any more, or it never started."
         }
-        let kept = retention.map { "Transcripts are kept \(Fmt.span(TimeInterval($0.value)))" } ?? "Old transcripts are pruned"
+        let kept =
+            retention.map { "Transcripts are kept \(Fmt.span(TimeInterval($0.value)))" } ?? "Old transcripts are pruned"
         let when = transcriptPrunedAt.map { " — this one went on \($0.formatted(.dateTime.month(.abbreviated).day()))" }
         return "\(kept)\(when ?? "")."
     }

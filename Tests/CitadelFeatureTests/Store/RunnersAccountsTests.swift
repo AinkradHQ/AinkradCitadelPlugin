@@ -246,7 +246,7 @@ final class RunnersAccountsTests: XCTestCase {
         XCTAssertEqual(
             failure.message,
             "The server answered 409: Mira changed the scope 20 s ago (now 29 pts). Nothing was approved.")
-        XCTAssertEqual(failure.answer.line, "409 conflict: Mira changed the scope 20 s ago (now 29 pts)")
+        XCTAssertEqual(failure.answer.line, "409 conflict: Mira changed the scope 20 s ago (now 29 pts) · err_01JTEST")
         XCTAssertTrue(model.approvals.contains { $0.id == sprint.id }, "nothing was approved")
     }
 

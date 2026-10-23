@@ -36,7 +36,8 @@ extension CitadelStore {
         for value in overridden where value.scope != companyScope {
             let owner = model.projects.first { "project:\($0.id)" == value.scope }?.key ?? value.scope
             below[value.key, default: []].append(
-                LimitOverride(scope: value.scope, owner: owner, value: ScopedSetting.format(value.value, unit: value.unit)))
+                LimitOverride(
+                    scope: value.scope, owner: owner, value: ScopedSetting.format(value.value, unit: value.unit)))
         }
         var pooled: [(scope: String, owner: String)] = model.runners.sorted { $0.key < $1.key }.map {
             ("runner:\($0.key)", $0.value)

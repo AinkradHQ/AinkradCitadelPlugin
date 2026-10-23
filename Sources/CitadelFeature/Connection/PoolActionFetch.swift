@@ -45,7 +45,8 @@ extension CitadelServer {
     /// Names (or clears, `nil`) the account's plan tier; the tier as stored.
     func setPlanTier(account: Int64, _ tier: String?) async -> Result<String?, ServerAnswer> {
         await attempt({
-            try await scoped(to: nil).client.setAccountPlan(path: .init(id: account), body: .json(.init(planTier: tier)))
+            try await scoped(to: nil).client.setAccountPlan(
+                path: .init(id: account), body: .json(.init(planTier: tier)))
         }) {
             guard case .ok(let ok) = $0 else { return nil }
             return .some(try ok.body.json.planTier)
