@@ -188,6 +188,15 @@ struct AccountInfo: Identifiable, Equatable, Sendable {
     var warnPercent: Int64?
 }
 
+/// What one issue's runs used (`getTaskCosts`).
+struct IssueCost: Equatable, Sendable {
+    var issueID: Int64
+    var tokens: Int64
+    var costMicros: Int64
+    var runs: Int64
+    var unpricedRuns: Int64
+}
+
 /// A scoped setting as the run rail shows it: its value and where it was set (`company:1`; nil = the default).
 struct LimitSetting: Equatable, Sendable {
     var value: Int64

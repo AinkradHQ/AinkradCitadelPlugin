@@ -188,7 +188,118 @@ enum CompanyFixture {
             "budget.warn_percent": LimitSetting(value: 80, source: nil),
             "breaker.loop_threshold": LimitSetting(value: 3, source: nil),
         ]
+        model.spendToday = IssueCost(issueID: 0, tokens: 1_600_000, costMicros: 18_400_000, runs: 9, unpricedRuns: 2)
         model.isLoaded = true
         return model
+    }
+
+    static func ended(
+        _ id: Int64, issue: Int64, state: String, daysAgo: Double, minutes: Double, cost: Int64,
+        reason: String? = nil
+    ) -> RunInfo {
+        var run = run(id, agent: 4, issue: issue, minutes: minutes, tokens: 120_000, harness: "codex", model: "gpt-5.5")
+        let start = now.addingTimeInterval(-daysAgo * 86_400)
+        run.state = state
+        run.terminalReason = reason
+        run.costMicros = cost
+        run.queuedAt = start
+        run.startedAt = start
+        run.endedAt = start.addingTimeInterval(minutes * 60)
+        return run
+    }
+
+    /// Screen 04: Kestrel's runs and the transcript of the one it is on.
+    static func agentPage(_ model: CompanyModel) {
+        for issue in [
+            IssueInfo(id: 38, key: "CIT-38", title: "Wake queue coalescing", projectID: 1, requirementID: nil),
+            IssueInfo(id: 35, key: "CIT-35", title: "SQLite WAL checkpoint task", projectID: 1, requirementID: nil),
+            IssueInfo(id: 33, key: "CIT-33", title: "Loop breaker fingerprint", projectID: 1, requirementID: nil),
+            IssueInfo(id: 31, key: "CIT-31", title: "Run state machine docs", projectID: 1, requirementID: nil),
+        ] { model.issues[issue.id] = issue }
+        var current = model.runs[418]!
+        current.harnessVersion = "0.88"
+        model.runs[418] = current
+        model.agentRuns[4] = [
+            current,
+            ended(410, issue: 38, state: "succeeded", daysAgo: 0.2, minutes: 18, cost: 1_120_000),
+            ended(
+                402, issue: 38, state: "failed", daysAgo: 1, minutes: 6, cost: 410_000,
+                reason: "tests failed: wake::coalesces_duplicate_keys · retried by Toma"),
+            ended(398, issue: 35, state: "succeeded", daysAgo: 2, minutes: 22, cost: 1_580_000),
+            ended(
+                391, issue: 33, state: "failed", daysAgo: 3, minutes: 31, cost: 2_000_000,
+                reason: "token cap: stopped at the 200k cap · escalated to Toma · resumed with a raised cap"),
+            ended(387, issue: 31, state: "cancelled", daysAgo: 3, minutes: 2, cost: 80_000),
+            ended(380, issue: 35, state: "succeeded", daysAgo: 4, minutes: 12, cost: 900_000),
+        ]
+        model.transcripts[418] = transcript
+    }
+
+    /// Screen 05: run #418 on CIT-42, waiting on a permission escalation.
+    static func runPage(_ model: CompanyModel) {
+        agentPage(model)
+        model.issueRepos[42] = ["citadel", "ainkrad-citadel-plugin"]
+        model.issueCosts[42] = IssueCost(issueID: 42, tokens: 164_000, costMicros: 2_310_000, runs: 3, unpricedRuns: 0)
+        model.approvals.append(
+            ApprovalInfo(
+                id: 9, kind: "permission_escalation", agentID: 4, issueID: 42, requestedBy: 4, expiresAt: nil,
+                fields: [
+                    "run": "418", "request": "r7", "tool": "Bash",
+                    "input.command": "cargo add tokio-tungstenite@0.26 --features rustls",
+                ]))
+        model.notes[418] = [
+            RunNote(
+                at: now.addingTimeInterval(-150), action: "run.provider_dropped",
+                text: "Provider dropped (overloaded) · resumed the same session after 4 s backoff · drop 1 of 3 allowed"
+            )
+        ]
+    }
+
+    static var transcript: [TranscriptChunkInfo] {
+        func chunk(_ seq: Int64, _ secondsAgo: Double, _ kind: String, _ fields: [String: String])
+            -> TranscriptChunkInfo
+        {
+            TranscriptChunkInfo(seq: seq, at: now.addingTimeInterval(-secondsAgo), kind: kind, fields: fields)
+        }
+        return [
+            chunk(
+                1, 240, "assistant_text",
+                [
+                    "text":
+                        "The stream drops events after a reconnect because `replay_from` reads `>` instead of `≥` the client's last-seen id. I'll fix the bound and add the 10-minute disconnect test from the acceptance criteria."
+                ]),
+            chunk(
+                2, 220, "tool_use", ["name": "Read", "input.file_path": "citadel/crates/citadel-server/src/stream.rs"]),
+            chunk(
+                3, 200, "tool_use",
+                [
+                    "name": "Edit", "input.file_path": "citadel/crates/citadel-server/src/stream.rs",
+                    "input.old_string": "    .filter(|e| e.seq > last_seen)",
+                    "input.new_string": "    .filter(|e| e.seq >= last_seen.next())",
+                ]),
+            chunk(
+                4, 180, "tool_use",
+                [
+                    "name": "Edit", "input.file_path": "ainkrad-citadel-plugin/Sources/CitadelClient/EventStream.swift",
+                    "input.old_string": "let after = cursor\nrequest(after)",
+                    "input.new_string": "let after = cursor ?? lastSeen\nrequest(after: after)\nlog(after)",
+                ]),
+            chunk(
+                5, 120, "tool_use",
+                [
+                    "name": "Bash",
+                    "input.command":
+                        "env | grep -E 'GITHUB|CITADEL' # GITHUB_TOKEN=[redacted:GITHUB_TOKEN] CITADEL_RUN_TOKEN=[redacted:run token]",
+                ]),
+            chunk(
+                6, 60, "tool_use",
+                ["name": "Bash", "input.command": "cargo add tokio-tungstenite@0.26 --features rustls"]),
+            chunk(
+                7, 59, "approval_requested",
+                ["id": "r7", "tool": "Bash", "input.command": "cargo add tokio-tungstenite@0.26 --features rustls"]),
+            chunk(
+                8, 6, "assistant_text",
+                ["text": "Meanwhile I'll write the disconnect test against the in-memory transport."]),
+        ]
     }
 }
