@@ -169,7 +169,7 @@ extension StuckInfo {
         self.init(
             kind: stuck.kind.word, issueID: stuck.issueId, agentID: stuck.agentId, reason: stuck.reason,
             action: stuck.action, repair: stuck.repair.word, lastRepair: stuck.lastRepair?.action,
-            lastRepairAt: stuck.lastRepair?.at)
+            lastRepairAt: stuck.lastRepair?.at, since: stuck.stuckSince)
     }
 }
 
@@ -195,7 +195,7 @@ extension BudgetInfo {
         self.init(
             id: budget.budgetId, label: label(scope), scope: scope, period: budget.period.word,
             periodKey: budget.periodKey, spent: budget.spent, cap: budget.tokenCap + budget.raised,
-            warnPercent: Int(budget.warnAtPercent))
+            warnPercent: Int(budget.warnAtPercent), raised: budget.raised, hardStop: budget.hardStop)
     }
 }
 

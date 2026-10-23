@@ -57,6 +57,9 @@ final class CompanyModel {
     var accountUse: [AccountUseInfo] = []
     /// The period the cost data is for; `nil` until the Cost screen first loads.
     var costPeriod: CostPeriod?
+    /// The period's spend by agent and by department (`getSpendBreakdown`).
+    var costByAgent: [ScopeSpend] = []
+    var costByDepartment: [ScopeSpend] = []
     var stuck: [StuckInfo] = []
     var spend: SpendInfo?
     var budgets: [BudgetInfo] = []

@@ -4,12 +4,14 @@ import SwiftUI
 /// Per day: priced, unpriced and subscription tokens stacked in the mockup's colours.
 struct PerDayChart: View {
     let days: [DaySpend]
+    /// Today: one bar per hour.
+    var hourly = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         AinkradCard {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "Per day · tokens")
+                TileHead(title: hourly ? "Per hour · tokens" : "Per day · tokens")
                 AinkradBarChart(
                     title: "Per day", bars: days.map(bar), emptyMessage: "No runs in this period",
                     format: { Fmt.tokens(Int64($0)) }
@@ -22,7 +24,8 @@ struct PerDayChart: View {
     private func bar(_ day: DaySpend) -> AinkradChartBar {
         let t = day.totals
         return AinkradChartBar(
-            label: day.day.formatted(.dateTime.month(.abbreviated).day()),
+            label: hourly
+                ? day.day.formatted(.dateTime.hour()) : day.day.formatted(.dateTime.month(.abbreviated).day()),
             segments: [
                 AinkradBarSegment(name: "Priced", value: Double(t.pricedTokens), tone: .accentSecondary),
                 AinkradBarSegment(name: "Unpriced", value: Double(t.unpricedTokens), tone: .warning),
@@ -32,7 +35,7 @@ struct PerDayChart: View {
 }
 
 /// One "name · bar · amount" row of the breakdown tiles.
-private struct BreakdownRow: View {
+struct BreakdownRow: View {
     let name: Text
     let value: Double
     let max: Double
@@ -82,23 +85,6 @@ struct ByProjectTile: View {
 
     private func empty(_ text: String) -> some View {
         Text(text).citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-    }
-}
-
-/// By agent / department: the server reports cost per issue, not per agent, yet.
-struct ByAgentTile: View {
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "By agent · by department")
-                // TODO(citadel#agent-costs): needs per-agent spend from the server (runs list or a cost breakdown).
-                Text("Waiting on per-agent spend from the server.").citadelFont("t12")
-                    .foregroundStyle(skin.color(skin.text.faint))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
     }
 }
 
@@ -199,6 +185,8 @@ struct PerTaskTile: View {
 /// state. At the hard line new runs wait for an approved raise (screen 06).
 struct BudgetsTile: View {
     let model: CompanyModel
+    /// A row's Edit (shown on hover): its cap and warn %.
+    var edit: (BudgetInfo) -> Void = { _ in }
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
@@ -217,26 +205,46 @@ struct BudgetsTile: View {
                     Text("No budgets set").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                 }
                 ForEach(model.budgets) { budget in
-                    let state = model.budgetWord(budget)
-                    HStack(spacing: skin.size.s12) {
-                        Text("\(budget.label) · \(budget.period)").citadelFont("t12_5")
-                            .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
-                            .frame(width: skin.size.s200, alignment: .leading)
-                        AinkradBudgetBar(
-                            label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
-                            warnFraction: budget.warnFraction)
-                        Text("\(Fmt.tokens(budget.spent)) / \(Fmt.tokens(budget.cap))").citadelFont("t12", mono: true)
-                            .foregroundStyle(skin.color(skin.text.muted)).frame(
-                                width: skin.size.s110, alignment: .trailing)
-                        Text("\(budget.warnPercent)%").citadelFont("t12", mono: true)
-                            .foregroundStyle(skin.color(skin.text.primary))
-                        scope(model.warnScope(budget)).frame(width: skin.size.s110, alignment: .leading)
-                        AinkradBadge(text: state.word, status: state.status).frame(
-                            width: skin.size.s70, alignment: .leading)
-                    }
+                    BudgetRow(model: model, budget: budget) { edit(budget) }
                 }
             }
         }
+    }
+}
+
+/// One budget: scope · period, the bar with its warn mark, spent / cap, warn % and where it comes from, the state;
+/// hover shows Edit.
+private struct BudgetRow: View {
+    let model: CompanyModel
+    let budget: BudgetInfo
+    let edit: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradTheme) private var theme
+
+    var body: some View {
+        let state = model.budgetWord(budget)
+        HStack(spacing: skin.size.s12) {
+            Text("\(budget.label) · \(budget.period)").citadelFont("t12_5")
+                .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                .frame(width: skin.size.s200, alignment: .leading)
+            AinkradBudgetBar(
+                label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
+                warnFraction: budget.warnFraction)
+            Text("\(Fmt.tokens(budget.spent)) / \(Fmt.tokens(budget.cap))").citadelFont("t12", mono: true)
+                .foregroundStyle(skin.color(skin.text.muted)).frame(
+                    width: skin.size.s110, alignment: .trailing)
+            Text("\(budget.warnPercent)%").citadelFont("t12", mono: true)
+                .foregroundStyle(skin.color(skin.text.primary))
+            scope(model.warnScope(budget)).frame(width: skin.size.s110, alignment: .leading)
+            AinkradBadge(text: state.word, status: state.status).frame(
+                width: skin.size.s70, alignment: .leading)
+            AinkradButton(title: "Edit", style: .ghost, action: edit)
+                .borderless().secondaryAccent().compact().fixedSize()
+                .opacity(hovering ? 1 : 0)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
     }
 
     @ViewBuilder private func scope(_ scope: AinkradValueScope) -> some View {
