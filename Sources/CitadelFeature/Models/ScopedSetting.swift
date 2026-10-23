@@ -56,7 +56,7 @@ struct ScopedSetting: Identifiable, Equatable, Sendable {
     static func format(_ value: Int64, unit: String) -> String {
         switch unit {
         case "seconds":
-            if value != 0, value % 86_400 == 0 { return "\(value / 86_400) d" }
+            if value >= 2 * 86_400, value % 86_400 == 0 { return "\(value / 86_400) d" }
             if value != 0, value % 3600 == 0 { return "\(value / 3600) h" }
             if value != 0, value % 60 == 0 { return "\(value / 60) min" }
             return "\(value) s"

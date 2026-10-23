@@ -1,10 +1,218 @@
+import CitadelClient
 import Foundation
 import Observation
 
-/// Screen 14 Project profile: the selected project's profile, repos and limits.
+extension Schemas.MergeMethod: OpenWord {}
+extension Schemas.Merger: OpenWord {}
+extension Schemas.Network: OpenWord {}
+extension Schemas.PermissionMode: OpenWord {}
+extension Schemas.SprintApproval: OpenWord {}
+extension Schemas.Deploy: OpenWord {}
+
+/// Screen 14 Project profile: the projects, and the selected one's profile, repos and limits.
 @MainActor
 @Observable
 final class ProjectsPage {
     /// Loaded once the screen first opens.
     var isLoaded = false
+    /// The project shown; `nil` is the first.
+    var selected: Int64?
+    /// Each project's repos, in merge order (decision #54).
+    var repos: [Int64: [RepoInfo]] = [:]
+    /// Each project's active sprint name ("S4"), for the list's subtitle.
+    var sprintNames: [Int64: String] = [:]
+    var profiles: [Int64: ProfileInfo] = [:]
+    /// Each project's settings at `project:<id>`, and the company's (what a reset goes back to).
+    var settings: [Int64: [ScopedSetting]] = [:]
+    var companySettings: [ScopedSetting] = []
+    /// An open issue of the project and the repos it declares (decision #51), for the "declare" row.
+    var declared: [Int64: (issue: IssueInfo, repos: [String])] = [:]
+    /// Why the last repo action was refused ("an open issue still touches it").
+    var problem: String?
+}
+
+/// One git repo of a project (decision #51).
+struct RepoInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    var name: String
+    var url: String
+    var defaultBranch: String
+    var isPrimary: Bool
+    var position: Int64
+    /// `github`, `gitlab`; `nil` without forge config.
+    var forgeKind: String?
+    /// The token's reference in the server vault (never the token).
+    var tokenFile: String?
+    var build: String?
+    var test: String?
+    var lint: String?
+    var format: String?
+
+    /// The URL without its scheme: `github.com/AinkradHQ/citadel`.
+    var shortURL: String {
+        url.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: "")
+            .replacingOccurrences(of: ".git", with: "")
+    }
+
+    /// "vault: github-ainkradhq".
+    var vaultLine: String? {
+        tokenFile.map { "vault: \(URL(fileURLWithPath: $0).deletingPathExtension().lastPathComponent)" }
+    }
+
+    /// Build, test, lint, format in that order, each with its command (`nil` = none).
+    var commands: [(label: String, command: String?)] {
+        [("Build", build), ("Test", test), ("Lint", lint), ("Format", format)]
+    }
+}
+
+/// A project's profile (E15.13) as the screen reads it: what every run on it is given.
+struct ProfileInfo: Equatable, Sendable {
+    var stack = ""
+    var definitionOfDone: [String] = []
+    var protectedBranches: [String] = []
+    var branchPattern = ""
+    /// `merge`, `squash`, `rebase`.
+    var mergeMethod = "merge"
+    /// `owner`, `product_owner`, `lead`.
+    var mergedBy = "owner"
+    var environments: [EnvironmentInfo] = []
+    var conventions = ""
+    var docs: [String] = []
+    var models: [RoleModelInfo] = []
+    /// `off`, `ask`, `on`.
+    var network = "off"
+    /// Who approves the plan (decision #40): `owner` or `product_owner`.
+    var sprintApproval = "owner"
+    /// `ask`, `accept_edits`, `sandboxed`.
+    var permissionMode = "ask"
+    var injectedBytes: Int64 = 0
+    var budgetBytes: Int64 = 0
+    var proposals: [ProposalInfo] = []
+    var updatedAt: Date?
+}
+
+struct EnvironmentInfo: Equatable, Sendable {
+    var name: String
+    var url: String
+    /// `agents`, `ask`, `owner`.
+    var deploy: String
+}
+
+struct RoleModelInfo: Equatable, Sendable {
+    var role: String
+    var model: String
+    var small: String?
+    var large: String?
+}
+
+/// An agent's pending change to one profile field (decision #48: a person accepts it, never automatically).
+struct ProposalInfo: Identifiable, Equatable, Sendable {
+    let id: Int64
+    /// The profile field it changes: `definition_of_done`, `conventions`, ….
+    var field: String
+    var title: String
+    /// The new value: JSON for a list or choice field, plain text for a text field.
+    var body: String
+    var agentID: Int64?
+}
+
+extension RepoInfo {
+    init(_ repo: Schemas.Repo) {
+        self.init(
+            id: repo.id, name: repo.name, url: repo.url, defaultBranch: repo.defaultBranch, isPrimary: repo.primary,
+            position: repo.position, forgeKind: repo.forge?.kind, tokenFile: repo.forge?.tokenFile,
+            build: repo.commands.build.nonEmpty, test: repo.commands.test.nonEmpty, lint: repo.commands.lint.nonEmpty,
+            format: repo.commands.format.nonEmpty)
+    }
+}
+
+extension ProfileInfo {
+    init(_ view: Schemas.ProjectProfile) {
+        let profile = view.profile
+        self.init(
+            stack: profile.stack ?? "", definitionOfDone: profile.definitionOfDone ?? [],
+            protectedBranches: profile.protectedBranches ?? [], branchPattern: profile.branchPattern ?? "",
+            mergeMethod: profile.mergeMethod?.word ?? "merge", mergedBy: profile.mergedBy?.word ?? "owner",
+            environments: (profile.environments ?? []).map {
+                EnvironmentInfo(name: $0.name, url: $0.url ?? "", deploy: $0.deploy?.word ?? "ask")
+            },
+            conventions: profile.conventions ?? "", docs: profile.docs ?? [],
+            models: (profile.models ?? []).map {
+                RoleModelInfo(role: $0.role, model: $0.model, small: $0.small, large: $0.large)
+            },
+            network: profile.network?.word ?? "off", sprintApproval: view.sprintApproval.word,
+            permissionMode: view.permissionMode.word, injectedBytes: view.injectedBytes,
+            budgetBytes: view.budgetBytes,
+            proposals: view.proposals.map {
+                ProposalInfo(id: $0.id, field: $0.field, title: $0.title, body: $0.body, agentID: $0.proposedBy)
+            },
+            updatedAt: view.updatedAt)
+    }
+
+    /// A proposal as the card shows it: the value it replaces (struck through) and the new one; a list field
+    /// shows only what it adds ("+ API changes regenerate…"), or removes.
+    func diff(_ proposal: ProposalInfo) -> (old: String?, new: String) {
+        let list: [String]? =
+            switch proposal.field {
+            case "definition_of_done": definitionOfDone
+            case "protected_branches": protectedBranches
+            case "docs": docs
+            default: nil
+            }
+        if let list, let data = proposal.body.data(using: .utf8),
+            let proposed = try? JSONDecoder().decode([String].self, from: data)
+        {
+            let added = proposed.filter { !list.contains($0) }
+            let removed = list.filter { !proposed.contains($0) }
+            if !added.isEmpty { return (nil, added.joined(separator: " · ")) }
+            return (removed.joined(separator: " · "), "removed")
+        }
+        let old: String? =
+            switch proposal.field {
+            case "stack": stack
+            case "conventions": conventions
+            case "branch_pattern": branchPattern
+            case "merge_method": mergeMethod
+            case "merged_by": mergedBy
+            case "network": network
+            default: nil
+            }
+        let new = proposal.body.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        return (old.flatMap { $0.isEmpty ? nil : $0 }, new)
+    }
+}
+
+extension ProjectsPage {
+    /// "CIT Scrum · S4 · 3 repos", "MKT Scrum · L2 · no repo".
+    func subtitle(_ project: ProjectInfo) -> String {
+        let mode = project.mode.prefix(1).uppercased() + project.mode.dropFirst()
+        let count = repos[project.id]?.count
+        let repoText = count.map { $0 == 0 ? "no repo" : $0 == 1 ? "1 repo" : "\($0) repos" }
+        return ([project.key + " " + mode, sprintNames[project.id], repoText].compactMap { $0 })
+            .joined(separator: " · ")
+    }
+
+    /// The project's settings an override can sit on (`project` in their scopes), and how many it overrides.
+    func limits(_ project: Int64) -> [ScopedSetting] {
+        (settings[project] ?? []).filter { $0.scopes.contains("project") }
+    }
+
+    func overriddenCount(_ project: Int64) -> Int {
+        limits(project).filter { $0.isSet(at: "project:\(project)") }.count
+    }
+
+    /// The company's value of `key` — what a project override shadows, and what ↺ goes back to.
+    /// Read as the company's ("company 15 min") whichever scope the company itself inherits it from.
+    func inherited(_ key: String) -> ScopedSetting? {
+        companySettings.first { $0.key == key }.map {
+            var setting = $0
+            setting.source = "company"
+            return setting
+        }
+    }
+}
+
+extension Optional where Wrapped == String {
+    /// `nil` for an empty string.
+    var nonEmpty: String? { self.flatMap { $0.isEmpty ? nil : $0 } }
 }
