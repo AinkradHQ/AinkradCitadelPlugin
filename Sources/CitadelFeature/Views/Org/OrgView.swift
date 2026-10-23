@@ -114,8 +114,8 @@ struct RouterNode: View {
                 }
             }
         }
+        .rimTint(.accentViolet)
         .fixedSize()
-        .cardRim(skin.color(skin.palette.accentViolet))
         .ainkradContextMenu(OrgMenu.items(agent))
     }
 }

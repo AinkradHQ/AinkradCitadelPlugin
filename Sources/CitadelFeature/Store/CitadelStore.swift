@@ -54,6 +54,9 @@ final class CitadelStore {
     /// The sidebar's screen, and the agent or run opened from it (screens 04 and 05).
     var screen: Screen = .home
     var detail: Detail?
+    /// The approval open in the inbox (06) and the agent thread open on screen 07; `nil` is the first.
+    var selectedApproval: Int64?
+    var selectedThread: ThreadKey?
     /// The selected company's data, once loaded; kept current by the event stream.
     var model: CompanyModel?
 

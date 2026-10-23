@@ -29,6 +29,11 @@ extension Schemas.AccountStatus: OpenWord {}
 extension Schemas.TeamRole: OpenWord {}
 extension Schemas.SprintState: OpenWord {}
 extension Schemas.ProjectMode: OpenWord {}
+extension Schemas.ApprovalStatus: OpenWord {}
+extension Schemas.IssueState: OpenWord {}
+extension Schemas.QuestionState: OpenWord {}
+extension Schemas.RepairAction: OpenWord {}
+extension Schemas.RunnerStatus: OpenWord {}
 
 /// How an agent is drawn (decisions #61, #63): always the animated figure, never a letter.
 enum AgentLook {
@@ -101,18 +106,60 @@ extension RunInfo {
 
 extension IssueInfo {
     init(_ issue: Schemas.Issue) {
+        let next: NextActorInfo? =
+            switch issue.nextActor {
+            case .agent(let a): .agent(a.agentId)
+            case .human: .human
+            case .timer(let t): .timer(t.at)
+            case nil: nil
+            }
         self.init(
             id: issue.id, key: issue.key, title: issue.title, projectID: issue.projectId,
-            requirementID: issue.requirementId)
+            requirementID: issue.requirementId, state: issue.state.word, nextActor: next,
+            points: issue.points.map(Int.init))
     }
 }
 
 extension ApprovalInfo {
     init(_ approval: Schemas.Approval) {
+        let payload = approval.payload.value
+        var lists: [String: [[String: String]]] = [:]
+        var fields = flatFields(payload)
+        for (key, value) in payload {
+            guard let rows = value as? [(any Sendable)?] else { continue }
+            let objects = rows.compactMap { $0 as? [String: (any Sendable)?] }
+            if objects.isEmpty {
+                // A list of words (`runner_tags`): one field, space-separated.
+                fields[key] = rows.compactMap { $0 as? String }.joined(separator: " ")
+            } else {
+                lists[key] = objects.map { flatFields($0) }
+            }
+        }
         self.init(
             id: approval.id, kind: approval.kind.word, agentID: approval.agentId, issueID: approval.issueId,
             requestedBy: approval.requestedBy, expiresAt: approval.expiresAt,
-            fields: flatFields(approval.payload.value))
+            fields: fields, status: approval.status.word, reply: approval.reply,
+            sprintID: approval.sprintId, lists: lists)
+    }
+}
+
+extension QuestionInfo {
+    init(_ question: Schemas.Question) {
+        self.init(
+            id: question.id, agentID: question.askedByAgentId, issueID: question.issueId, issueKey: question.issueKey,
+            requirementID: question.requirementId, runID: question.runId, text: question.question,
+            options: question.options, state: question.state.word, askedAt: question.createdAt)
+    }
+}
+
+extension CommentInfo {
+    init(_ comment: Schemas.Comment) {
+        let agent: Int64? =
+            switch comment.author {
+            case .agent(let a): a.agentId
+            case .human: nil
+            }
+        self.init(id: comment.id, issueID: comment.issueId, agentID: agent, body: comment.body, runID: comment.runId)
     }
 }
 
@@ -120,7 +167,8 @@ extension StuckInfo {
     init(_ stuck: Schemas.StuckIssue) {
         self.init(
             kind: stuck.kind.word, issueID: stuck.issueId, agentID: stuck.agentId, reason: stuck.reason,
-            action: stuck.action)
+            action: stuck.action, repair: stuck.repair.word, lastRepair: stuck.lastRepair?.action,
+            lastRepairAt: stuck.lastRepair?.at)
     }
 }
 

@@ -115,6 +115,9 @@ final class CompanyModelTests: XCTestCase {
     func testATranscriptChunkMovesTheLiveToolLineAndAppendsToALoadedTranscript() throws {
         let model = CompanyFixture.model()
         model.transcripts[418] = []
+        // The fixture's progress time is relative to the real clock; pin it before the chunk's
+        // fixed time so the assertion doesn't depend on the time of day.
+        model.runs[418]?.lastProgressAt = Date(timeIntervalSince1970: 0)
         let reloads = model.apply(
             try event(
                 #"{"type":"transcript","run_id":418,"chunk":{"seq":3,"at":"2026-10-23T10:00:00.000Z","kind":"tool_use","payload":{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"crates/citadel-server/src/stream.rs"}}}}"#
@@ -145,7 +148,7 @@ final class CompanyModelTests: XCTestCase {
         XCTAssertEqual(try audit("run.succeeded", run: 418), [.run(418), .costs])
         XCTAssertEqual(try audit("issue.blocked", entity: 77), [.stuck, .issue(77)])
         XCTAssertEqual(try audit("budget.warning"), [.costs])
-        XCTAssertEqual(try audit("requirement.plan_submitted"), [.requirements])
+        XCTAssertEqual(try audit("requirement.plan_submitted"), [.requirements, .questions])
         XCTAssertEqual(try audit("weather.sunny"), [])
         _ = try audit("run.provider_dropped", run: 418)
         XCTAssertEqual(model.notes[418]?.first?.text.hasPrefix("Provider dropped (overloaded)"), true)

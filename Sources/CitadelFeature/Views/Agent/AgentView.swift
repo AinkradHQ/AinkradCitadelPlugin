@@ -168,7 +168,7 @@ private struct CurrentRunCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardRim(theme.accentSecondary)
+        .rimTint(.accentSecondary)
     }
 }
 

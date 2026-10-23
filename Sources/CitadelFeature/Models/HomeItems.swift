@@ -25,6 +25,8 @@ struct NeedsItem: Identifiable, Equatable {
         case approve(ApprovalInfo, title: String)
         case openRun(Int64)
         case openScreen(Screen, title: String)
+        /// "Review": the approval, open in the inbox.
+        case review(Int64)
     }
 
     let id: String
@@ -91,7 +93,7 @@ extension CompanyModel {
             return NeedsItem(
                 id: id, rank: 0, glyph: "$", tone: .warning,
                 title: "\(who ?? key ?? "A budget") hit its cap", subtitle: "approve to raise it and resume",
-                action: .openScreen(.approvals, title: "Review"))
+                action: .review(approval.id))
         case "sprint_commit":
             let points = f["points"].map { " — \($0) pts" } ?? ""
             let capacity = f["capacity"].map { " vs \($0) capacity" } ?? ""
@@ -109,18 +111,18 @@ extension CompanyModel {
         case "pr_merge":
             return NeedsItem(
                 id: id, rank: 1, glyph: "⑂", tone: .accent, title: "Merge \(key ?? "the PRs")",
-                subtitle: f["summary"] ?? "QA passed · ready to merge", action: .openScreen(.approvals, title: "Review")
+                subtitle: f["summary"] ?? "QA passed · ready to merge", action: .review(approval.id)
             )
         case "hire_agent":
             return NeedsItem(
                 id: id, rank: 2, glyph: "＋", tone: .accent,
                 title: "Hire \(f["name"] ?? "an agent")\(f["role"].map { " as \($0)" } ?? "")",
-                subtitle: f["justification"] ?? "", action: .openScreen(.approvals, title: "Review"))
+                subtitle: f["justification"] ?? "", action: .review(approval.id))
         default:
             return NeedsItem(
                 id: id, rank: 2, glyph: "✓", tone: .accent,
                 title: approval.kind.replacingOccurrences(of: "_", with: " "),
-                subtitle: key ?? "", action: .openScreen(.approvals, title: "Review"))
+                subtitle: key ?? "", action: .review(approval.id))
         }
     }
 

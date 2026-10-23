@@ -65,6 +65,7 @@ struct Sidebar: View {
             }
             AinkradSearchField(text: $search, placeholder: "Search agents, issues, runs").keyHint("⌘K")
             AinkradNavList(items: Screen.allCases, selection: navSelection, icon: { $0.icon }, label: { $0.title })
+                .counts { screen in store.model?.navCount(screen) }
                 .fixedSize(horizontal: false, vertical: true)
             if let model = store.model, !model.liveRuns.isEmpty { liveNow(model) }
             Spacer(minLength: 0)

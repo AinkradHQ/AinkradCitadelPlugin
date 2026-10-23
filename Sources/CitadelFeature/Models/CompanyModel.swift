@@ -8,6 +8,12 @@ import Observation
 /// what it is now. Pushed, never polled.
 enum Reload: Hashable, Sendable {
     case org, approvals, stuck, costs, requirements, sprint, accounts
+    /// Agents' questions, from the open requirements' threads.
+    case questions
+    /// An issue's comments (an agent thread), once loaded.
+    case comments(Int64)
+    /// An issue read again even when known: its state or next actor moved.
+    case issueFresh(Int64)
     case agent(Int64)
     /// An agent's newest run (the one it is on now).
     case agentRun(Int64)
@@ -25,6 +31,16 @@ final class CompanyModel {
     var runs: [Int64: RunInfo] = [:]
     var issues: [Int64: IssueInfo] = [:]
     var approvals: [ApprovalInfo] = []
+    /// Decided approvals, newest first: the inbox's "Answered" section.
+    var answeredApprovals: [ApprovalInfo] = []
+    /// Agents' questions for you (open and answered), from the requirement threads.
+    var questions: [QuestionInfo] = []
+    /// Each loaded issue's comments, oldest first: the agent threads (screen 07).
+    var comments: [Int64: [CommentInfo]] = [:]
+    /// Each project's average velocity over its last sprints (points).
+    var velocity: [Int64: Double] = [:]
+    /// Runners online now, for the sidebar's "3/4".
+    var runnersOnline = 0
     var stuck: [StuckInfo] = []
     var spend: SpendInfo?
     var budgets: [BudgetInfo] = []
@@ -138,14 +154,17 @@ final class CompanyModel {
             }
             return [.run(runID), .costs]
         case "approval": return [.approvals]
+        case "question": return [.questions]
         case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
         case "budget": return [.costs]
-        case "requirement": return [.requirements]
+        case "requirement": return [.requirements, .questions]
         case "sprint": return [.sprint]
         case "account": return [.accounts]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
-            if let entity, kind == nil || kind == "issue" { reloads.insert(.issue(entity)) }
+            guard let entity, kind == nil || kind == "issue" else { return reloads }
+            reloads.insert(issues[entity] == nil ? .issue(entity) : .issueFresh(entity))
+            if action == "issue.commented", comments[entity] != nil { reloads.insert(.comments(entity)) }
             return reloads
         default: return []
         }

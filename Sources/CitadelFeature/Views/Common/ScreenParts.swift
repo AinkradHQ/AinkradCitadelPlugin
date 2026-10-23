@@ -36,31 +36,26 @@ struct TileHead: View {
     }
 }
 
-extension View {
-    /// The mockups' coloured stroke on a card that needs attention (amber waiting, red stalled), drawn on the
-    /// card's own shape so it follows Neon's chamfer and Glass's radius.
-    func cardRim(_ color: Color?) -> some View { modifier(CardRim(color: color)) }
+extension AinkradCard {
+    /// The mockups' coloured rim on a card that needs attention (amber waiting, red stalled, violet CEO / CTO);
+    /// `nil` keeps the skin's own stroke.
+    func rim(_ tone: AinkradChartTone?) -> Self { tone.map(rimTint) ?? self }
+}
 
-    /// Text in the skin's font at a size key, mono when asked.
-    func citadelFont(_ size: String, weight: String? = nil, mono: Bool = false) -> some View {
-        modifier(CitadelFont(size: size, weight: weight, mono: mono))
+extension NeedsItem.Tone {
+    var chartTone: AinkradChartTone {
+        switch self {
+        case .accent: .accentPrimary
+        case .warning: .warning
+        case .danger: .danger
+        }
     }
 }
 
-private struct CardRim: ViewModifier {
-    let color: Color?
-    @Environment(\.ainkradSkin) private var skin
-
-    func body(content: Content) -> some View {
-        content.overlay {
-            if let color {
-                let shape =
-                    skin.usesNativeGlass
-                    ? AnyShape(RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
-                    : AnyShape(skin.shape(cut: skin.size.s10))
-                shape.stroke(color.opacity(skin.opacity.o60), lineWidth: skin.size.s1).allowsHitTesting(false)
-            }
-        }
+extension View {
+    /// Text in the skin's font at a size key, mono when asked.
+    func citadelFont(_ size: String, weight: String? = nil, mono: Bool = false) -> some View {
+        modifier(CitadelFont(size: size, weight: weight, mono: mono))
     }
 }
 
@@ -112,5 +107,36 @@ enum Fmt {
         guard let date = try? Date(day, strategy: Date.ISO8601FormatStyle().year().month().day()) else { return day }
         return date.timeIntervalSince(now) < 6 * 86_400
             ? date.formatted(.dateTime.weekday(.abbreviated)) : date.formatted(.dateTime.month(.abbreviated).day())
+    }
+}
+
+/// Spend split three ways in the mockups' colours: priced cyan, unpriced amber, subscription violet (screens 02,
+/// 09) — tokens on one scale, so an unpriced run is never drawn as $0.
+struct SpendSplitBar: View {
+    let spend: SpendInfo
+
+    var body: some View {
+        AinkradStackedStatusBar(toneRuns: [
+            AinkradToneRun(value: Double(spend.pricedTokens), tone: .accentSecondary),
+            AinkradToneRun(value: Double(spend.unpricedTokens), tone: .warning),
+            AinkradToneRun(value: Double(spend.subscriptionTokens), tone: .accentViolet),
+        ])
+    }
+}
+
+extension AinkradChartTone {
+    /// The tone's colour, as the kit's charts read it (the kit keeps its own mapping internal).
+    func tint(_ skin: AinkradSkin) -> Color {
+        switch self {
+        case .accentPrimary: skin.color(skin.palette.accentPrimary)
+        case .accentSecondary: skin.color(skin.palette.accentSecondary)
+        case .accentTertiary: skin.color(skin.palette.accentTertiary)
+        case .success: skin.color(skin.palette.success)
+        case .warning: skin.color(skin.palette.warning)
+        case .danger: skin.color(skin.palette.danger)
+        case .muted: skin.color(skin.text.faint)
+        case .accentViolet: skin.color(skin.palette.accentViolet)
+        @unknown default: skin.color(skin.palette.accentSecondary)
+        }
     }
 }

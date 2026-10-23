@@ -104,14 +104,15 @@ struct AgentHoverCard: View {
                         label: "Now",
                         value:
                             "\(model.issue(live.issueID)?.key ?? "run #\(live.id)") · \(Fmt.age(Date().timeIntervalSince(live.startedAt ?? live.queuedAt)))\(cap)"
-                    )
+                    ).sentenceCaseLabel()
                 }
                 if let budget = model.budgets.first(where: { $0.scope == "agent:\(agent.id)" && $0.period == "month" })
                 {
                     AinkradStatRow(
-                        label: "Month budget", value: "\(Fmt.tokens(budget.spent)) of \(Fmt.tokens(budget.cap)) tok")
+                        label: "Month budget", value: "\(Fmt.tokens(budget.spent)) of \(Fmt.tokens(budget.cap)) tok"
+                    ).sentenceCaseLabel()
                 }
-                AinkradStatRow(label: "Runner tags", value: agent.runnerTags.joined(separator: " "))
+                AinkradStatRow(label: "Runner tags", value: agent.runnerTags.joined(separator: " ")).sentenceCaseLabel()
             }
             HStack(spacing: skin.size.s8) {
                 if let live {

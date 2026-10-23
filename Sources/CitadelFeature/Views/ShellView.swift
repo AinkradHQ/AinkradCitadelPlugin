@@ -66,6 +66,8 @@ struct ShellView: View {
         case (.run(let id)?, _): RunView(store: store, model: model, runID: id)
         case (nil, .home): HomeView(store: store, model: model)
         case (nil, .org): OrgView(store: store, model: model)
+        case (nil, .approvals): ApprovalsView(store: store, model: model)
+        case (nil, .threads): ThreadsView(store: store, model: model)
         default: placeholder
         }
     }
