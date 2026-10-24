@@ -28,12 +28,14 @@ final class LimitsPage {
     /// The Devices section's keys and the Audit log's entries; `nil` until the section first opens.
     var devices: [DeviceInfo]?
     var auditLog: [AuditLine]?
+    /// The Skills section's versions; `nil` until it first opens.
+    var skills: [SkillInfo]?
 }
 
 /// Company settings' sections (⚙ next to the switcher): only those the API backs — no members or notifications
 /// route exists yet, so neither is listed.
 enum CompanySettingsSection: String, CaseIterable, Hashable {
-    case general, devices, accounts, limits, audit
+    case general, devices, accounts, limits, skills, audit
 
     var title: String {
         switch self {
@@ -41,6 +43,7 @@ enum CompanySettingsSection: String, CaseIterable, Hashable {
         case .devices: "Devices"
         case .accounts: "Account assignment"
         case .limits: "Limits"
+        case .skills: "Skills"
         case .audit: "Audit log"
         }
     }

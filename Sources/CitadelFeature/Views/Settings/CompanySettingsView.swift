@@ -41,6 +41,7 @@ struct CompanySettingsView: View {
                 case (.devices, let model?): DevicesSection(store: store, page: model.limitsPage)
                 case (.accounts, let model?): AccountAssignmentSection(store: store, model: model)
                 case (.audit, let model?): AuditLogSection(store: store, model: model)
+                case (.skills, let model?): SkillsSection(store: store, model: model)
                 default: FirstLoadView()
                 }
             }

@@ -27,4 +27,30 @@ extension CitadelStore {
         guard let server, let page = model?.limitsPage else { return }
         Task { page.auditLog = await server.auditLog() ?? page.auditLog ?? [] }
     }
+
+    func loadSkills() {
+        guard let server, let model else { return }
+        Task {
+            model.limitsPage.skills = await server.skills(company: model.companyID) ?? model.limitsPage.skills ?? []
+        }
+    }
+
+    /// Publishes a new version of a skill; `done` closes the sheet once the server took it.
+    func publishSkill(
+        name: String, body: String, attachTo: String, attachID: Int64?, attachRole: String?,
+        done: @escaping @MainActor () -> Void
+    ) {
+        guard let company = model?.companyID else { return }
+        perform(
+            "Couldn't publish \(name)", outcome: "No new version was made.",
+            done: {
+                done()
+                self.loadSkills()
+            }
+        ) {
+            await $0.publishSkill(
+                company: company, name: name, body: body, attachTo: attachTo, attachID: attachID, attachRole: attachRole
+            )
+        }
+    }
 }

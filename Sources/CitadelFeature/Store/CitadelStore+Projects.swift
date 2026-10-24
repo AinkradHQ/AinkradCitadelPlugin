@@ -39,7 +39,9 @@ extension CitadelStore {
         async let profile = server.profile(project: project)
         async let repos = server.repos(project: project)
         async let settings = server.settings(scope: "project:\(project)")
+        async let policy = server.policy(project: project)
         if let profile = await profile { page.profiles[project] = profile }
+        if let policy = await policy { page.policies[project] = policy }
         if let repos = await repos { page.repos[project] = repos }
         if let settings = await settings { page.settings[project] = settings }
         // The "issues declare their repos" example: an issue in flight, preferring one that spans repos.
@@ -123,6 +125,20 @@ extension CitadelStore {
         Task {
             if let profile = await server.updateProfile(project: project, patch) {
                 model.projectsPage.profiles[project] = profile
+            }
+        }
+    }
+
+    /// The policy's allowlist changed (an entry added or removed): the whole policy goes back, its mode kept.
+    func setAllowlist(project: Int64, _ allow: [String]) {
+        guard let server, let page = model?.projectsPage, var policy = page.policies[project] else { return }
+        policy.allow = allow
+        Task {
+            switch await server.setPolicy(project: project, policy) {
+            case .success(let saved): page.policies[project] = saved
+            case .failure(let answer):
+                actionFailure = ActionFailure(
+                    title: "Couldn't change the allowlist", answer: answer, outcome: "The policy is unchanged.")
             }
         }
     }

@@ -97,6 +97,9 @@ struct PoliciesGroup: View {
                     label: { ["ask": "Ask", "accept_edits": "Write", "sandboxed": "Full"][$0] ?? $0 }
                 )
             }
+            if let policy = store.model?.projectsPage.policies[project] {
+                AllowlistRow(store: store, project: project, policy: policy)
+            }
             ProfileRow(label: "Network") {
                 Text(["on": "on · every run", "ask": "off · ask per run"][profile.network] ?? "off")
             } trailing: {
@@ -107,6 +110,43 @@ struct PoliciesGroup: View {
                             store.updateProfile(
                                 project: project, .init(network: .init(value1: .init(rawValue: $0 ? "on" : "ask"))))
                         }))
+            }
+        }
+    }
+}
+
+/// The permission policy's allowlist (API minor 11): what goes ahead without asking — a tool (`Edit`) or
+/// `<tool>:<command prefix>` (`Bash:npm run`). × removes one, "Add…" adds one; the policy is replaced whole.
+private struct AllowlistRow: View {
+    let store: CitadelStore
+    let project: Int64
+    let policy: PolicyInfo
+    @State private var adding = false
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        ProfileRow(label: "Allowed") {
+            HStack(spacing: skin.size.s6) {
+                if policy.allow.isEmpty { Text("nothing without asking") }
+                ForEach(policy.allow, id: \.self) { entry in
+                    AinkradChip(label: entry) {
+                        store.setAllowlist(project: project, policy.allow.filter { $0 != entry })
+                    }
+                }
+            }
+        } trailing: {
+            AinkradButton(title: "Add…", style: .ghost) { adding = true }.borderless().compact().fixedSize()
+        }
+        .ainkradSheet(isPresented: $adding) {
+            PromptSheet(
+                title: "Allow without asking",
+                message:
+                    "A tool name (Edit), or a tool and a command prefix (Bash:npm run). A path outside the worktree always asks.",
+                placeholder: "Bash:cargo test", confirmTitle: "Allow", text: "", isPresented: $adding
+            ) { entry in
+                let entry = entry.trimmingCharacters(in: .whitespaces)
+                guard !policy.allow.contains(entry) else { return }
+                store.setAllowlist(project: project, policy.allow + [entry])
             }
         }
     }
