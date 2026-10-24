@@ -842,6 +842,85 @@
         ],
         "type": "object"
       },
+      "AuditEntry": {
+        "description": "One audited change.",
+        "properties": {
+          "action": {
+            "description": "Dotted: `issue.state_changed`, `knowledge.accepted`, ….",
+            "type": "string"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/EventActor"
+          },
+          "at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "company_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "details": {
+            "type": "object"
+          },
+          "entity_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "entity_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "run_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seq": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "at",
+          "action",
+          "actor",
+          "details"
+        ],
+        "type": "object"
+      },
+      "AuditPage": {
+        "description": "A page of the audit log, newest first. `next_before` continues with older rows, absent on\nthe last page.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "type": "array"
+          },
+          "next_before": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "Billing": {
         "anyOf": [
           {
@@ -2121,6 +2200,93 @@
           }
         ]
       },
+      "IssuePr": {
+        "description": "An issue's pull request on one of its repos.",
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "checks": {
+            "description": "`none`, `pending`, `success` or `failure`.",
+            "type": "string"
+          },
+          "checks_note": {
+            "description": "What `checks` is made of when the forge token cannot read every check.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "number": {
+            "format": "int64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "push_held": {
+            "description": "Why the runner's push of its branch was refused for good; it opens once the branch is\non the forge.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repo": {
+            "description": "The project repo's name.",
+            "type": "string"
+          },
+          "repo_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PrState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "unpushed_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When opening it found its head branch not pushed (it waits for a later run's push)."
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "repo_id",
+          "repo",
+          "state",
+          "title",
+          "head",
+          "base",
+          "checks",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "IssueRepos": {
         "properties": {
           "repos": {
@@ -2208,6 +2374,13 @@
           "body": {
             "type": "string"
           },
+          "body_truncated": {
+            "description": "The body was cut to 16 KiB in a list.",
+            "type": "boolean"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -2219,6 +2392,28 @@
             "format": "int64",
             "type": "integer"
           },
+          "proposed_by_agent_id": {
+            "description": "The agent that proposed it; absent for an entry the admin added.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "rationale": {
+            "description": "The proposer's one-line reason for it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "Why it was accepted or rejected.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "retired_reason": {
             "type": [
               "string",
@@ -2229,6 +2424,14 @@
             "$ref": "#/components/schemas/KnowledgeStatus",
             "description": "`retired`: kept for history, never given to a run."
           },
+          "superseded_by": {
+            "description": "The entry that replaced this one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "supersedes": {
             "description": "The entry this one replaced.",
             "format": "int64",
@@ -2237,8 +2440,19 @@
               "null"
             ]
           },
+          "target": {
+            "description": "What accepting a proposal applies its body to: `spec` or `profile.<field>`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "title": {
             "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "Its last audited change (`created_at` when none)."
           }
         },
         "required": [
@@ -2247,8 +2461,24 @@
           "kind",
           "title",
           "body",
-          "status"
+          "status",
+          "created_at",
+          "updated_at",
+          "body_truncated"
         ],
+        "type": "object"
+      },
+      "KnowledgeDecision": {
+        "description": "A human's decision on a proposal.",
+        "properties": {
+          "reason": {
+            "description": "Why; required to reject.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "KnowledgeKind": {
@@ -3317,6 +3547,24 @@
           "enabled"
         ],
         "type": "object"
+      },
+      "PrState": {
+        "anyOf": [
+          {
+            "description": "Where an issue's pull request is: `requested` (opened once the run that asked ends),\n`open`, `merging` (approved; the poller merges it), `merged`, `closed` (not merged).",
+            "enum": [
+              "requested",
+              "open",
+              "merging",
+              "merged",
+              "closed"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
       },
       "Price": {
         "description": "A harness and model's price, US dollars per million tokens; each set is a new version, and\nearlier spend keeps the version that priced it.",
@@ -6733,7 +6981,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.15.0"
+    "version": "1.16.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -8428,6 +8676,88 @@
         },
         "tags": [
           "artifacts"
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "listAudit",
+        "parameters": [
+          {
+            "description": "Only rows with a `seq` below this (the previous page's `next_before`).",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "At most this many (default and most 100).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only actions starting with this: `knowledge.` or `issue.state_changed`.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only rows about this entity: its kind (`issue`), or kind and id (`issue:12`).",
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "Audit rows, newest first; of the acting company only when `X-Citadel-Company` names one. A `target` id that is not a number is a 400"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "events"
         ]
       }
     },
@@ -11343,6 +11673,62 @@
         ]
       }
     },
+    "/api/v1/issues/{id}/prs": {
+      "get": {
+        "operationId": "listIssuePrs",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IssuePr"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The issue's pull requests, one per repo it asked for, in its project's repo order"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "reads"
+        ]
+      }
+    },
     "/api/v1/issues/{id}/reassign": {
       "post": {
         "operationId": "reassignIssue",
@@ -11696,6 +12082,132 @@
         },
         "tags": [
           "issues"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{id}/accept": {
+      "post": {
+        "operationId": "acceptKnowledge",
+        "parameters": [
+          {
+            "description": "Knowledge entry id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Knowledge"
+                }
+              }
+            },
+            "description": "The proposal, accepted: later runs are given it; a spec or profile proposal applies its body (audited as `knowledge.accepted`). An entry not proposed is a 409"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{id}/reject": {
+      "post": {
+        "operationId": "rejectKnowledge",
+        "parameters": [
+          {
+            "description": "Knowledge entry id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Knowledge"
+                }
+              }
+            },
+            "description": "The proposal, rejected (audited as `knowledge.rejected`). A blank reason is a 400; an entry not proposed is a 409"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
         ]
       }
     },
@@ -12638,6 +13150,62 @@
         },
         "tags": [
           "issues"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/knowledge": {
+      "get": {
+        "operationId": "listKnowledge",
+        "parameters": [
+          {
+            "description": "Project id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Knowledge"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Every entry of the project, oldest first, whatever its status; a body over 16 KiB is cut (`body_truncated`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
         ]
       }
     },

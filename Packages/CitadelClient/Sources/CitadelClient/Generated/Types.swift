@@ -89,6 +89,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/artifacts/{id}/preview`.
     /// - Remark: Generated from `#/paths//api/v1/artifacts/{id}/preview/get(previewArtifact)`.
     func previewArtifact(_ input: Operations.PreviewArtifact.Input) async throws -> Operations.PreviewArtifact.Output
+    /// - Remark: HTTP `GET /api/v1/audit`.
+    /// - Remark: Generated from `#/paths//api/v1/audit/get(listAudit)`.
+    func listAudit(_ input: Operations.ListAudit.Input) async throws -> Operations.ListAudit.Output
     /// - Remark: HTTP `GET /api/v1/avatars/palettes`.
     /// - Remark: Generated from `#/paths//api/v1/avatars/palettes/get(listPalettes)`.
     func listPalettes(_ input: Operations.ListPalettes.Input) async throws -> Operations.ListPalettes.Output
@@ -241,6 +244,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/issues/{id}/priority`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/priority/post(bumpIssue)`.
     func bumpIssue(_ input: Operations.BumpIssue.Input) async throws -> Operations.BumpIssue.Output
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/prs`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/prs/get(listIssuePrs)`.
+    func listIssuePrs(_ input: Operations.ListIssuePrs.Input) async throws -> Operations.ListIssuePrs.Output
     /// - Remark: HTTP `POST /api/v1/issues/{id}/reassign`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/reassign/post(reassignIssue)`.
     func reassignIssue(_ input: Operations.ReassignIssue.Input) async throws -> Operations.ReassignIssue.Output
@@ -259,6 +265,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/issues/{id}/transition`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/transition/post(transitionIssue)`.
     func transitionIssue(_ input: Operations.TransitionIssue.Input) async throws -> Operations.TransitionIssue.Output
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/accept`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/accept/post(acceptKnowledge)`.
+    func acceptKnowledge(_ input: Operations.AcceptKnowledge.Input) async throws -> Operations.AcceptKnowledge.Output
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/reject`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/reject/post(rejectKnowledge)`.
+    func rejectKnowledge(_ input: Operations.RejectKnowledge.Input) async throws -> Operations.RejectKnowledge.Output
     /// - Remark: HTTP `POST /api/v1/knowledge/{id}/retire`.
     /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/retire/post(retireKnowledge)`.
     func retireKnowledge(_ input: Operations.RetireKnowledge.Input) async throws -> Operations.RetireKnowledge.Output
@@ -307,6 +319,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/projects/{id}/issues`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/issues/post(createIssue)`.
     func createIssue(_ input: Operations.CreateIssue.Input) async throws -> Operations.CreateIssue.Output
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/knowledge`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/knowledge/get(listKnowledge)`.
+    func listKnowledge(_ input: Operations.ListKnowledge.Input) async throws -> Operations.ListKnowledge.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}/labels`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/labels/get(listLabels)`.
     func listLabels(_ input: Operations.ListLabels.Input) async throws -> Operations.ListLabels.Output
@@ -807,6 +822,17 @@ extension APIProtocol {
     ) async throws -> Operations.PreviewArtifact.Output {
         try await previewArtifact(Operations.PreviewArtifact.Input(
             path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/audit`.
+    /// - Remark: Generated from `#/paths//api/v1/audit/get(listAudit)`.
+    public func listAudit(
+        query: Operations.ListAudit.Input.Query = .init(),
+        headers: Operations.ListAudit.Input.Headers = .init()
+    ) async throws -> Operations.ListAudit.Output {
+        try await listAudit(Operations.ListAudit.Input(
+            query: query,
             headers: headers
         ))
     }
@@ -1366,6 +1392,17 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/prs`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/prs/get(listIssuePrs)`.
+    public func listIssuePrs(
+        path: Operations.ListIssuePrs.Input.Path,
+        headers: Operations.ListIssuePrs.Input.Headers = .init()
+    ) async throws -> Operations.ListIssuePrs.Output {
+        try await listIssuePrs(Operations.ListIssuePrs.Input(
+            path: path,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `POST /api/v1/issues/{id}/reassign`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/reassign/post(reassignIssue)`.
     public func reassignIssue(
@@ -1435,6 +1472,32 @@ extension APIProtocol {
         body: Operations.TransitionIssue.Input.Body
     ) async throws -> Operations.TransitionIssue.Output {
         try await transitionIssue(Operations.TransitionIssue.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/accept`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/accept/post(acceptKnowledge)`.
+    public func acceptKnowledge(
+        path: Operations.AcceptKnowledge.Input.Path,
+        headers: Operations.AcceptKnowledge.Input.Headers = .init(),
+        body: Operations.AcceptKnowledge.Input.Body
+    ) async throws -> Operations.AcceptKnowledge.Output {
+        try await acceptKnowledge(Operations.AcceptKnowledge.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/reject`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/reject/post(rejectKnowledge)`.
+    public func rejectKnowledge(
+        path: Operations.RejectKnowledge.Input.Path,
+        headers: Operations.RejectKnowledge.Input.Headers = .init(),
+        body: Operations.RejectKnowledge.Input.Body
+    ) async throws -> Operations.RejectKnowledge.Output {
+        try await rejectKnowledge(Operations.RejectKnowledge.Input(
             path: path,
             headers: headers,
             body: body
@@ -1618,6 +1681,17 @@ extension APIProtocol {
             path: path,
             headers: headers,
             body: body
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/knowledge`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/knowledge/get(listKnowledge)`.
+    public func listKnowledge(
+        path: Operations.ListKnowledge.Input.Path,
+        headers: Operations.ListKnowledge.Input.Headers = .init()
+    ) async throws -> Operations.ListKnowledge.Output {
+        try await listKnowledge(Operations.ListKnowledge.Input(
+            path: path,
+            headers: headers
         ))
     }
     /// - Remark: HTTP `GET /api/v1/projects/{id}/labels`.
