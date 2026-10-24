@@ -100,7 +100,7 @@ struct AccountAssignmentSection: View {
 }
 
 /// Company settings › Audit log: every audited change at this company, newest first — who did what to which
-/// entity, when. Read from the event feed, which carries each audit entry.
+/// entity, when. Read from `listAudit` a page at a time ("Load more"), filtered by an action prefix.
 struct AuditLogSection: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -116,6 +116,19 @@ struct AuditLogSection: View {
                 }
                 .outlineBox()
             }
+            AinkradSegmentedPicker(
+                items: Self.kinds,
+                selection: Binding(
+                    get: { model.limitsPage.auditKind },
+                    set: {
+                        model.limitsPage.auditKind = $0
+                        store.loadAuditLog()
+                    }),
+                label: { $0.isEmpty ? "All" : String($0.dropLast()).capitalized }
+            )
+            .fixedSize()
+            .padding(.horizontal, skin.size.s20)
+            .padding(.bottom, skin.size.s8)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: skin.size.s6) {
                     if lines?.isEmpty == true {
@@ -132,6 +145,10 @@ struct AuditLogSection: View {
                             Spacer(minLength: 0)
                         }
                     }
+                    if model.limitsPage.auditNext != nil {
+                        AinkradButton(title: "Load more", style: .ghost) { store.loadMoreAudit() }
+                            .outlined().compact().fixedSize()
+                    }
                 }
                 .padding(.horizontal, skin.size.s20)
                 .padding(.bottom, skin.size.s14)
@@ -139,6 +156,9 @@ struct AuditLogSection: View {
         }
         .onAppear { store.loadAuditLog() }
     }
+
+    /// The action prefixes the log filters by (`listAudit`'s `kind`); `""` is every action.
+    static let kinds = ["", "issue.", "knowledge.", "approval.", "agent.", "project.", "setting."]
 
     /// "by Mira · issue 42" — agents by name.
     private func describe(_ line: AuditLine) -> String {

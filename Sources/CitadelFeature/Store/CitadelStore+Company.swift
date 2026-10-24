@@ -178,6 +178,12 @@ extension CitadelStore {
             if let comments = await server.comments(issue: issue) { model.comments[issue] = comments }
         case .issueFresh(let issue):
             if let info = await server.issue(issue) { model.issues[issue] = info }
+        case .pullRequests(let issue):
+            if let prs = await server.pullRequests(issue: issue) { model.issuePRs[issue] = prs }
+        case .knowledge:
+            for project in model.projectsPage.knowledge.keys {
+                await reloadKnowledge(project, model: model, server: server)
+            }
         case .stuck:
             model.stuck = await server.stuck() ?? model.stuck
             for issue in model.stuck.compactMap(\.issueID) where model.issues[issue] == nil {

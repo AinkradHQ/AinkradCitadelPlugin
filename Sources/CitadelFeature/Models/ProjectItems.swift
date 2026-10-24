@@ -34,6 +34,8 @@ final class ProjectsPage {
     var policies: [Int64: PolicyInfo] = [:]
     /// Each project's profile history once "History →" opened it, newest first.
     var history: [Int64: [ProfileChangeInfo]] = [:]
+    /// Each project's knowledge entries (API minor 16), oldest first, once its Knowledge group first loads.
+    var knowledge: [Int64: [KnowledgeInfo]] = [:]
 }
 
 /// One git repo of a project (decision #51).

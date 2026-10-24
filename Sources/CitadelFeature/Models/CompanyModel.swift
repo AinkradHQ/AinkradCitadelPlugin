@@ -14,6 +14,10 @@ enum Reload: Hashable, Sendable {
     case comments(Int64)
     /// An issue read again even when known: its state or next actor moved.
     case issueFresh(Int64)
+    /// An opened issue's pull requests (API minor 16).
+    case pullRequests(Int64)
+    /// The knowledge of each project whose list is loaded (API minor 16).
+    case knowledge
     case agent(Int64)
     /// An agent's newest run (the one it is on now).
     case agentRun(Int64)
@@ -92,9 +96,9 @@ final class CompanyModel {
     var projectIssues: [Int64: [IssueInfo]] = [:]
     /// The wakes seen on each issue, oldest first: whom they woke and why (API minor 14 says which agent).
     var wakes: [Int64: [WakeNote]] = [:]
-    /// Each issue's newest PR trouble seen on the stream: a refused branch push (`pr.push_failed`, the PR
-    /// request's "push rejected: …") or a failed forge call (`pr.error`); cleared once its PR opens.
-    var prProblems: [Int64: PRProblem] = [:]
+    /// Each opened issue's pull requests (API minor 16), one per repo: state, checks, and a refused push or failed
+    /// forge call; read again on each `pr.*` event.
+    var issuePRs: [Int64: [IssuePRInfo]] = [:]
     /// Uploaded agent images (decision #61), drawn instead of the orb.
     var avatars: [Int64: NSImage] = [:]
     var isLoaded = false
@@ -222,21 +226,11 @@ final class CompanyModel {
         case "sprint": return [.sprint]
         case "pr":
             guard let entity, kind == nil || kind == "issue" else { return [] }
-            switch action {
-            case "pr.push_failed":
-                prProblems[entity] = PRProblem(
-                    text:
-                        "Push rejected for \(details["branch"] ?? "the branch"): \(details["reason"] ?? "no reason given")",
-                    workflow: details["workflow"] == "true", at: at)
-            case "pr.error":
-                prProblems[entity] = PRProblem(
-                    text:
-                        "The PR request failed\(details["phase"].map { " (\($0))" } ?? ""): \(details["error"] ?? "")",
-                    workflow: false, at: at)
-            case "pr.opened": prProblems[entity] = nil
-            default: break
-            }
-            return comments[entity] != nil ? [.comments(entity), .issueFresh(entity)] : [.issueFresh(entity)]
+            var reloads: Set<Reload> = [.issueFresh(entity)]
+            if comments[entity] != nil { reloads.insert(.comments(entity)) }
+            if issuePRs[entity] != nil { reloads.insert(.pullRequests(entity)) }
+            return reloads
+        case "knowledge": return [.knowledge]
         case "account": return [.accounts, .settings]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
@@ -254,14 +248,6 @@ final class CompanyModel {
         default: return []
         }
     }
-}
-
-/// An issue's PR trouble: a refused branch push or a failed forge call, as the issue's PR request records it.
-struct PRProblem: Equatable, Sendable {
-    var text: String
-    /// Refused for changing workflow files: a `workflow_push` approval waits for a person to push it.
-    var workflow: Bool
-    var at: Date
 }
 
 /// One wake on an issue: whom, from what (`comment`, `assignment`, `blocker_closed`, …) and the server's reason.

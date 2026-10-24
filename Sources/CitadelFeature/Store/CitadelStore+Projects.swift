@@ -44,6 +44,7 @@ extension CitadelStore {
         if let policy = await policy { page.policies[project] = policy }
         if let repos = await repos { page.repos[project] = repos }
         if let settings = await settings { page.settings[project] = settings }
+        await reloadKnowledge(project, model: model, server: server)
         // The "issues declare their repos" example: an issue in flight, preferring one that spans repos.
         guard let issues = await server.activeIssues(project: project) else { return }
         var first: (IssueInfo, [String])?
