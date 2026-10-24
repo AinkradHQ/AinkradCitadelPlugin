@@ -167,7 +167,58 @@ final class ConnectionTests: XCTestCase {
         store.retryNow()
         await eventually { waits.values.count == 2 }
         XCTAssertEqual(waits.values, [1, 1], "Retry now starts the back-off again")
+        guard case .offline = store.phase else {
+            return XCTFail("a retry stays offline (the bar and Retry stay up), got \(store.phase)")
+        }
         store.stop()
+    }
+
+    // MARK: - The company opened
+
+    nonisolated private static func agent(_ id: Int) -> String {
+        #"{"id":\#(id),"company_id":9,"name":"A\#(id)","role":"dev","org_role":"none","harness":"codex","model":"gpt-5.5","runner_tags":[],"status":"active","appearance":{"figure_version":"b1","palette_id":"neon-tide"},"figure_state":"idle","hired_at":"2026-10-20T09:00:00.000Z","run_token_cap":200000,"issue_token_cap":2000000}"#
+    }
+
+    private func connect(_ settings: SettingsStore) async -> CitadelStore {
+        FakeServer.serve { request in
+            switch request.url?.path {
+            case "/api/v1/me": .init(json: Wire.me)
+            case "/api/v1/companies/7/agents": .init(json: Wire.agents)
+            case "/api/v1/companies/9/agents": .init(json: "[\(Self.agent(1)),\(Self.agent(2))]")
+            case "/api/v1/events": .init(json: Wire.page([]))
+            default: .init(status: 404, json: Wire.refusal("not_found", "no"))
+            }
+        }
+        let store = CitadelStore(
+            settings: settings, secrets: MemorySecrets(), session: FakeServer.session(),
+            connector: FakeSockets().connector)
+        store.serverDraft = "https://citadel.example.com"
+        store.keyDraft = key
+        store.connect()
+        await eventually { store.agentCount != nil }
+        store.stop()
+        return store
+    }
+
+    func testAFirstConnectOpensTheCompanyWithWorkNotTheFirstListed() async throws {
+        let settings = SettingsStore(documents: MemoryDocs())
+        let store = await connect(settings)
+        XCTAssertEqual(store.company?.name, "AutomotiveAi", "two agents beat the empty first company")
+        XCTAssertEqual(settings.document.companyByServer?["https://citadel.example.com"], 9)
+    }
+
+    func testTheLastCompanyIsRememberedPerServer() async throws {
+        let settings = SettingsStore(documents: MemoryDocs())
+        settings.update {
+            $0.server = "https://other.example.com"
+            $0.companyID = 9
+            $0.companyByServer = ["https://citadel.example.com": 7, "https://other.example.com": 9]
+        }
+        let store = await connect(settings)
+        XCTAssertEqual(store.company?.id, 7, "this server's choice, not the other server's open company")
+        XCTAssertFalse(
+            FakeServer.requests.contains { $0.url?.path == "/api/v1/companies/9/agents" },
+            "a remembered company needs no count")
     }
 
     func testBackoffDoublesToAMinute() {
