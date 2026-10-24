@@ -79,6 +79,8 @@ private struct ThreadDetail: View {
     let model: CompanyModel
     let key: ThreadKey
     @State private var draft = ""
+    /// The agent the message wakes; `nil` is the thread's own agent.
+    @State private var wakeTarget: Int64?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
@@ -104,6 +106,20 @@ private struct ThreadDetail: View {
                     .outlineBox().disabled(latestRun == nil)
                 }
             }
+            if let issue { IssueControls(store: store, model: model, issue: issue) }
+            if let problem = model.prProblems[key.issueID] {
+                Group {
+                    if problem.workflow {
+                        AinkradBanner(
+                            message: "\(problem.text) A workflow push approval waits for you to push it by hand.",
+                            status: .danger, actionTitle: "Open approvals →", action: { store.screen = .approvals })
+                    } else {
+                        AinkradBanner(message: problem.text, status: .danger)
+                    }
+                }
+                .padding(.horizontal, skin.size.s20)
+                .padding(.bottom, skin.size.s8)
+            }
             if let question, let requirement = requirement, question.requirementID == requirement.id {
                 AinkradBanner(
                     message:
@@ -114,6 +130,9 @@ private struct ThreadDetail: View {
                 .padding(.bottom, skin.size.s8)
             }
             conversation
+            if let wake = model.wakes[key.issueID]?.last {
+                SystemLine(text: wakeLine(wake)).padding(.bottom, skin.size.s6)
+            }
             composer
         }
     }
@@ -129,7 +148,7 @@ private struct ThreadDetail: View {
     /// "with Quill (Writer) · waiting on you · next actor: you · $4.20 spent".
     private var crumb: Text {
         let muted = skin.color(skin.text.muted)
-        var text = Text("with \(agent?.name ?? "agent") (\(agent?.role ?? ""))").foregroundStyle(muted)
+        var text = Text("with \(agent?.nameAndRole ?? "agent")").foregroundStyle(muted)
         if question != nil {
             text =
                 text + Text(verbatim: " · ").foregroundStyle(muted)
@@ -190,8 +209,10 @@ private struct ThreadDetail: View {
                 if question.isOpen, !question.options.isEmpty {
                     HStack(spacing: skin.size.s6) {
                         ForEach(question.options, id: \.self) { option in
-                            AinkradButton(title: option, style: .secondary) { store.send(option, on: key.issueID) }
-                                .secondaryAccent().compact().fixedSize()
+                            AinkradButton(title: option, style: .secondary) {
+                                store.send(option, on: key.issueID, waking: key.agentID)
+                            }
+                            .secondaryAccent().compact().fixedSize()
                         }
                     }
                     .padding(.leading, skin.size.s40)
@@ -209,6 +230,18 @@ private struct ThreadDetail: View {
         return parts.joined(separator: " · ")
     }
 
+    private var wakeName: String { model.agent(wakeTarget ?? key.agentID)?.name ?? "the agent" }
+
+    /// "Woke Mira · comment · your message · 2m ago".
+    private func wakeLine(_ wake: WakeNote) -> String {
+        let who = model.agent(wake.agentID)?.name ?? "agent #\(wake.agentID)"
+        let source = wake.source.replacingOccurrences(of: "_", with: " ")
+        return [
+            "Woke \(who)", source, wake.reason.isEmpty ? nil : String(wake.reason.prefix(80)),
+            "\(Fmt.age(Date().timeIntervalSince(wake.at))) ago",
+        ].compactMap { $0 }.joined(separator: " · ")
+    }
+
     private var composer: some View {
         let name = agent?.name ?? "the agent"
         return AinkradComposer(
@@ -218,7 +251,7 @@ private struct ThreadDetail: View {
             isEditable: true, canSend: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             autoFocus: false, suggestions: { _ in [] }, onPick: { _, _ in }, onDrop: nil,
             onSend: {
-                store.send(draft, on: key.issueID)
+                store.send(draft, on: key.issueID, waking: wakeTarget ?? key.agentID)
                 draft = ""
             },
             chips: {
@@ -227,10 +260,17 @@ private struct ThreadDetail: View {
                     // (the server's rule), so the target is shown, not clearable, here.
                     AinkradChip(label: "To: \(name)'s question", systemName: "arrowshape.turn.up.left")
                 }
+                // Whom the message wakes (API minor 14): the thread's agent unless you pick another.
+                AinkradMenuButton(
+                    items: model.agents.values.filter { $0.status == "active" }.sorted { $0.name < $1.name }.map {
+                        agent in
+                        AinkradMenuItem(title: agent.nameDotRole, systemName: nil) { wakeTarget = agent.id }
+                    }
+                ) { Text("Wakes \(wakeName)") }
             },
             leading: { EmptyView() },
             trailing: {
-                Text("↵ sends and wakes \(name) · ⇧↵ new line").citadelFont("t11")
+                Text("↵ sends and wakes \(wakeName) · ⇧↵ new line").citadelFont("t11")
                     .foregroundStyle(skin.color(skin.text.faint))
             }
         )

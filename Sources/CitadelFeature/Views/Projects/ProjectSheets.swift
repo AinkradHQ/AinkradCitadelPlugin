@@ -81,7 +81,7 @@ struct ProfileHistorySheet: View {
 
     private func row(_ change: ProfileChangeInfo) -> some View {
         let agent = model.agent(change.agentID)
-        let who = agent.map { "\($0.name) (\($0.role))" } ?? (change.byPerson ? "You" : "Citadel")
+        let who = agent.map(\.nameAndRole) ?? (change.byPerson ? "You" : "Citadel")
         return HStack(alignment: .top, spacing: skin.size.s10) {
             Group {
                 if let agent {

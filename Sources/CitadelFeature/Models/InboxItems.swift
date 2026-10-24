@@ -20,7 +20,7 @@ enum ApprovalFilter: String, CaseIterable, Hashable {
         switch self {
         case .all: true
         case .sprint: ["sprint_commit", "plan_approval"].contains(approval.kind)
-        case .merge: approval.kind == "pr_merge"
+        case .merge: ["pr_merge", "workflow_push"].contains(approval.kind)
         case .budget: approval.kind == "budget_overrun"
         case .hire: approval.kind == "hire_agent"
         case .permission: approval.kind == "permission_escalation"
@@ -46,7 +46,7 @@ extension CompanyModel {
         func rank(_ kind: String) -> Int {
             switch kind {
             case "permission_escalation", "budget_overrun": 0
-            case "sprint_commit", "plan_approval", "pr_merge": 1
+            case "sprint_commit", "plan_approval", "pr_merge", "workflow_push": 1
             default: 2
             }
         }
@@ -65,7 +65,7 @@ extension CompanyModel {
             return ApprovalSummary(
                 glyph: "◷", tone: .accentPrimary,
                 typeLabel: ["Sprint commit", project].compactMap { $0 }.joined(separator: " · "),
-                title: "Commit sprint \([project, f["name"]].compactMap { $0 }.joined(separator: " "))",
+                title: sprintCommitTitle(project: project, name: f["name"]),
                 subtitle: "\(f["points"] ?? "?") pts\(capacity)\(asker.map { " · \($0)" } ?? "")")
         case "plan_approval":
             return ApprovalSummary(
@@ -79,6 +79,12 @@ extension CompanyModel {
                 typeLabel: "PR merge · \(prs.count == 1 ? "1 PR" : "\(max(prs.count, 1)) PRs")",
                 title: f["summary"] ?? "Merge \(key ?? "the PRs")",
                 subtitle: prs.map { "\($0["repo"] ?? "repo") #\($0["pr"] ?? "?")" }.joined(separator: " + "))
+        case "workflow_push":
+            let sha = f["sha"].map { " @ \($0.prefix(7))" } ?? ""
+            return ApprovalSummary(
+                glyph: "⑂", tone: .warning, typeLabel: "Workflow push",
+                title: "Push \(f["branch"] ?? "the branch") by hand",
+                subtitle: [key, f["repo"].map { "\($0)\(sha)" }, asker].compactMap { $0 }.joined(separator: " · "))
         case "budget_overrun":
             let spent = f["spent"].flatMap(Int64.init)
             let cap = f["token_cap"].flatMap(Int64.init).map { $0 + (f["raised"].flatMap(Int64.init) ?? 0) }
@@ -104,6 +110,13 @@ extension CompanyModel {
                 glyph: "✓", tone: .accentPrimary, typeLabel: approval.kind.replacingOccurrences(of: "_", with: " "),
                 title: f["summary"] ?? approval.kind.replacingOccurrences(of: "_", with: " "), subtitle: key ?? "")
         }
+    }
+
+    /// "Commit sprint CIT S5", "Commit WRK Sprint 1" — the key and the word "sprint" each once.
+    private func sprintCommitTitle(project: String?, name: String?) -> String {
+        guard let name else { return "Commit sprint\(project.map { " \($0)" } ?? "")" }
+        let sprint = Wording.sprint(key: project, name: name)
+        return sprint.hasPrefix("Sprint ") ? "Commit sprint \(sprint.dropFirst(7))" : "Commit \(sprint)"
     }
 
     /// Who an approval's reply wakes: the agent that asked.

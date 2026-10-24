@@ -74,9 +74,9 @@ struct HomeView: View {
 
     /// `18 agents · 2 departments · Sprint CIT S4 day 6 of 10 · ● live`.
     private var crumb: Text {
-        var parts = ["\(model.agents.count) agents", "\(model.departments.count) departments"]
+        var parts = [Wording.count(model.agents.count, "agent"), Wording.count(model.departments.count, "department")]
         if let sprint = model.sprint {
-            var text = "Sprint \(sprint.projectKey) \(sprint.name)"
+            var text = sprint.title
             if let start = sprint.startsOn, let end = sprint.endsOn {
                 let day = Calendar.current.dateComponents([.day], from: start, to: Date()).day ?? 0
                 let length = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
@@ -120,12 +120,13 @@ struct HomeView: View {
             KPITile(
                 label: "Working now", value: "\(model.liveRuns.count)", unit: "runs", tone: nil,
                 detail: Text(
-                    "\(model.busyAgents) agents busy · \(model.idleAgents) idle · \(model.pausedAgents) paused"))
+                    "\(Wording.count(model.busyAgents, "agent")) busy · \(model.idleAgents) idle · \(model.pausedAgents) paused"
+                ))
             KPITile(
                 label: "Spend today", value: model.spendToday.map { Fmt.dollars(micros: $0.costMicros) } ?? "—",
                 unit: nil, tone: nil, detail: spendDetail(spend))
             KPITile(
-                label: model.sprint.map { "Sprint \($0.projectKey) \($0.name)" } ?? "Sprint",
+                label: model.sprint?.title ?? "Sprint",
                 value: model.sprint.map { "\($0.completed)" } ?? "—",
                 unit: model.sprint.map { "/ \($0.committed) pts" }, tone: nil, detail: nil,
                 progress: model.sprint.map { (Double($0.completed), Double(max($0.committed, 1))) })
@@ -198,7 +199,8 @@ private struct KPITile: View {
                 }
                 if let progress {
                     AinkradBudgetBar(
-                        label: label, value: progress.0, limit: progress.1, warnFraction: nil, showsHardLimit: false
+                        label: label, value: progress.0, limit: progress.1, warnFraction: nil, showsHardLimit: false,
+                        tone: .progress(progress.0, of: progress.1)
                     )
                     .padding(.top, skin.size.s8)
                 }
@@ -236,7 +238,8 @@ private struct RequirementCard: View {
                 }
                 AinkradBudgetBar(
                     label: requirement.key, value: Double(requirement.donePoints),
-                    limit: Double(max(requirement.points, 1)), warnFraction: nil, showsHardLimit: false)
+                    limit: Double(max(requirement.points, 1)), warnFraction: nil, showsHardLimit: false,
+                    tone: .progress(Double(requirement.donePoints), of: Double(requirement.points)))
                 meta.citadelFont("t11").lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

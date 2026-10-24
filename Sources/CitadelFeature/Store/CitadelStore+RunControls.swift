@@ -49,7 +49,7 @@ extension CitadelStore {
         }
     }
 
-    private func perform(
+    func perform(
         _ title: String, outcome: String, done: @escaping @MainActor () -> Void = {},
         _ work: @escaping (CitadelServer) async -> ServerAnswer?
     ) {

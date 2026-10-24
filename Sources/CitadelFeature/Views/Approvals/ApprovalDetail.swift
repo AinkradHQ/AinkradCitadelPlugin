@@ -54,7 +54,7 @@ struct ApprovalDetail: View {
     private var asked: Text {
         let muted = skin.color(skin.text.muted)
         var parts: [String] = []
-        if let asker = model.agent(approval.requestedBy) { parts.append("\(asker.name) (\(asker.role)) asked") }
+        if let asker = model.agent(approval.requestedBy) { parts.append("\(asker.nameAndRole) asked") }
         if let key = model.issue(approval.issueID)?.key { parts.append(key) }
         if let expires = approval.expiresAt {
             parts.append("expires \(expires.formatted(date: .omitted, time: .shortened))")
@@ -71,6 +71,7 @@ struct ApprovalDetail: View {
         switch approval.kind {
         case "sprint_commit", "plan_approval": sprint
         case "pr_merge": merge
+        case "workflow_push": workflowPush
         case "budget_overrun": budget
         case "hire_agent": hire
         case "permission_escalation": permission
@@ -106,7 +107,7 @@ struct ApprovalDetail: View {
             if !rows.isEmpty {
                 AinkradCard {
                     VStack(alignment: .leading, spacing: skin.size.s6) {
-                        TileHead(title: "\(rows.count) issues")
+                        TileHead(title: Wording.count(rows.count, "issue"))
                         ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                             HStack(spacing: skin.size.s12) {
                                 Text(row["key"] ?? "").citadelFont("t11", mono: true)
@@ -131,14 +132,23 @@ struct ApprovalDetail: View {
         let prs = approval.lists["prs"] ?? []
         return VStack(alignment: .leading, spacing: skin.size.s6) {
             ForEach(Array(prs.enumerated()), id: \.offset) { index, pr in
-                HStack(spacing: skin.size.s10) {
-                    AinkradBadge(text: pr["repo"] ?? "repo", tint: theme.accentSecondary)
-                    Text("PR #\(pr["pr"] ?? "?") · merges \(Self.ordinal(index + 1))").citadelFont("t11", mono: true)
+                VStack(alignment: .leading, spacing: skin.size.s4) {
+                    HStack(spacing: skin.size.s10) {
+                        AinkradBadge(text: pr["repo"] ?? "repo", tint: theme.accentSecondary)
+                        Text("PR #\(pr["pr"] ?? "?") · merges \(Self.ordinal(index + 1))").citadelFont(
+                            "t11", mono: true
+                        )
                         .foregroundStyle(skin.color(skin.text.faint))
-                    Spacer(minLength: skin.size.s8)
-                    if let url = pr["url"].flatMap(URL.init(string:)) {
-                        AinkradButton(title: "Open PR", style: .ghost) { NSWorkspace.shared.open(url) }
-                            .borderless().secondaryAccent().compact().fixedSize()
+                        Spacer(minLength: skin.size.s8)
+                        if let url = pr["url"].flatMap(URL.init(string:)) {
+                            AinkradButton(title: "Open PR", style: .ghost) { NSWorkspace.shared.open(url) }
+                                .borderless().secondaryAccent().compact().fixedSize()
+                        }
+                    }
+                    // The checks the forge token could not read (it passed on what it could): said, never hidden.
+                    if let note = pr["checks_note"], !note.isEmpty {
+                        Text("Checks: \(note)").citadelFont("t11").foregroundStyle(status.warning)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(skin.size.s10)
@@ -151,6 +161,35 @@ struct ApprovalDetail: View {
             }
             Text("Merging merges every PR in the project's repo order; the issue is done when all are merged.")
                 .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+        }
+    }
+
+    /// API minor 15: the forge token may not change workflow files, so a person pushes the branch.
+    private var workflowPush: some View {
+        let files = (f["files"] ?? "").split(separator: " ").map(String.init)
+        return VStack(alignment: .leading, spacing: skin.size.s10) {
+            VStack(spacing: skin.size.s4) {
+                stat("Repo", f["repo"] ?? "—")
+                stat("Branch", f["branch"] ?? "—")
+                stat("Head", f["sha"].map { String($0.prefix(12)) } ?? "—")
+                if let run = f["run"] { stat("Run", "#\(run)") }
+            }
+            if !files.isEmpty {
+                AinkradCard {
+                    VStack(alignment: .leading, spacing: skin.size.s4) {
+                        TileHead(title: Wording.count(files.count, "workflow file"))
+                        ForEach(files, id: \.self) { file in
+                            Text(file).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.primary))
+                        }
+                    }
+                }
+            }
+            if let rejection = f["rejection"], !rejection.isEmpty { Quote(who: "The forge refused", text: rejection) }
+            if let branch = f["branch"] { AinkradCodeBlock("git push origin \(branch):\(branch)") }
+            Text(
+                "Approve once you have pushed the branch from the issue's worktree with credentials that have the workflow scope: the PR then opens. Reject to have the agent drop the workflow change."
+            )
+            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
         }
     }
 
@@ -264,6 +303,9 @@ struct ApprovalDetail: View {
         case "hire_agent":
             reject("Reject")
             primary("Hire")
+        case "workflow_push":
+            reject("Drop the change")
+            primary("I pushed it")
         case "permission_escalation":
             if let run = f["run"].flatMap(Int64.init) {
                 AinkradButton(title: "Open run", style: .ghost) { store.open(.run(run)) }

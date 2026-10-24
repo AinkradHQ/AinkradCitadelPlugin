@@ -182,7 +182,7 @@ final class CitadelStore {
     func select(company id: Int64) {
         guard id != settings.document.companyID, let server else { return }
         saveCursor(force: true)
-        settings.update { $0.companyID = id }
+        remember(company: id)
         recentEvents = []
         agentCount = nil
         model = nil
@@ -205,8 +205,10 @@ final class CitadelStore {
 
     private func runConnect(address: ServerAddress, key: String) async {
         let started = ContinuousClock.now
-        phase = .connecting(step: 1, label: "Checking key", since: Date())
+        // A retry while offline stays offline until it succeeds: the bar and its Retry never blink away.
+        if case .offline = phase {} else { phase = .connecting(step: 1, label: "Checking key", since: Date()) }
         let base = CitadelServer(address: address, deviceKey: key, company: nil, session: session)
+        let previousServer = settings.document.server
         do {
             let me = try await base.me()
             let companies = me.companies
@@ -224,11 +226,15 @@ final class CitadelStore {
             }
             serverDraft = address.origin.absoluteString
             self.companies = companies
-            guard let company = self.company else {
+            let pick = await startingCompany(
+                companies, origin: address.origin.absoluteString, sameServer: previousServer == serverDraft,
+                server: base)
+            guard !Task.isCancelled else { return }
+            guard let company = companies.first(where: { $0.id == pick }) else {
                 phase = .connected
                 return
             }
-            settings.update { $0.companyID = company.id }
+            remember(company: company.id)
             phase = .connecting(step: 2, label: "Loading \(company.name)", since: Date())
             let scoped = base.scoped(to: company.id)
             agentCount = try await scoped.agentCount(company: company.id)
@@ -240,6 +246,32 @@ final class CitadelStore {
         } catch {
             guard !Task.isCancelled else { return }
             await waitAndRetry(address: address, key: key, reason: EventStream.describe(error))
+        }
+    }
+
+    /// The company to open: the one last chosen on this server; else the one already open (a document from
+    /// before per-server memory); else, on a first connect, the company with the most agents — the one with work —
+    /// rather than whichever the server lists first.
+    private func startingCompany(
+        _ companies: [Components.Schemas.Company], origin: String, sameServer: Bool, server: CitadelServer
+    ) async -> Int64? {
+        let known = Set(companies.map(\.id))
+        if let id = settings.document.companyByServer?[origin], known.contains(id) { return id }
+        if sameServer, let id = settings.document.companyID, known.contains(id) { return id }
+        guard companies.count > 1 else { return companies.first?.id }
+        var best: (id: Int64, agents: Int)?
+        for company in companies {
+            let agents = (try? await server.scoped(to: company.id).agentCount(company: company.id)) ?? 0
+            if agents > (best?.agents ?? -1) { best = (company.id, agents) }
+        }
+        return best?.id
+    }
+
+    /// The company the window works in, remembered for this server.
+    private func remember(company id: Int64) {
+        settings.update {
+            $0.companyID = id
+            if let origin = $0.server { $0.companyByServer = ($0.companyByServer ?? [:]).merging([origin: id]) { $1 } }
         }
     }
 

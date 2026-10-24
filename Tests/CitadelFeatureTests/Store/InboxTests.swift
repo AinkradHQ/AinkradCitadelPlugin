@@ -204,16 +204,18 @@ final class InboxTests: XCTestCase {
         }
         let (store, model) = try connectedStore()
         CompanyFixture.threadsPage(model)
-        store.send("Cut it", on: 8)
+        store.send("Cut it", on: 8, waking: 15)
         await eventually { model.comments[8]?.last?.id == 31 }
+        XCTAssertEqual(model.wakes[8]?.last?.agentID, 15, "the thread says whom the message woke")
         XCTAssertNil(model.openQuestion(ThreadKey(agentID: 15, issueID: 8)))
         let request = try XCTUnwrap(FakeServer.requests.first)
         XCTAssertEqual(request.httpMethod, "POST")
         let sent = body(request)
         XCTAssertEqual(sent["body"] as? String, "Cut it")
         XCTAssertNotNil(sent["idempotency_key"] as? String, "a retry must not post twice")
+        XCTAssertEqual(sent["wake_agent_id"] as? Int, 15, "API minor 14: the message wakes the thread's agent")
 
-        store.send("   ", on: 8)
+        store.send("   ", on: 8, waking: 15)
         let approval = ApprovalInfo(
             id: 1, kind: "sprint_commit", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil, fields: [:])
         store.replyOnly(approval, text: "no issue to reply on")

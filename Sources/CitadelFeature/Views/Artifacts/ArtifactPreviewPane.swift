@@ -84,7 +84,7 @@ struct ArtifactPreviewPane: View {
                     row("Agent") {
                         HStack(spacing: skin.size.s6) {
                             AgentFigure(agent: agent, model: model, size: skin.size.s18)
-                            Text("\(agent.name) · \(agent.role)").citadelFont("t12")
+                            Text(agent.nameDotRole).citadelFont("t12")
                         }
                     }
                 }

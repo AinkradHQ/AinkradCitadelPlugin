@@ -78,7 +78,7 @@ struct OrgView: View {
     private var crumb: Text {
         let working = model.agents.values.filter { OrgFilter.working.matches($0) }.count
         let pending = model.agents.values.filter(\.isHirePending).count
-        var text = Text("\(model.agents.count) agents · \(working) working").foregroundStyle(
+        var text = Text("\(Wording.count(model.agents.count, "agent")) · \(working) working").foregroundStyle(
             skin.color(skin.text.muted))
         if pending > 0 {
             text =
@@ -216,7 +216,7 @@ private struct TeamPanel: View {
             let day = sprint.startsOn.map {
                 (Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? 0) + 1
             }
-            return "Sprint \(sprint.name)\(day.map { " · day \($0)" } ?? "")"
+            return "\(Wording.sprint(key: nil, name: sprint.name))\(day.map { " · day \($0)" } ?? "")"
         }
         return project.mode
     }

@@ -65,7 +65,7 @@ struct CatchingUpView: View {
             if let total, total > 0 {
                 AinkradBudgetBar(
                     label: "Catching up", value: Double(min(replayed, total)), limit: Double(total),
-                    warnFraction: nil, showsHardLimit: false
+                    warnFraction: nil, showsHardLimit: false, tone: .progress(Double(replayed), of: Double(total))
                 )
                 .frame(width: skin.size.s240)
             }

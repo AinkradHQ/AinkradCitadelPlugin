@@ -27,7 +27,8 @@ struct ThreadApprovalCard: View {
         let tasks = approval.lists["tasks"] ?? []
         let epics = Set(tasks.compactMap { $0["epic"] ?? $0["epic_id"] }).count
         let title = [
-            "Plan", epics > 0 ? "\(epics) epics" : nil, "\(tasks.count) tasks", f["points"].map { "\($0) pts" },
+            "Plan", epics > 0 ? Wording.count(epics, "epic") : nil, Wording.count(tasks.count, "task"),
+            f["points"].map { "\($0) pts" },
         ]
         .compactMap { $0 }.joined(separator: " · ")
         return AinkradCard {

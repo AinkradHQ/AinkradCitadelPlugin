@@ -72,8 +72,10 @@ struct RunRail: View {
     @ViewBuilder private var issueSoFar: some View {
         if let issue = model.issue(run.issueID), let cost = model.issueCosts[issue.id] {
             RailLabel(title: "Issue \(issue.key) so far").padding(.top, skin.size.s6)
-            AinkradStatRow(label: "All runs", value: "\(Fmt.tokens(cost.tokens)) tok · \(cost.runs) runs")
-                .sentenceCaseLabel()
+            AinkradStatRow(
+                label: "All runs", value: "\(Fmt.tokens(cost.tokens)) tok · \(Wording.count(cost.runs, "run"))"
+            )
+            .sentenceCaseLabel()
             AinkradStatRow(label: "Spend", value: Fmt.dollars(micros: cost.costMicros)).sentenceCaseLabel()
         }
     }

@@ -149,7 +149,7 @@ private struct RunnerCard: View {
                     }
                 }
                 if let slots = runner.slots, runner.status != "offline" { slotRow(slots) }
-                if !runner.harnesses.isEmpty { harnessRows }
+                if !runner.harnessRows.isEmpty { harnessRows }
                 if let disk { DiskSection(store: store, model: model, runner: runner, disk: disk) }
                 actions
             }
@@ -196,6 +196,16 @@ private struct RunnerCard: View {
                     Text(row.version).citadelFont("t11", mono: true)
                     loginText(row.login).citadelFont("t11", mono: true)
                         .frame(maxWidth: .infinity, alignment: .trailing)
+                    if let harness = row.status {
+                        Text(harness.word).citadelFont("t11")
+                            .foregroundStyle(
+                                !harness.offered
+                                    ? status.danger
+                                    : harness.status == "supported" ? status.success : status.warning
+                            )
+                            .lineLimit(1)
+                            .ainkradTooltip(harness.reason ?? harness.word)
+                    }
                 }
             }
         }

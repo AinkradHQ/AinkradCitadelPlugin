@@ -83,7 +83,7 @@ private struct ProposalRow: View {
         let agent = model.agent(proposal.agentID)
         let diff = profile.diff(proposal)
         AinkradProposalCard(
-            author: agent.map { "\($0.name) (\($0.role))" } ?? "An agent", title: proposal.title,
+            author: agent.map(\.nameAndRole) ?? "An agent", title: proposal.title,
             tag: proposal.field.replacingOccurrences(of: "_", with: " "), oldValue: diff.old, newValue: diff.new,
             reason: proposal.rationale,
             onAccept: { store.decide(proposal, project: project, accept: true) },

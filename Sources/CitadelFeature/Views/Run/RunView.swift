@@ -62,7 +62,7 @@ struct RunView: View {
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 (Text(issue.map { "\($0.key) " } ?? "").foregroundStyle(theme.accentSecondary)
                     .font(skin.font(AinkradFontToken(sizeKey: "t15", mono: "family")))
-                    + Text(issue?.title ?? "Run #\(run.id)").foregroundStyle(skin.color(skin.text.primary)))
+                    + Text(issue?.title ?? model.runTitle(run)).foregroundStyle(skin.color(skin.text.primary)))
                     .citadelFont("t15", weight: "semibold").lineLimit(1)
                 HStack(spacing: skin.size.s6) {
                     Text(agent?.name ?? "Agent")

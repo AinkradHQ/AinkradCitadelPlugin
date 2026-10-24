@@ -68,7 +68,8 @@ struct PlanRail: View {
             .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: plan.percent)
             AinkradBudgetBar(
                 label: "\(requirement.key) progress", value: Double(plan.donePoints),
-                limit: Double(max(plan.points, 1)), warnFraction: nil, showsHardLimit: false, isThick: true)
+                limit: Double(max(plan.points, 1)), warnFraction: nil, showsHardLimit: false,
+                tone: .progress(Double(plan.donePoints), of: Double(plan.points)), isThick: true)
             AinkradLineChart(
                 title: "Burndown", series: Self.burndown(plan), axisLabels: Self.axis(plan), emptyMessage: "",
                 format: { "\(Int($0)) pts left" }

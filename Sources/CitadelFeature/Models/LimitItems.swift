@@ -25,19 +25,22 @@ final class LimitsPage {
     var showsMore = false
     /// A value refused against its bounds, by key: the row turns red and says the bound (never clamped).
     var refused: [String: String] = [:]
+    /// The Devices section's keys and the Audit log's entries; `nil` until the section first opens.
+    var devices: [DeviceInfo]?
+    var auditLog: [AuditLine]?
 }
 
-/// Company settings' sections (⚙ next to the switcher).
+/// Company settings' sections (⚙ next to the switcher): only those the API backs — no members or notifications
+/// route exists yet, so neither is listed.
 enum CompanySettingsSection: String, CaseIterable, Hashable {
-    case general, members, accounts, limits, notifications, audit
+    case general, devices, accounts, limits, audit
 
     var title: String {
         switch self {
         case .general: "General"
-        case .members: "Members & devices"
+        case .devices: "Devices"
         case .accounts: "Account assignment"
         case .limits: "Limits"
-        case .notifications: "Notifications"
         case .audit: "Audit log"
         }
     }

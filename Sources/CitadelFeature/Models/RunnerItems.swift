@@ -67,6 +67,8 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
     /// Harness → version, from its last hello.
     var harnesses: [String: String] = [:]
     var logins: [RunnerLoginInfo] = []
+    /// Each harness judged against Citadel's tested versions (API minor 10).
+    var harnessStatus: [RunnerHarnessInfo] = []
     /// Runs it works at once, as it reported.
     var slots: Int? = nil
     /// Seconds it had been up at `reportedAt`.
@@ -87,14 +89,15 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
     }
 
     /// One row per harness, in name order: its version and whether it is logged in on the runner.
-    var harnessRows: [(name: String, version: String, login: String?)] {
+    var harnessRows: [(name: String, version: String, login: String?, status: RunnerHarnessInfo?)] {
         let order = ["claude", "codex", "opencode", "agy"]
-        let names = harnesses.keys.sorted {
+        let names = Set(harnesses.keys).union(harnessStatus.filter { $0.status != "missing" }.map(\.name)).sorted {
             (order.firstIndex(of: $0) ?? 99, $0) < (order.firstIndex(of: $1) ?? 99, $1)
         }
         return names.map { name in
             let states = logins.filter { $0.harness == name && !$0.dir.hasPrefix("accounts/") }.map(\.state)
-            return (name, harnesses[name] ?? "", states.first)
+            let status = harnessStatus.first { $0.name == name }
+            return (name, harnesses[name] ?? status?.version ?? "", states.first, status)
         }
     }
 
@@ -233,6 +236,27 @@ struct WorktreeDiskInfo: Equatable, Sendable {
     }
 }
 
+/// A harness on a runner against the versions Citadel was tested with: `supported`, `untested_newer` (runs unless
+/// the settings refuse it), `too_old`, `known_bad`, `missing`, `unreadable`, `unknown_harness`, or a newer word.
+struct RunnerHarnessInfo: Equatable, Sendable {
+    var name: String
+    var version: String?
+    var status: String
+    var testedUpTo: String?
+    /// Whether runs are dispatched to it.
+    var offered: Bool
+    var reason: String?
+
+    /// "✓ tested", "newer than tested (2.1.200)", or why it is refused.
+    var word: String {
+        switch status {
+        case "supported": "✓ tested"
+        case "untested_newer": "newer than tested\(testedUpTo.map { " (\($0))" } ?? "")"
+        default: reason ?? status.replacingOccurrences(of: "_", with: " ")
+        }
+    }
+}
+
 extension RunnerInfo {
     init(_ runner: Schemas.Runner) {
         self.init(
@@ -242,6 +266,11 @@ extension RunnerInfo {
             harnesses: runner.harnesses.additionalProperties,
             logins: runner.logins.map {
                 RunnerLoginInfo(dir: $0.dir, harness: $0.harness, state: $0.state, accountIDs: $0.accountIds)
+            },
+            harnessStatus: runner.harnessStatus.map {
+                RunnerHarnessInfo(
+                    name: $0.name, version: $0.version, status: $0.status, testedUpTo: $0.testedUpTo,
+                    offered: $0.offered, reason: $0.reason)
             },
             slots: runner.slots.map(Int.init), uptimeSecs: runner.uptimeSecs, reportedAt: runner.reportedAt,
             powerNap: runner.powerNap, powerNapApplied: runner.powerNapApplied)

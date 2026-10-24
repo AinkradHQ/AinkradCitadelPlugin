@@ -48,13 +48,13 @@ final class CostActionTests: XCTestCase {
             if request.url?.path == "/api/v1/runners" {
                 return .init(
                     json: #"""
-                        [{"id":1,"name":"hetzner-1","asleep":false,"harnesses":{},"logins":[],"tags":["linux"],"status":"online"},
-                         {"id":3,"name":"ahmed-mbp","asleep":false,"harnesses":{},"logins":[],"tags":["macos","xcode-27"],"status":"offline"}]
+                        [{"id":1,"name":"hetzner-1","asleep":false,"harnesses":{},"harness_status":[],"logins":[],"tags":["linux"],"status":"online"},
+                         {"id":3,"name":"ahmed-mbp","asleep":false,"harnesses":{},"harness_status":[],"logins":[],"tags":["macos","xcode-27"],"status":"offline"}]
                         """#)
             }
             return .init(
                 json:
-                    #"{"id":3,"name":"ahmed-mbp","asleep":false,"harnesses":{},"logins":[],"tags":["macos"],"status":"offline"}"#
+                    #"{"id":3,"name":"ahmed-mbp","asleep":false,"harnesses":{},"harness_status":[],"logins":[],"tags":["macos"],"status":"offline"}"#
             )
         }
         store.wakeRunner(for: model.stuck[1], when: "when_back")
@@ -71,11 +71,11 @@ final class CostActionTests: XCTestCase {
             request.url?.path == "/api/v1/runners"
                 ? .init(
                     json:
-                        #"[{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"logins":[],"tags":["macos","xcode-27"],"status":"offline"}]"#
+                        #"[{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"harness_status":[],"logins":[],"tags":["macos","xcode-27"],"status":"offline"}]"#
                 )
                 : .init(
                     json:
-                        #"{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"logins":[],"tags":["macos"],"status":"offline","power_nap":true}"#
+                        #"{"id":3,"name":"ahmed-mbp","asleep":true,"harnesses":{},"harness_status":[],"logins":[],"tags":["macos"],"status":"offline","power_nap":true}"#
                 )
         }
         store.allowPowerNap(for: model.stuck[1])
