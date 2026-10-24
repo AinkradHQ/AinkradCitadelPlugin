@@ -152,7 +152,7 @@ private struct StuckCard: View {
                 AinkradMenuButton(
                     items: model.agents.values.filter { $0.status == "active" }.sorted { $0.name < $1.name }.map {
                         agent in
-                        AinkradMenuItem(title: "\(agent.name) · \(agent.role)", systemName: nil) {
+                        AinkradMenuItem(title: agent.nameDotRole, systemName: nil) {
                             store.reassign(stuck, to: agent.id)
                         }
                     }

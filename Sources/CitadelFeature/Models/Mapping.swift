@@ -35,6 +35,7 @@ extension Schemas.IssueState: OpenWord {}
 extension Schemas.QuestionState: OpenWord {}
 extension Schemas.RepairAction: OpenWord {}
 extension Schemas.RunnerStatus: OpenWord {}
+extension Schemas.WakeSource: OpenWord {}
 
 /// How an agent is drawn (decisions #61, #63): always the animated figure, never a letter.
 enum AgentLook {
@@ -118,7 +119,7 @@ extension IssueInfo {
         self.init(
             id: issue.id, key: issue.key, title: issue.title, projectID: issue.projectId,
             requirementID: issue.requirementId, state: issue.state.word, nextActor: next,
-            points: issue.points.map(Int.init))
+            points: issue.points.map(Int.init), sprintID: issue.sprintId)
     }
 }
 

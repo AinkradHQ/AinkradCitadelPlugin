@@ -910,6 +910,7 @@ extension Components {
                 case hireAgent = "hire_agent"
                 case permissionEscalation = "permission_escalation"
                 case planApproval = "plan_approval"
+                case workflowPush = "workflow_push"
             }
             /// - Remark: Generated from `#/components/schemas/ApprovalKind/value1`.
             public var value1: Components.Schemas.ApprovalKind.Value1Payload?
@@ -3427,6 +3428,179 @@ extension Components {
                 case key
             }
         }
+        /// A project knowledge entry (E8).
+        ///
+        /// - Remark: Generated from `#/components/schemas/Knowledge`.
+        public struct Knowledge: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Knowledge/body`.
+            public var body: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Knowledge/id`.
+            public var id: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Knowledge/kind`.
+            public var kind: Components.Schemas.KnowledgeKind
+            /// - Remark: Generated from `#/components/schemas/Knowledge/project_id`.
+            public var projectId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Knowledge/retired_reason`.
+            public var retiredReason: Swift.String?
+            /// `retired`: kept for history, never given to a run.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/status`.
+            public var status: Components.Schemas.KnowledgeStatus
+            /// The entry this one replaced.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/supersedes`.
+            public var supersedes: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/Knowledge/title`.
+            public var title: Swift.String
+            /// Creates a new `Knowledge`.
+            ///
+            /// - Parameters:
+            ///   - body:
+            ///   - id:
+            ///   - kind:
+            ///   - projectId:
+            ///   - retiredReason:
+            ///   - status: `retired`: kept for history, never given to a run.
+            ///   - supersedes: The entry this one replaced.
+            ///   - title:
+            public init(
+                body: Swift.String,
+                id: Swift.Int64,
+                kind: Components.Schemas.KnowledgeKind,
+                projectId: Swift.Int64,
+                retiredReason: Swift.String? = nil,
+                status: Components.Schemas.KnowledgeStatus,
+                supersedes: Swift.Int64? = nil,
+                title: Swift.String
+            ) {
+                self.body = body
+                self.id = id
+                self.kind = kind
+                self.projectId = projectId
+                self.retiredReason = retiredReason
+                self.status = status
+                self.supersedes = supersedes
+                self.title = title
+            }
+            public enum CodingKeys: String, CodingKey {
+                case body
+                case id
+                case kind
+                case projectId = "project_id"
+                case retiredReason = "retired_reason"
+                case status
+                case supersedes
+                case title
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/KnowledgeKind`.
+        public struct KnowledgeKind: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/KnowledgeKind/value1`.
+            @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                case decision = "decision"
+                case landmine = "landmine"
+                case state = "state"
+                case retro = "retro"
+            }
+            /// - Remark: Generated from `#/components/schemas/KnowledgeKind/value1`.
+            public var value1: Components.Schemas.KnowledgeKind.Value1Payload?
+            /// - Remark: Generated from `#/components/schemas/KnowledgeKind/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `KnowledgeKind`.
+            ///
+            /// - Parameters:
+            ///   - value1:
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.KnowledgeKind.Value1Payload? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/KnowledgeStatus`.
+        public struct KnowledgeStatus: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/KnowledgeStatus/value1`.
+            @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                case proposed = "proposed"
+                case accepted = "accepted"
+                case rejected = "rejected"
+                case retired = "retired"
+            }
+            /// - Remark: Generated from `#/components/schemas/KnowledgeStatus/value1`.
+            public var value1: Components.Schemas.KnowledgeStatus.Value1Payload?
+            /// - Remark: Generated from `#/components/schemas/KnowledgeStatus/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `KnowledgeStatus`.
+            ///
+            /// - Parameters:
+            ///   - value1:
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.KnowledgeStatus.Value1Payload? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
+            }
+        }
         /// A label of a project, put on its issues.
         ///
         /// - Remark: Generated from `#/components/schemas/Label`.
@@ -4086,21 +4260,32 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/NewComment/idempotency_key`.
             public var idempotencyKey: Swift.String?
+            /// The agent to wake (one of the issue's company). Absent: the first agent the body
+            /// mentions (`@agent:<id>`, or `@<name>`, any case), else the agent working a `todo` or
+            /// `in_progress` issue (its owner), else its next actor. An open question on the issue is
+            /// answered by the comment and wakes its asker either way.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewComment/wake_agent_id`.
+            public var wakeAgentId: Swift.Int64?
             /// Creates a new `NewComment`.
             ///
             /// - Parameters:
             ///   - body:
             ///   - idempotencyKey: Makes a retry safe: the same key on the same issue posts (and wakes) once.
+            ///   - wakeAgentId: The agent to wake (one of the issue's company). Absent: the first agent the body
             public init(
                 body: Swift.String,
-                idempotencyKey: Swift.String? = nil
+                idempotencyKey: Swift.String? = nil,
+                wakeAgentId: Swift.Int64? = nil
             ) {
                 self.body = body
                 self.idempotencyKey = idempotencyKey
+                self.wakeAgentId = wakeAgentId
             }
             public enum CodingKeys: String, CodingKey {
                 case body
                 case idempotencyKey = "idempotency_key"
+                case wakeAgentId = "wake_agent_id"
             }
         }
         /// - Remark: Generated from `#/components/schemas/NewCompany`.
@@ -4422,6 +4607,57 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case name
                 case tags
+            }
+        }
+        /// A new version of a skill.
+        ///
+        /// - Remark: Generated from `#/components/schemas/NewSkillVersion`.
+        public struct NewSkillVersion: Codable, Hashable, Sendable {
+            /// The department or project id.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewSkillVersion/attach_id`.
+            public var attachId: Swift.Int64?
+            /// The role (matched exactly against an agent's role).
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewSkillVersion/attach_role`.
+            public var attachRole: Swift.String?
+            /// `company`, `department`, `role` or `project`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewSkillVersion/attach_to`.
+            public var attachTo: Swift.String
+            /// Markdown; at most the company's `skills.max_bytes`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewSkillVersion/body`.
+            public var body: Swift.String
+            /// - Remark: Generated from `#/components/schemas/NewSkillVersion/name`.
+            public var name: Swift.String
+            /// Creates a new `NewSkillVersion`.
+            ///
+            /// - Parameters:
+            ///   - attachId: The department or project id.
+            ///   - attachRole: The role (matched exactly against an agent's role).
+            ///   - attachTo: `company`, `department`, `role` or `project`.
+            ///   - body: Markdown; at most the company's `skills.max_bytes`.
+            ///   - name:
+            public init(
+                attachId: Swift.Int64? = nil,
+                attachRole: Swift.String? = nil,
+                attachTo: Swift.String,
+                body: Swift.String,
+                name: Swift.String
+            ) {
+                self.attachId = attachId
+                self.attachRole = attachRole
+                self.attachTo = attachTo
+                self.body = body
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case attachId = "attach_id"
+                case attachRole = "attach_role"
+                case attachTo = "attach_to"
+                case body
+                case name
             }
         }
         /// - Remark: Generated from `#/components/schemas/NewSprintBody`.
@@ -5001,7 +5237,7 @@ extension Components {
         public struct Posted: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/Posted/comment`.
             public var comment: Components.Schemas.Comment
-            /// The agent the comment woke: the issue's next actor, else its owner.
+            /// The agent the comment woke (see `NewComment.wake_agent_id`).
             ///
             /// - Remark: Generated from `#/components/schemas/Posted/woke_agent_id`.
             public var wokeAgentId: Swift.Int64?
@@ -5009,7 +5245,7 @@ extension Components {
             ///
             /// - Parameters:
             ///   - comment:
-            ///   - wokeAgentId: The agent the comment woke: the issue's next actor, else its owner.
+            ///   - wokeAgentId: The agent the comment woke (see `NewComment.wake_agent_id`).
             public init(
                 comment: Components.Schemas.Comment,
                 wokeAgentId: Swift.Int64? = nil
@@ -5735,6 +5971,47 @@ extension Components {
                     self.value1,
                     self.value2
                 ])
+            }
+        }
+        /// A project's harness permission policy (E3.10).
+        ///
+        /// - Remark: Generated from `#/components/schemas/ProjectPolicy`.
+        public struct ProjectPolicy: Codable, Hashable, Sendable {
+            /// What goes ahead without asking: a tool name (`Edit`), or `<tool>:<command prefix>`
+            /// (`Bash:npm run`), which never matches a command with shell operators. A path outside
+            /// the worktree always asks.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectPolicy/allow`.
+            public var allow: [Swift.String]?
+            /// `ask`: everything outside the allowlist asks; `accept_edits`: file edits inside the
+            /// run's worktree go ahead too; `sandboxed`: the harness acts without asking, only on a
+            /// sandboxed runner.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectPolicy/mode`.
+            public var mode: Components.Schemas.PermissionMode
+            /// Runs need a sandboxed runner; implied by the `sandboxed` mode.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ProjectPolicy/sandboxed`.
+            public var sandboxed: Swift.Bool?
+            /// Creates a new `ProjectPolicy`.
+            ///
+            /// - Parameters:
+            ///   - allow: What goes ahead without asking: a tool name (`Edit`), or `<tool>:<command prefix>`
+            ///   - mode: `ask`: everything outside the allowlist asks; `accept_edits`: file edits inside the
+            ///   - sandboxed: Runs need a sandboxed runner; implied by the `sandboxed` mode.
+            public init(
+                allow: [Swift.String]? = nil,
+                mode: Components.Schemas.PermissionMode,
+                sandboxed: Swift.Bool? = nil
+            ) {
+                self.allow = allow
+                self.mode = mode
+                self.sandboxed = sandboxed
+            }
+            public enum CodingKeys: String, CodingKey {
+                case allow
+                case mode
+                case sandboxed
             }
         }
         /// - Remark: Generated from `#/components/schemas/ProjectProfile`.
@@ -6752,6 +7029,21 @@ extension Components {
                 case tasks
             }
         }
+        /// - Remark: Generated from `#/components/schemas/Retirement`.
+        public struct Retirement: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Retirement/reason`.
+            public var reason: Swift.String
+            /// Creates a new `Retirement`.
+            ///
+            /// - Parameters:
+            ///   - reason:
+            public init(reason: Swift.String) {
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case reason
+            }
+        }
         /// The wake that will start a retry.
         ///
         /// - Remark: Generated from `#/components/schemas/Retried`.
@@ -7191,6 +7483,11 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/drained_at`.
             public var drainedAt: Components.Schemas.Timestamp?
+            /// Every harness with how its reported version stands against the tested ones (API
+            /// minor 10), under the runner's current settings.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/harness_status`.
+            public var harnessStatus: [Components.Schemas.RunnerHarness]
             /// Harness → version, from its last hello.
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/harnesses`.
@@ -7268,6 +7565,7 @@ extension Components {
             /// - Parameters:
             ///   - asleep: An offline Mac: most likely asleep (the "Wake my Mac" case).
             ///   - drainedAt: When the admin drained it: it takes no new run; its runs finish.
+            ///   - harnessStatus: Every harness with how its reported version stands against the tested ones (API
             ///   - harnesses: Harness → version, from its last hello.
             ///   - healthReason: Why it is unhealthy, when it is.
             ///   - id:
@@ -7287,6 +7585,7 @@ extension Components {
             public init(
                 asleep: Swift.Bool,
                 drainedAt: Components.Schemas.Timestamp? = nil,
+                harnessStatus: [Components.Schemas.RunnerHarness],
                 harnesses: Components.Schemas.Runner.HarnessesPayload,
                 healthReason: Swift.String? = nil,
                 id: Swift.Int64,
@@ -7306,6 +7605,7 @@ extension Components {
             ) {
                 self.asleep = asleep
                 self.drainedAt = drainedAt
+                self.harnessStatus = harnessStatus
                 self.harnesses = harnesses
                 self.healthReason = healthReason
                 self.id = id
@@ -7326,6 +7626,7 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case asleep
                 case drainedAt = "drained_at"
+                case harnessStatus = "harness_status"
                 case harnesses
                 case healthReason = "health_reason"
                 case id
@@ -7439,6 +7740,67 @@ extension Components {
                 case runnerId = "runner_id"
                 case usedBytes = "used_bytes"
                 case worktrees
+            }
+        }
+        /// One harness the runner can drive, judged against Citadel's tested versions (E3.6).
+        ///
+        /// - Remark: Generated from `#/components/schemas/RunnerHarness`.
+        public struct RunnerHarness: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/name`.
+            public var name: Swift.String
+            /// Whether runs are dispatched to it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/offered`.
+            public var offered: Swift.Bool
+            /// Why it is refused, or the note on an untested version.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/reason`.
+            public var reason: Swift.String?
+            /// `supported` (a tested version), `untested_newer` (newer than tested; runs unless the
+            /// settings refuse it), `too_old`, `known_bad`, `missing`, `unreadable` or
+            /// `unknown_harness` — open.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/status`.
+            public var status: Swift.String
+            /// The newest version Citadel's adapter was tested against.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/tested_up_to`.
+            public var testedUpTo: Swift.String?
+            /// What it reported; absent when not installed.
+            ///
+            /// - Remark: Generated from `#/components/schemas/RunnerHarness/version`.
+            public var version: Swift.String?
+            /// Creates a new `RunnerHarness`.
+            ///
+            /// - Parameters:
+            ///   - name:
+            ///   - offered: Whether runs are dispatched to it.
+            ///   - reason: Why it is refused, or the note on an untested version.
+            ///   - status: `supported` (a tested version), `untested_newer` (newer than tested; runs unless the
+            ///   - testedUpTo: The newest version Citadel's adapter was tested against.
+            ///   - version: What it reported; absent when not installed.
+            public init(
+                name: Swift.String,
+                offered: Swift.Bool,
+                reason: Swift.String? = nil,
+                status: Swift.String,
+                testedUpTo: Swift.String? = nil,
+                version: Swift.String? = nil
+            ) {
+                self.name = name
+                self.offered = offered
+                self.reason = reason
+                self.status = status
+                self.testedUpTo = testedUpTo
+                self.version = version
+            }
+            public enum CodingKeys: String, CodingKey {
+                case name
+                case offered
+                case reason
+                case status
+                case testedUpTo = "tested_up_to"
+                case version
             }
         }
         /// The end of a runner's own log, redacted by the runner and again by the server.
@@ -7878,6 +8240,7 @@ extension Components {
                 case tokens = "tokens"
                 case bytes = "bytes"
                 case perMinute = "per_minute"
+                case version = "version"
             }
             /// - Remark: Generated from `#/components/schemas/SettingUnit/value1`.
             public var value1: Components.Schemas.SettingUnit.Value1Payload?
@@ -8150,14 +8513,17 @@ extension Components {
         }
         /// - Remark: Generated from `#/components/schemas/SprintBody`.
         public struct SprintBody: Codable, Hashable, Sendable {
-            /// The planned sprint to join; absent takes it out of its sprint.
+            /// The sprint to join: a planned one, or an active one (a scope change: the issue needs
+            /// points, the sprint's committed points move by them, audited as `sprint.scope_added`);
+            /// absent takes it out of its planned or active sprint (`sprint.scope_removed` from an
+            /// active one). A closed sprint's scope is fixed.
             ///
             /// - Remark: Generated from `#/components/schemas/SprintBody/sprint_id`.
             public var sprintId: Swift.Int64?
             /// Creates a new `SprintBody`.
             ///
             /// - Parameters:
-            ///   - sprintId: The planned sprint to join; absent takes it out of its sprint.
+            ///   - sprintId: The sprint to join: a planned one, or an active one (a scope change: the issue needs
             public init(sprintId: Swift.Int64? = nil) {
                 self.sprintId = sprintId
             }
@@ -8550,6 +8916,47 @@ extension Components {
                     self.value1,
                     self.value2
                 ])
+            }
+        }
+        /// A new version of an accepted entry.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Supersession`.
+        public struct Supersession: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Supersession/body`.
+            public var body: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Supersession/kind`.
+            public var kind: Components.Schemas.KnowledgeKind?
+            /// Why the old one goes; "superseded by #<new>" when absent.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Supersession/reason`.
+            public var reason: Swift.String?
+            /// The old entry's when absent.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Supersession/title`.
+            public var title: Swift.String?
+            /// Creates a new `Supersession`.
+            ///
+            /// - Parameters:
+            ///   - body:
+            ///   - kind:
+            ///   - reason: Why the old one goes; "superseded by #<new>" when absent.
+            ///   - title: The old entry's when absent.
+            public init(
+                body: Swift.String,
+                kind: Components.Schemas.KnowledgeKind? = nil,
+                reason: Swift.String? = nil,
+                title: Swift.String? = nil
+            ) {
+                self.body = body
+                self.kind = kind
+                self.reason = reason
+                self.title = title
+            }
+            public enum CodingKeys: String, CodingKey {
+                case body
+                case kind
+                case reason
+                case title
             }
         }
         /// One issue's runs and what they used. Dollars are the priced runs' only; unpriced and
@@ -9395,8 +9802,13 @@ extension Components {
                 case kind
             }
         }
+        /// Needs an open blocker: link one first (`PUT /issues/{id}/blockers/{blocker_id}`), or
+        /// name it here to link it and block in one step.
+        ///
         /// - Remark: Generated from `#/components/schemas/TransitionBlock`.
         public struct TransitionBlock: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/TransitionBlock/blocker_issue_id`.
+            public var blockerIssueId: Swift.Int64?
             /// - Remark: Generated from `#/components/schemas/TransitionBlock/kind`.
             @frozen public enum KindPayload: String, Codable, Hashable, Sendable, CaseIterable {
                 case block = "block"
@@ -9406,11 +9818,17 @@ extension Components {
             /// Creates a new `TransitionBlock`.
             ///
             /// - Parameters:
+            ///   - blockerIssueId:
             ///   - kind:
-            public init(kind: Components.Schemas.TransitionBlock.KindPayload) {
+            public init(
+                blockerIssueId: Swift.Int64? = nil,
+                kind: Components.Schemas.TransitionBlock.KindPayload
+            ) {
+                self.blockerIssueId = blockerIssueId
                 self.kind = kind
             }
             public enum CodingKeys: String, CodingKey {
+                case blockerIssueId = "blocker_issue_id"
                 case kind
             }
         }

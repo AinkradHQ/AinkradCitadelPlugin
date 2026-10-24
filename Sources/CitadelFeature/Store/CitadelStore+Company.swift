@@ -6,6 +6,14 @@ import Foundation
 enum Detail: Hashable {
     case agent(Int64)
     case run(Int64)
+
+    /// The sidebar item a detail page belongs to.
+    var screen: Screen {
+        switch self {
+        case .agent: .org
+        case .run: .runs
+        }
+    }
 }
 
 /// The selected company's data: one load when its stream goes live, then targeted reads the events ask for.
@@ -14,6 +22,7 @@ extension CitadelStore {
 
     func open(_ detail: Detail?) {
         self.detail = detail
+        if detail != nil { isShowingSettings = false }
         guard let detail, let model, let server else { return }
         Task {
             switch detail {
@@ -40,6 +49,7 @@ extension CitadelStore {
                 approval: approval.id, approve: approve, raiseTokens: raiseTokens, reply: reply)
             {
                 let title = model?.summary(approval).title.replacingOccurrences(of: "Commit sprint", with: "sprint")
+                    .replacingOccurrences(of: "Commit ", with: "")
                 actionFailure = ActionFailure(
                     title: "Couldn't \(approve ? "approve" : "deny") \(title ?? "it")", answer: answer,
                     outcome: approve ? "Nothing was approved." : "Nothing was denied.")
@@ -196,6 +206,14 @@ extension CitadelStore {
         case .run(let run):
             guard let info = await server.run(run) else { return }
             model.runs[run] = info
+            if let index = model.companyRuns?.firstIndex(where: { $0.id == run }) {
+                model.companyRuns?[index] = info
+            } else if model.companyRuns != nil {
+                model.companyRuns?.insert(info, at: 0)
+                if let issue = info.issueID, model.issues[issue] == nil {
+                    model.issues[issue] = await server.issue(issue)
+                }
+            }
             if let index = model.agentRuns[info.agentID]?.firstIndex(where: { $0.id == run }) {
                 model.agentRuns[info.agentID]?[index] = info
             } else if model.agentRuns[info.agentID] != nil {
@@ -237,7 +255,7 @@ extension CitadelStore {
                 case "agent": return model.agent(id)?.name ?? "Agent"
                 case "company": return company?.name ?? "Company"
                 case "department": return model.departments.first { $0.id == id }?.name ?? "Department"
-                case "sprint": return model.sprint?.id == id ? "Sprint \(model.sprint?.name ?? "")" : "Sprint"
+                case "sprint": return model.sprint.flatMap { $0.id == id ? $0.title : nil } ?? "Sprint"
                 default: return "Project"
                 }
             }

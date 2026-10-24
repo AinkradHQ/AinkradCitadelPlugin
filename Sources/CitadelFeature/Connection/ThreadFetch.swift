@@ -11,17 +11,6 @@ extension CitadelServer {
         }
     }
 
-    /// Posts your comment on an issue: it answers the issue's newest open question, and wakes the agent.
-    func postComment(issue: Int64, body: String, idempotencyKey: String = UUID().uuidString) async -> CommentInfo? {
-        await read("postComment") {
-            guard
-                case .ok(let ok) = try await client.postComment(
-                    path: .init(id: issue), body: .json(.init(body: body, idempotencyKey: idempotencyKey)))
-            else { return nil }
-            return CommentInfo(try ok.body.json.comment)
-        }
-    }
-
     /// The questions in a requirement's thread (open cards and answered receipts).
     func questions(requirement: Int64) async -> [QuestionInfo]? {
         await read("getRequirementThread") {

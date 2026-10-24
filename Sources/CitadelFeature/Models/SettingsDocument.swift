@@ -7,6 +7,9 @@ struct SettingsDocument: Codable, Equatable, Sendable {
     var server: String?
     /// The company the window works in (`X-Citadel-Company`).
     var companyID: Int64?
+    /// The company last chosen on each server (by origin), so a reconnect lands where you were. Optional: a
+    /// document saved before it has none.
+    var companyByServer: [String: Int64]?
     /// True once a connect has succeeded: from then on, losing the server is a slim bar over the shell, not the
     /// connect card (mockup 01 note 5).
     var hasConnected = false

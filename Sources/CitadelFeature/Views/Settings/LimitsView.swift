@@ -166,7 +166,7 @@ struct LimitsView: View {
 
     /// "**You** · stall timeout · CIT 15 min → **10 min**".
     private func changeLine(_ change: SettingChangeInfo) -> Text {
-        let who = model.agent(change.agentID).map { "\($0.name) (\($0.role))" } ?? "You"
+        let who = model.agent(change.agentID).map(\.nameAndRole) ?? "You"
         let unit = page.server.first { $0.key == change.key }?.unit ?? "count"
         let old = change.old.map { ScopedSetting.format($0, unit: unit) } ?? "inherited"
         let new = change.new.map { ScopedSetting.format($0, unit: unit) } ?? "inherited"

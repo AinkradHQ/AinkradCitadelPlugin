@@ -147,7 +147,7 @@ private struct RequirementRow: View {
             AinkradBudgetBar(
                 label: requirement.key, value: Double(requirement.donePoints),
                 limit: Double(max(requirement.points, 1)), warnFraction: nil, showsHardLimit: false,
-                tone: isDone ? .success : nil)
+                tone: isDone ? .success : .progress(Double(requirement.donePoints), of: Double(requirement.points)))
         }
         .padding(.horizontal, skin.size.s10)
         .padding(.vertical, skin.size.s8)

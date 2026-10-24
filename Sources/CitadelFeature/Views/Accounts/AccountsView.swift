@@ -135,7 +135,7 @@ private struct FallbackChainTile: View {
             AinkradSelect(
                 items: agents.map(\.id),
                 selection: Binding(get: { selected }, set: { store.showChain(of: $0) }),
-                label: { model.agent($0).map { "\($0.name) · \($0.role)" } ?? "Agent" }
+                label: { model.agent($0).map(\.nameDotRole) ?? "Agent" }
             )
             .fixedSize()
         }

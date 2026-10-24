@@ -64,9 +64,13 @@ struct Sidebar: View {
                 .outlineBox()
             }
             AinkradSearchField(text: $search, placeholder: "Search agents, issues, runs").keyHint("⌘K")
-            AinkradNavList(items: Screen.allCases, selection: navSelection, icon: { $0.icon }, label: { $0.title })
-                .counts { screen in store.model?.navCount(screen) }
-                .fixedSize(horizontal: false, vertical: true)
+            // Optional rows so Settings can select none of them; every row is a screen.
+            AinkradNavList(
+                items: Screen.allCases.map(Optional.some), selection: navSelection, icon: { $0?.icon },
+                label: { $0?.title ?? "" }
+            )
+            .counts { screen in screen.flatMap { store.model?.navCount($0) } }
+            .fixedSize(horizontal: false, vertical: true)
             if let model = store.model, !model.liveRuns.isEmpty { liveNow(model) }
             Spacer(minLength: 0)
             footer
@@ -79,11 +83,14 @@ struct Sidebar: View {
         .background(theme.surface.opacity(skin.opacity.o35))
     }
 
-    private var navSelection: Binding<Screen> {
+    /// The screen the pane shows: an opened run sits under Runs, an opened agent under Org, and Settings (its own
+    /// sections list) under none.
+    private var navSelection: Binding<Screen?> {
         Binding(
-            get: { store.screen },
+            get: { store.isShowingSettings ? nil : store.detail?.screen ?? store.screen },
             set: {
-                store.screen = $0
+                guard let screen = $0 else { return }
+                store.screen = screen
                 store.detail = nil
                 store.isShowingSettings = false
             })
@@ -166,8 +173,10 @@ private struct LiveNowRow: View {
                 .padding(.top, skin.size.s6).breathing(run.state == "running")
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 HStack(spacing: skin.size.s6) {
-                    Text("\(agent?.name ?? "Agent") · \(issue?.title ?? "run #\(run.id)")").citadelFont("t13")
-                        .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                    Text(issue.map { "\(agent?.name ?? "Agent") · \($0.title)" } ?? model.runTitle(run)).citadelFont(
+                        "t13"
+                    )
+                    .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                     Spacer(minLength: skin.size.s4)
                     Text(Fmt.age(Date().timeIntervalSince(run.startedAt ?? run.queuedAt))).citadelFont(
                         "t10_5", mono: true

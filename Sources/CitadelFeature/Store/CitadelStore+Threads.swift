@@ -6,17 +6,29 @@ extension CitadelStore {
     /// "Reply only": your reply as a comment on the approval's issue, which wakes the asker without deciding.
     func replyOnly(_ approval: ApprovalInfo, text: String) {
         guard let issue = approval.issueID else { return }
-        send(text, on: issue)
+        send(text, on: issue, waking: approval.agentID ?? approval.requestedBy)
     }
 
     /// Sends a message in an agent thread: a comment on the issue. It answers the issue's newest open question
-    /// (and clears its card in the requirement thread too) and wakes the agent.
-    func send(_ text: String, on issue: Int64) {
+    /// (and clears its card in the requirement thread too) and wakes `agent` (API minor 14) — the thread's agent,
+    /// not whichever the server would pick; the agent it woke is noted on the thread.
+    func send(_ text: String, on issue: Int64, waking agent: Int64?) {
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, let server, let model else { return }
+        let name = model.agent(agent)?.name
         Task {
-            guard let comment = await server.postComment(issue: issue, body: body) else { return }
-            model.posted(comment)
+            switch await server.post(issue: issue, body: body, wake: agent) {
+            case .success(let posted):
+                model.posted(posted.comment)
+                if let woke = posted.wokeAgentID {
+                    model.woke(
+                        WakeNote(agentID: woke, source: "comment", reason: "your message", at: Date()), on: issue)
+                }
+            case .failure(let answer):
+                actionFailure = ActionFailure(
+                    title: "Couldn't send your message\(name.map { " to \($0)" } ?? "")", answer: answer,
+                    outcome: "Nothing was sent; nobody was woken.")
+            }
         }
     }
 
@@ -26,7 +38,10 @@ extension CitadelStore {
         Task {
             if let comments = await server.comments(issue: thread.issueID) { model.comments[thread.issueID] = comments }
             if let runs = await server.agentRuns(thread.agentID, limit: 50) { model.agentRuns[thread.agentID] = runs }
-            if let info = await server.issue(thread.issueID) { model.issues[thread.issueID] = info }
+            if let info = await server.issue(thread.issueID) {
+                model.issues[thread.issueID] = info
+                await refreshIssueWork(info.id, project: info.projectID, model: model, server: server)
+            }
         }
     }
 

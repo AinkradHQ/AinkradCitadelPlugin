@@ -38,15 +38,11 @@ struct CompanySettingsView: View {
                         SettingsView(store: store)
                         Spacer(minLength: 0)
                     }
-                default:
-                    VStack(alignment: .leading, spacing: 0) {
-                        PaneTitle(title: section.title, crumb: nil)
-                        AinkradEmptyState(
-                            icon: "gearshape", title: section.title,
-                            message: "This section arrives in a later Citadel build; the server already keeps it."
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                case (.devices, let model?): DevicesSection(store: store, page: model.limitsPage)
+                case (.accounts, let model?): AccountAssignmentSection(store: store, model: model)
+                case (.audit, let model?): AuditLogSection(store: store, model: model)
+                case (.skills, let model?): SkillsSection(store: store, model: model)
+                default: FirstLoadView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

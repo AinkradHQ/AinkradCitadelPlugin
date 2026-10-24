@@ -17,7 +17,7 @@ final class PoolActionTests: XCTestCase {
             }
             return .init(
                 json:
-                    #"{"id":4,"name":"oracle-arm","asleep":false,"harnesses":{},"logins":[],"status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00.000Z"}"#
+                    #"{"id":4,"name":"oracle-arm","asleep":false,"harnesses":{},"harness_status":[],"logins":[],"status":"offline","tags":["linux"],"wake_mode":"when_back","wake_requested_at":"2026-10-23T10:00:00.000Z"}"#
             )
         }
         let (store, model) = try connectedStore()

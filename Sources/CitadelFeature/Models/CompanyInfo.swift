@@ -102,6 +102,8 @@ struct IssueInfo: Identifiable, Equatable, Sendable {
     /// Who moves it next (the engine invariant): an agent, you, or a timer.
     var nextActor: NextActorInfo?
     var points: Int?
+    /// The planned or active sprint it is in.
+    var sprintID: Int64? = nil
 }
 
 /// Who moves an issue next.

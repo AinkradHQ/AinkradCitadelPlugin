@@ -28,11 +28,11 @@ struct ProposeAgentSheet: View {
                 AinkradMenuButton(
                     items: [AinkradMenuItem(title: "Nobody", systemName: nil) { draft.reportsTo = nil }]
                         + model.agents.values.sorted { $0.name < $1.name }.map { agent in
-                            AinkradMenuItem(title: "\(agent.name) · \(agent.role)", systemName: nil) {
+                            AinkradMenuItem(title: agent.nameDotRole, systemName: nil) {
                                 draft.reportsTo = agent.id
                             }
                         }
-                ) { Text(manager.map { "\($0.name) · \($0.role)" } ?? "Nobody") }
+                ) { Text(manager.map(\.nameDotRole) ?? "Nobody") }
             }
             AinkradFormRow(title: "Runner tags", help: "Space-separated; empty runs anywhere.") {
                 AinkradTextField(text: $draft.runnerTags, placeholder: "macos xcode-27").monospaced()

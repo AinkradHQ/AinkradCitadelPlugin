@@ -67,7 +67,7 @@ struct RunCard: View {
         let issue = model.issue(run.issueID)
         return Text(issue.map { "\($0.key) " } ?? "").foregroundStyle(theme.accentSecondary)
             .font(skin.font(AinkradFontToken(sizeKey: "t11", mono: "family")))
-            + Text(issue?.title ?? "Run #\(run.id)").foregroundStyle(skin.color(skin.text.primary))
+            + Text(issue?.title ?? model.runTitle(run)).foregroundStyle(skin.color(skin.text.primary))
     }
 
     @ViewBuilder private func toolLine(_ word: String?) -> some View {
@@ -188,7 +188,7 @@ struct SpendTile: View {
                 if let spend = model.spend {
                     SpendSplitBar(spend: spend)
                     Text(
-                        "To date: priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(spend.unpricedRuns) runs · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
+                        "To date: priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(Wording.count(spend.unpricedRuns, "run")) · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
                     )
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                 }

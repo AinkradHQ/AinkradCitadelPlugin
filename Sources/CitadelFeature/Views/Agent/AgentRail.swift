@@ -105,6 +105,7 @@ struct WeekOfRuns {
         let succeeded = recent.filter { $0.endWord == "succeeded" }.count
         let failed = recent.filter { ["failed", "runner lost", "timed out"].contains($0.endWord) }.count
         let capped = recent.filter { $0.endWord == "cap hit" }.count
-        caption = "\(recent.count) runs · \(succeeded) succeeded · \(failed) failed · \(capped) cap hit"
+        caption =
+            "\(Wording.count(recent.count, "run")) · \(succeeded) succeeded · \(failed) failed · \(capped) cap hit"
     }
 }

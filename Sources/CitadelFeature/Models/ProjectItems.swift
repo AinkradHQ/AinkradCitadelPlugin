@@ -30,6 +30,8 @@ final class ProjectsPage {
     var declared: [Int64: (issue: IssueInfo, repos: [String])] = [:]
     /// Why the last repo action was refused ("an open issue still touches it").
     var problem: ServerAnswer?
+    /// Each project's permission policy (API minor 11): its mode and allowlist.
+    var policies: [Int64: PolicyInfo] = [:]
     /// Each project's profile history once "History →" opened it, newest first.
     var history: [Int64: [ProfileChangeInfo]] = [:]
 }

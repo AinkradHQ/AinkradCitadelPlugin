@@ -9,7 +9,7 @@ import XCTest
 @MainActor
 final class RunnerAdminTests: XCTestCase {
     private static let reported =
-        #"{"id":3,"name":"ahmed-mbp","status":"offline","tags":["macos"],"asleep":true,"harnesses":{"claude":"2.1.296","codex":"0.88.0"},"logins":[{"dir":"claude","harness":"claude","state":"logged_out","account_ids":[]},{"dir":"codex","harness":"codex","state":"logged_in","account_ids":[]},{"dir":"accounts/claude-a","harness":"claude","state":"logged_in","account_ids":[2]}],"slots":2,"uptime_secs":3600,"power_nap":true,"power_nap_applied":false}"#
+        #"{"id":3,"name":"ahmed-mbp","status":"offline","tags":["macos"],"asleep":true,"harnesses":{"claude":"2.1.296","codex":"0.88.0"},"harness_status":[{"name":"claude","version":"2.1.296","status":"untested_newer","tested_up_to":"2.1.200","offered":true},{"name":"codex","version":"0.88.0","status":"too_old","offered":false,"reason":"older than 0.90"}],"logins":[{"dir":"claude","harness":"claude","state":"logged_out","account_ids":[]},{"dir":"codex","harness":"codex","state":"logged_in","account_ids":[]},{"dir":"accounts/claude-a","harness":"claude","state":"logged_in","account_ids":[2]}],"slots":2,"uptime_secs":3600,"power_nap":true,"power_nap_applied":false}"#
 
     func testARunnerCarriesItsHarnessesLoginsSlotsAndSleep() throws {
         let runner = RunnerInfo(try JSONDecoder().decode(Schemas.Runner.self, from: Data(Self.reported.utf8)))
@@ -20,6 +20,10 @@ final class RunnerAdminTests: XCTestCase {
         XCTAssertEqual(runner.harnessRows.map(\.name), ["claude", "codex"])
         XCTAssertEqual(
             runner.harnessRows.map(\.login), ["logged_out", "logged_in"], "an account's login is not the harness's")
+        XCTAssertEqual(
+            runner.harnessRows.map { $0.status?.word }, ["newer than tested (2.1.200)", "older than 0.90"],
+            "API minor 10: each harness against the tested versions")
+        XCTAssertEqual(runner.harnessRows.map { $0.status?.offered }, [true, false])
         XCTAssertEqual(runner.loggedOut.map(\.dir), ["claude"])
         XCTAssertEqual(runner.loggedOut.first?.command, "CLAUDE_CONFIG_DIR=$HOME/.citadel-runner/claude claude /login")
         XCTAssertNil(runner.uptime(now: Date()), "an offline runner shows no uptime")
@@ -59,7 +63,7 @@ final class RunnerAdminTests: XCTestCase {
             }
             return .init(
                 json:
-                    #"{"key":"rk_live_once","runner":{"id":9,"name":"hetzner-3","status":"offline","tags":["linux","docker"],"asleep":false,"harnesses":{},"logins":[]}}"#
+                    #"{"key":"rk_live_once","runner":{"id":9,"name":"hetzner-3","status":"offline","tags":["linux","docker"],"asleep":false,"harnesses":{},"harness_status":[],"logins":[]}}"#
             )
         }
         let (store, model) = try connectedStore()
@@ -81,7 +85,7 @@ final class RunnerAdminTests: XCTestCase {
             let drained = request.httpMethod == "POST" ? #","drained_at":"2026-10-23T10:00:00.000Z""# : ""
             return .init(
                 json:
-                    #"{"id":1,"name":"hetzner-1","status":"online","tags":[],"asleep":false,"harnesses":{},"logins":[]\#(drained)}"#
+                    #"{"id":1,"name":"hetzner-1","status":"online","tags":[],"asleep":false,"harnesses":{},"harness_status":[],"logins":[]\#(drained)}"#
             )
         }
         let (store, model) = try connectedStore()
@@ -100,7 +104,7 @@ final class RunnerAdminTests: XCTestCase {
         FakeServer.serve { _ in
             .init(
                 json:
-                    #"{"id":3,"name":"ahmed-mbp","status":"offline","tags":[],"asleep":true,"harnesses":{},"logins":[],"power_nap":true}"#
+                    #"{"id":3,"name":"ahmed-mbp","status":"offline","tags":[],"asleep":true,"harnesses":{},"harness_status":[],"logins":[],"power_nap":true}"#
             )
         }
         let (store, model) = try connectedStore()

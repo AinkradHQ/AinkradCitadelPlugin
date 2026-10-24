@@ -105,7 +105,9 @@ struct CostView: View {
                     action: ("Set a price…", { pricing = true }))
                 CostKPI(
                     label: "Subscription", value: Fmt.tokens(t.subscriptionTokens), unit: "tokens", tone: nil,
-                    detail: Text("\(t.subscriptionRuns) runs on Claude Max / Codex Pro logins — tokens, not dollars"))
+                    detail: Text(
+                        "\(Wording.count(t.subscriptionRuns, "run")) on Claude Max / Codex Pro logins — tokens, not dollars"
+                    ))
             }
             .fixedSize(horizontal: false, vertical: true)
             if t.pricedTokens + t.unpricedTokens + t.subscriptionTokens > 0 { SpendSplitBar(spend: t.spend) }

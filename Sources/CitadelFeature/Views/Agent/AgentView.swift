@@ -211,8 +211,7 @@ private struct RecentRunsCard: View {
                     AinkradListRow(
                         onTap: { store.open(.run(run.id)) },
                         leading: { Circle().fill(color(run)).frame(width: skin.size.s10, height: skin.size.s10) },
-                        title:
-                            "\(model.issue(run.issueID)?.key ?? "#\(run.id)")  \(model.issue(run.issueID)?.title ?? "Run \(run.id)")",
+                        title: model.issue(run.issueID).map { "\($0.key)  \($0.title)" } ?? model.runTitle(run),
                         subtitle: run.state == "succeeded" ? nil : run.terminalReason,
                         trailing: {
                             HStack(spacing: skin.size.s16) {

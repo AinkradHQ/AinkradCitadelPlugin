@@ -297,13 +297,13 @@ extension CompanyModel {
     /// "CEO", or "PO Mira" once the CEO handed it to a team (decision #45).
     func ownerWord(_ id: Int64?) -> String {
         guard let owner = agent(id) else { return "CEO" }
-        return owner.orgRole == "ceo" ? "CEO" : "\(owner.role) \(owner.name)"
+        return owner.orgRole == "ceo" ? "CEO" : Wording.name(owner.role, owner.name, separator: " ")
     }
 
     /// "Aldric (CEO)", "Mira (PO)".
     func ownerName(_ id: Int64?) -> String {
         guard let owner = agent(id) ?? ceo else { return "the CEO" }
-        return "\(owner.name) (\(owner.orgRole == "ceo" ? "CEO" : owner.role))"
+        return Wording.parenthesized(owner.name, owner.orgRole == "ceo" ? "CEO" : owner.role)
     }
 
     /// A tree task's glyph: waiting on you when its issue has an open question.

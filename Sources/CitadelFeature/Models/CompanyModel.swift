@@ -80,10 +80,21 @@ final class CompanyModel {
     var notes: [Int64: [RunNote]] = [:]
     /// The repos each issue touches (decision #51), for the run's worktrees.
     var issueRepos: [Int64: [String]] = [:]
+    /// The Runs screen's runs, newest first; `nil` until it first opens.
+    var companyRuns: [RunInfo]?
     /// The agent page's runs, newest first.
     var agentRuns: [Int64: [RunInfo]] = [:]
     /// The newest tool call of each live run ("Bash cargo test -p citadel-server replay").
     var toolNow: [Int64: String] = [:]
+    /// What blocks each opened issue, its project's sprints and issues (the thread's blocker and sprint menus).
+    var blockers: [Int64: [IssueInfo]] = [:]
+    var projectSprints: [Int64: [ProjectSprintInfo]] = [:]
+    var projectIssues: [Int64: [IssueInfo]] = [:]
+    /// The wakes seen on each issue, oldest first: whom they woke and why (API minor 14 says which agent).
+    var wakes: [Int64: [WakeNote]] = [:]
+    /// Each issue's newest PR trouble seen on the stream: a refused branch push (`pr.push_failed`, the PR
+    /// request's "push rejected: …") or a failed forge call (`pr.error`); cleared once its PR opens.
+    var prProblems: [Int64: PRProblem] = [:]
     /// Uploaded agent images (decision #61), drawn instead of the orb.
     var avatars: [Int64: NSImage] = [:]
     var isLoaded = false
@@ -143,6 +154,11 @@ final class CompanyModel {
         case .transcript(let t):
             return received(TranscriptChunkInfo(t.chunk), run: t.runId)
         case .wake(let wake):
+            if let issue = wake.issueId {
+                woke(
+                    WakeNote(agentID: wake.agentId, source: wake.source.word, reason: wake.reason, at: event.at),
+                    on: issue)
+            }
             var reloads: Set<Reload> = [.agent(wake.agentId)]
             if let issue = wake.issueId, issues[issue] == nil { reloads.insert(.issue(issue)) }
             return reloads
@@ -151,6 +167,18 @@ final class CompanyModel {
                 action: audit.action, entity: audit.entityId, kind: audit.entityKind, run: audit.runId,
                 details: flatFields(audit.details.value), at: event.at)
         }
+    }
+
+    /// Records a wake on an issue, once (the stream and your own post can both report it).
+    func woke(_ note: WakeNote, on issue: Int64) {
+        var notes = wakes[issue] ?? []
+        if let last = notes.last, last.agentID == note.agentID, last.source == note.source,
+            abs(last.at.timeIntervalSince(note.at)) < 10
+        {
+            return
+        }
+        notes.append(note)
+        wakes[issue] = Array(notes.suffix(20))
     }
 
     func received(_ chunk: TranscriptChunkInfo, run: Int64) -> Set<Reload> {
@@ -192,6 +220,23 @@ final class CompanyModel {
         case "runner": return [.runners]
         case "project": return entity.map { [.profile($0)] } ?? []
         case "sprint": return [.sprint]
+        case "pr":
+            guard let entity, kind == nil || kind == "issue" else { return [] }
+            switch action {
+            case "pr.push_failed":
+                prProblems[entity] = PRProblem(
+                    text:
+                        "Push rejected for \(details["branch"] ?? "the branch"): \(details["reason"] ?? "no reason given")",
+                    workflow: details["workflow"] == "true", at: at)
+            case "pr.error":
+                prProblems[entity] = PRProblem(
+                    text:
+                        "The PR request failed\(details["phase"].map { " (\($0))" } ?? ""): \(details["error"] ?? "")",
+                    workflow: false, at: at)
+            case "pr.opened": prProblems[entity] = nil
+            default: break
+            }
+            return comments[entity] != nil ? [.comments(entity), .issueFresh(entity)] : [.issueFresh(entity)]
         case "account": return [.accounts, .settings]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
@@ -209,6 +254,22 @@ final class CompanyModel {
         default: return []
         }
     }
+}
+
+/// An issue's PR trouble: a refused branch push or a failed forge call, as the issue's PR request records it.
+struct PRProblem: Equatable, Sendable {
+    var text: String
+    /// Refused for changing workflow files: a `workflow_push` approval waits for a person to push it.
+    var workflow: Bool
+    var at: Date
+}
+
+/// One wake on an issue: whom, from what (`comment`, `assignment`, `blocker_closed`, …) and the server's reason.
+struct WakeNote: Equatable, Sendable {
+    var agentID: Int64
+    var source: String
+    var reason: String
+    var at: Date
 }
 
 extension RunNote {

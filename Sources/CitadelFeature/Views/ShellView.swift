@@ -14,6 +14,12 @@ struct ShellView: View {
         HStack(spacing: 0) {
             Sidebar(store: store)
             VStack(alignment: .leading, spacing: 0) {
+                // Mockup 11 B's bar, once for the whole pane and outside every screen's dimmed body: "Retry now"
+                // stays live for as long as the server is away, whichever screen (or Settings) is open.
+                if isOffline {
+                    OfflineBar(store: store).padding(.top, skin.size.s10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if store.isShowingSettings {
                     CompanySettingsView(store: store)
                 } else {
@@ -90,6 +96,7 @@ struct ShellView: View {
         case (nil, .projects): ProjectsView(store: store, model: model)
         case (nil, .accounts): AccountsView(store: store, model: model)
         case (nil, .runners): RunnersView(store: store, model: model)
+        case (nil, .runs): RunsView(store: store, model: model)
         default: placeholder
         }
     }
@@ -99,8 +106,7 @@ struct ShellView: View {
             PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
             AinkradEmptyState(
                 icon: store.screen.icon, title: store.screen.title,
-                message:
-                    "This screen arrives in the next Citadel build. The connection, the company and its live events are ready."
+                message: "Nothing is cached for this screen yet; it fills in as soon as the server answers."
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .offlineDimmed()
@@ -120,7 +126,7 @@ extension EnvironmentValues {
 }
 
 /// The main pane's title row: the title, an optional crumb under it, actions on the right. Offline, the crumb says
-/// so, the amber bar follows, and the rest of the screen (`dimmed`) fades.
+/// so (the shell draws the amber bar above the pane), and the rest of the screen (`dimmed`) fades.
 struct PaneTitle<Trailing: View>: View {
     let title: String
     let crumb: Text?
@@ -153,9 +159,6 @@ struct PaneTitle<Trailing: View>: View {
             .padding(.horizontal, skin.size.s20)
             .padding(.top, skin.size.s14)
             .padding(.bottom, skin.size.s10)
-            if let offline {
-                OfflineBar(store: offline.store).transition(.move(edge: .top).combined(with: .opacity))
-            }
         }
     }
 }
