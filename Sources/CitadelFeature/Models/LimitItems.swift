@@ -28,6 +28,9 @@ final class LimitsPage {
     /// The Devices section's keys and the Audit log's entries; `nil` until the section first opens.
     var devices: [DeviceInfo]?
     var auditLog: [AuditLine]?
+    /// The audit log's next page (older rows); `nil` on the last. Its action-prefix filter, `""` for all.
+    var auditNext: Int64?
+    var auditKind = ""
     /// The Skills section's versions; `nil` until it first opens.
     var skills: [SkillInfo]?
 }

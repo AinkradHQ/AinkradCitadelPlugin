@@ -97,7 +97,7 @@ struct ProjectsView: View {
 
 /// The groups of a profile, in page order: the "On this page" index and the scroll targets.
 enum ProfileSection: String, CaseIterable, Hashable {
-    case proposals, repositories, done, branches, environments, models, policies, limits, docs
+    case proposals, repositories, done, branches, environments, models, policies, knowledge, limits, docs
 
     func title(proposals: Int, repos: Int, overridden: Int) -> String {
         switch self {
@@ -108,6 +108,7 @@ enum ProfileSection: String, CaseIterable, Hashable {
         case .environments: "Environments"
         case .models: "Models per role"
         case .policies: "Policies"
+        case .knowledge: "Knowledge"
         case .limits: "Limits · \(overridden) overridden"
         case .docs: "Docs & links"
         }

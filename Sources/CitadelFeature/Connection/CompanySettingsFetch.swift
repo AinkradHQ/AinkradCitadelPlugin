@@ -21,8 +21,24 @@ struct AuditLine: Identifiable, Equatable, Sendable {
     var details: [String: String]
 }
 
+extension AuditLine {
+    init(_ entry: Schemas.AuditEntry) {
+        let actor: String =
+            switch entry.actor {
+            case .agent(let a): "agent:\(a.agentId)"
+            case .runner(let r): "runner:\(r.runnerId)"
+            case .user: "you"
+            case .system: "Citadel"
+            }
+        self.init(
+            seq: entry.seq, at: entry.at, action: entry.action, actor: actor,
+            entity: entry.entityKind.map { kind in entry.entityId.map { "\(kind) \($0)" } ?? kind },
+            details: flatFields(entry.details.value))
+    }
+}
+
 /// Company settings' sections backed by the API: devices (list, revoke), account assignment (assign, unassign —
-/// the admin's), and the audit log (the audited changes the event feed carries).
+/// the admin's), and the audit log (`listAudit`, paged).
 extension CitadelServer {
     func devices() async -> [DeviceInfo]? {
         await read("listDevices") {
@@ -48,29 +64,16 @@ extension CitadelServer {
         }
     }
 
-    /// The company's newest audited changes, newest first: the audit entries among its last `window` events.
-    func auditLog(window: Int64 = 1000) async -> [AuditLine]? {
-        let latest: Int64? = await read("latestEvent") {
-            guard case .ok(let ok) = try await client.latestEvent() else { return nil }
-            return try ok.body.json.seq
+    /// A page of the company's audit log (API minor 16), newest first: rows below `before` (the previous page's
+    /// `next`), only actions starting with `kind` when set. `next` is absent on the last page.
+    func auditLog(before: Int64? = nil, kind: String? = nil) async -> (lines: [AuditLine], next: Int64?)? {
+        await read("listAudit") {
+            guard
+                case .ok(let ok) = try await client.listAudit(
+                    query: .init(before: before, limit: 100, kind: kind.nonEmpty))
+            else { return nil }
+            let page = try ok.body.json
+            return (page.items.map(AuditLine.init), page.nextBefore)
         }
-        guard let latest, let page = try? await replay(after: max(0, latest - window), limit: Int(window)) else {
-            return nil
-        }
-        return page.items.compactMap { frame -> AuditLine? in
-            guard let event = frame.event, case .audit(let audit) = event.payload else { return nil }
-            let actor: String =
-                switch audit.actor {
-                case .agent(let a): "agent:\(a.agentId)"
-                case .runner(let r): "runner:\(r.runnerId)"
-                case .user: "you"
-                case .system: "Citadel"
-                }
-            return AuditLine(
-                seq: event.seq, at: event.at, action: audit.action, actor: actor,
-                entity: audit.entityKind.map { kind in audit.entityId.map { "\(kind) \($0)" } ?? kind },
-                details: flatFields(audit.details.value))
-        }
-        .reversed()
     }
 }

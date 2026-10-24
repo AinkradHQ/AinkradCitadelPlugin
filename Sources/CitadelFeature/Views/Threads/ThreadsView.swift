@@ -107,19 +107,7 @@ private struct ThreadDetail: View {
                 }
             }
             if let issue { IssueControls(store: store, model: model, issue: issue) }
-            if let problem = model.prProblems[key.issueID] {
-                Group {
-                    if problem.workflow {
-                        AinkradBanner(
-                            message: "\(problem.text) A workflow push approval waits for you to push it by hand.",
-                            status: .danger, actionTitle: "Open approvals →", action: { store.screen = .approvals })
-                    } else {
-                        AinkradBanner(message: problem.text, status: .danger)
-                    }
-                }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.bottom, skin.size.s8)
-            }
+            IssuePRList(store: store, model: model, issue: key.issueID)
             if let question, let requirement = requirement, question.requirementID == requirement.id {
                 AinkradBanner(
                     message:

@@ -50,10 +50,11 @@ extension CitadelStore {
             }, work)
     }
 
-    /// The issue, its blockers, and its project's sprints and issues (the thread's menus).
+    /// The issue, its blockers and pull requests, and its project's sprints and issues (the thread's menus).
     func refreshIssueWork(_ issue: Int64, project: Int64, model: CompanyModel, server: CitadelServer) async {
         if let info = await server.issue(issue) { model.issues[issue] = info }
         if let blockers = await server.blockers(issue: issue) { model.blockers[issue] = blockers }
+        if let prs = await server.pullRequests(issue: issue) { model.issuePRs[issue] = prs }
         if let sprints = await server.sprints(project: project) { model.projectSprints[project] = sprints }
         if let issues = await server.projectIssues(project) {
             model.projectIssues[project] = issues

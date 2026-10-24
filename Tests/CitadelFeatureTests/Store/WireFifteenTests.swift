@@ -4,8 +4,8 @@ import XCTest
 
 @testable import CitadelFeature
 
-/// API minors 10–15 wired, and the audit's functional fixes: blockers, sprint scope, workflow pushes, PR trouble,
-/// the Runs screen, the audit log, sidebar selection and names said once.
+/// API minors 10–15 wired, and the audit's functional fixes: blockers, sprint scope, workflow pushes,
+/// the Runs screen, sidebar selection and names said once.
 @MainActor
 final class WireFifteenTests: XCTestCase {
     private func store() throws -> CitadelStore {
@@ -99,7 +99,7 @@ final class WireFifteenTests: XCTestCase {
         XCTAssertEqual(store.actionFailure?.title, "Couldn't add CIT-64 to S4")
     }
 
-    // MARK: - Workflow pushes and PR trouble (minor 15)
+    // MARK: - Workflow pushes (minor 15)
 
     func testAWorkflowPushReadsAsAPushByHandAndUnknownKindsStillShow() {
         let model = CompanyFixture.model()
@@ -122,17 +122,6 @@ final class WireFifteenTests: XCTestCase {
         XCTAssertEqual(model.summary(future).title, "Beam it up")
     }
 
-    func testARefusedPushShowsOnTheIssueUntilItsPROpens() {
-        let model = CompanyFixture.model()
-        _ = model.audited(
-            action: "pr.push_failed", entity: 64, kind: "issue", run: nil,
-            details: ["branch": "cit-64-spec", "reason": "protected branch", "workflow": "true"], at: Date())
-        XCTAssertEqual(model.prProblems[64]?.text, "Push rejected for cit-64-spec: protected branch")
-        XCTAssertEqual(model.prProblems[64]?.workflow, true)
-        _ = model.audited(action: "pr.opened", entity: 64, kind: "issue", run: nil, details: [:], at: Date())
-        XCTAssertNil(model.prProblems[64])
-    }
-
     func testAWakeIsNotedOnItsIssueOnce() {
         let model = CompanyFixture.model()
         let now = Date()
@@ -142,7 +131,7 @@ final class WireFifteenTests: XCTestCase {
         XCTAssertEqual(model.wakes[64]?.map(\.agentID), [3, 4], "your post and its stream event are one wake")
     }
 
-    // MARK: - Runs screen and audit log
+    // MARK: - Runs screen
 
     func testTheRunsScreenListsTheCompanysRunsNewestFirst() async throws {
         let store = try store()
@@ -160,30 +149,6 @@ final class WireFifteenTests: XCTestCase {
         XCTAssertEqual(list.query["limit"], "100")
         let issueless = try XCTUnwrap(model.companyRuns?.first)
         XCTAssertTrue(model.runTitle(issueless).hasSuffix("run #500, no issue"), "never a bare \"Run 500\"")
-    }
-
-    func testTheAuditLogIsTheNewestAuditedChangesNewestFirst() async throws {
-        let store = try store()
-        let model = try XCTUnwrap(store.model)
-        FakeServer.serve { request in
-            switch request.url?.path {
-            case "/api/v1/events/latest": return .init(json: #"{"seq":1200}"#)
-            case "/api/v1/events":
-                let audit = { (seq: Int, action: String) in
-                    #"{"seq":\#(seq),"at":"2026-10-23T10:00:0\#(seq % 10).000Z","payload":{"type":"audit","audit_seq":\#(seq),"action":"\#(action)","actor":{"kind":"user","user_id":1},"entity_kind":"issue","entity_id":64,"details":{}}}"#
-                }
-                return .init(
-                    json: Wire.page([audit(1101, "issue.in_review"), Wire.wake(1102), audit(1103, "sprint.deleted")]))
-            default: return .init(status: 404, json: Wire.refusal("not_found", "no"))
-            }
-        }
-        store.loadAuditLog()
-        await eventually { model.limitsPage.auditLog != nil }
-        XCTAssertEqual(model.limitsPage.auditLog?.map(\.action), ["sprint.deleted", "issue.in_review"])
-        XCTAssertEqual(model.limitsPage.auditLog?.first?.entity, "issue 64")
-        let page = try XCTUnwrap(FakeServer.requests.first { $0.url?.path == "/api/v1/events" })
-        XCTAssertEqual(page.query["after"], "200")
-        XCTAssertEqual(CompanySettingsSection.allCases.map(\.title).contains("Notifications"), false)
     }
 
     // MARK: - Selection and wording

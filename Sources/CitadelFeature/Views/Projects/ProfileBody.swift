@@ -2,7 +2,8 @@ import AinkradAppKit
 import CitadelClient
 import SwiftUI
 
-/// The profile's groups, top to bottom: proposals, repositories, then the two-column groups and the limits.
+/// The profile's groups, top to bottom: proposals, repositories, then the two-column groups, knowledge and the
+/// limits.
 struct ProfileBody: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -26,6 +27,7 @@ struct ProfileBody: View {
             pair(
                 PoliciesGroup(store: store, project: project.id, profile: profile).id(ProfileSection.policies),
                 DocsGroup(profile: profile).id(ProfileSection.docs))
+            KnowledgeGroup(store: store, model: model, project: project.id).id(ProfileSection.knowledge)
             ProjectLimitsGroup(store: store, model: model, project: project).id(ProfileSection.limits)
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: profile.proposals.map(\.id))

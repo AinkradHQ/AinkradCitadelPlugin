@@ -1209,6 +1209,101 @@ extension Components {
                 case usedBytes = "used_bytes"
             }
         }
+        /// One audited change.
+        ///
+        /// - Remark: Generated from `#/components/schemas/AuditEntry`.
+        public struct AuditEntry: Codable, Hashable, Sendable {
+            /// Dotted: `issue.state_changed`, `knowledge.accepted`, ….
+            ///
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/action`.
+            public var action: Swift.String
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/actor`.
+            public var actor: Components.Schemas.EventActor
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/at`.
+            public var at: Components.Schemas.Timestamp
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/company_id`.
+            public var companyId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/details`.
+            public var details: OpenAPIRuntime.OpenAPIObjectContainer
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/entity_id`.
+            public var entityId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/entity_kind`.
+            public var entityKind: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/run_id`.
+            public var runId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/AuditEntry/seq`.
+            public var seq: Swift.Int64
+            /// Creates a new `AuditEntry`.
+            ///
+            /// - Parameters:
+            ///   - action: Dotted: `issue.state_changed`, `knowledge.accepted`, ….
+            ///   - actor:
+            ///   - at:
+            ///   - companyId:
+            ///   - details:
+            ///   - entityId:
+            ///   - entityKind:
+            ///   - runId:
+            ///   - seq:
+            public init(
+                action: Swift.String,
+                actor: Components.Schemas.EventActor,
+                at: Components.Schemas.Timestamp,
+                companyId: Swift.Int64? = nil,
+                details: OpenAPIRuntime.OpenAPIObjectContainer,
+                entityId: Swift.Int64? = nil,
+                entityKind: Swift.String? = nil,
+                runId: Swift.Int64? = nil,
+                seq: Swift.Int64
+            ) {
+                self.action = action
+                self.actor = actor
+                self.at = at
+                self.companyId = companyId
+                self.details = details
+                self.entityId = entityId
+                self.entityKind = entityKind
+                self.runId = runId
+                self.seq = seq
+            }
+            public enum CodingKeys: String, CodingKey {
+                case action
+                case actor
+                case at
+                case companyId = "company_id"
+                case details
+                case entityId = "entity_id"
+                case entityKind = "entity_kind"
+                case runId = "run_id"
+                case seq
+            }
+        }
+        /// A page of the audit log, newest first. `next_before` continues with older rows, absent on
+        /// the last page.
+        ///
+        /// - Remark: Generated from `#/components/schemas/AuditPage`.
+        public struct AuditPage: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/AuditPage/items`.
+            public var items: [Components.Schemas.AuditEntry]
+            /// - Remark: Generated from `#/components/schemas/AuditPage/next_before`.
+            public var nextBefore: Swift.Int64?
+            /// Creates a new `AuditPage`.
+            ///
+            /// - Parameters:
+            ///   - items:
+            ///   - nextBefore:
+            public init(
+                items: [Components.Schemas.AuditEntry],
+                nextBefore: Swift.Int64? = nil
+            ) {
+                self.items = items
+                self.nextBefore = nextBefore
+            }
+            public enum CodingKeys: String, CodingKey {
+                case items
+                case nextBefore = "next_before"
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/Billing`.
         public struct Billing: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/Billing/value1`.
@@ -3292,6 +3387,120 @@ extension Components {
                 ])
             }
         }
+        /// An issue's pull request on one of its repos.
+        ///
+        /// - Remark: Generated from `#/components/schemas/IssuePr`.
+        public struct IssuePr: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/IssuePr/base`.
+            public var base: Swift.String
+            /// `none`, `pending`, `success` or `failure`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssuePr/checks`.
+            public var checks: Swift.String
+            /// What `checks` is made of when the forge token cannot read every check.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssuePr/checks_note`.
+            public var checksNote: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/IssuePr/head`.
+            public var head: Swift.String
+            /// - Remark: Generated from `#/components/schemas/IssuePr/head_sha`.
+            public var headSha: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/IssuePr/last_error`.
+            public var lastError: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/IssuePr/number`.
+            public var number: Swift.Int64?
+            /// Why the runner's push of its branch was refused for good; it opens once the branch is
+            /// on the forge.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssuePr/push_held`.
+            public var pushHeld: Swift.String?
+            /// The project repo's name.
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssuePr/repo`.
+            public var repo: Swift.String
+            /// - Remark: Generated from `#/components/schemas/IssuePr/repo_id`.
+            public var repoId: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/IssuePr/state`.
+            public var state: Components.Schemas.PrState
+            /// - Remark: Generated from `#/components/schemas/IssuePr/title`.
+            public var title: Swift.String
+            /// When opening it found its head branch not pushed (it waits for a later run's push).
+            ///
+            /// - Remark: Generated from `#/components/schemas/IssuePr/unpushed_at`.
+            public var unpushedAt: Components.Schemas.Timestamp?
+            /// - Remark: Generated from `#/components/schemas/IssuePr/updated_at`.
+            public var updatedAt: Components.Schemas.Timestamp
+            /// - Remark: Generated from `#/components/schemas/IssuePr/url`.
+            public var url: Swift.String?
+            /// Creates a new `IssuePr`.
+            ///
+            /// - Parameters:
+            ///   - base:
+            ///   - checks: `none`, `pending`, `success` or `failure`.
+            ///   - checksNote: What `checks` is made of when the forge token cannot read every check.
+            ///   - head:
+            ///   - headSha:
+            ///   - lastError:
+            ///   - number:
+            ///   - pushHeld: Why the runner's push of its branch was refused for good; it opens once the branch is
+            ///   - repo: The project repo's name.
+            ///   - repoId:
+            ///   - state:
+            ///   - title:
+            ///   - unpushedAt: When opening it found its head branch not pushed (it waits for a later run's push).
+            ///   - updatedAt:
+            ///   - url:
+            public init(
+                base: Swift.String,
+                checks: Swift.String,
+                checksNote: Swift.String? = nil,
+                head: Swift.String,
+                headSha: Swift.String? = nil,
+                lastError: Swift.String? = nil,
+                number: Swift.Int64? = nil,
+                pushHeld: Swift.String? = nil,
+                repo: Swift.String,
+                repoId: Swift.Int64,
+                state: Components.Schemas.PrState,
+                title: Swift.String,
+                unpushedAt: Components.Schemas.Timestamp? = nil,
+                updatedAt: Components.Schemas.Timestamp,
+                url: Swift.String? = nil
+            ) {
+                self.base = base
+                self.checks = checks
+                self.checksNote = checksNote
+                self.head = head
+                self.headSha = headSha
+                self.lastError = lastError
+                self.number = number
+                self.pushHeld = pushHeld
+                self.repo = repo
+                self.repoId = repoId
+                self.state = state
+                self.title = title
+                self.unpushedAt = unpushedAt
+                self.updatedAt = updatedAt
+                self.url = url
+            }
+            public enum CodingKeys: String, CodingKey {
+                case base
+                case checks
+                case checksNote = "checks_note"
+                case head
+                case headSha = "head_sha"
+                case lastError = "last_error"
+                case number
+                case pushHeld = "push_held"
+                case repo
+                case repoId = "repo_id"
+                case state
+                case title
+                case unpushedAt = "unpushed_at"
+                case updatedAt = "updated_at"
+                case url
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/IssueRepos`.
         public struct IssueRepos: Codable, Hashable, Sendable {
             /// The repos it touches, in the project's order.
@@ -3434,63 +3643,144 @@ extension Components {
         public struct Knowledge: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/Knowledge/body`.
             public var body: Swift.String
+            /// The body was cut to 16 KiB in a list.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/body_truncated`.
+            public var bodyTruncated: Swift.Bool
+            /// - Remark: Generated from `#/components/schemas/Knowledge/created_at`.
+            public var createdAt: Components.Schemas.Timestamp
             /// - Remark: Generated from `#/components/schemas/Knowledge/id`.
             public var id: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Knowledge/kind`.
             public var kind: Components.Schemas.KnowledgeKind
             /// - Remark: Generated from `#/components/schemas/Knowledge/project_id`.
             public var projectId: Swift.Int64
+            /// The agent that proposed it; absent for an entry the admin added.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/proposed_by_agent_id`.
+            public var proposedByAgentId: Swift.Int64?
+            /// The proposer's one-line reason for it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/rationale`.
+            public var rationale: Swift.String?
+            /// Why it was accepted or rejected.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/reason`.
+            public var reason: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Knowledge/retired_reason`.
             public var retiredReason: Swift.String?
             /// `retired`: kept for history, never given to a run.
             ///
             /// - Remark: Generated from `#/components/schemas/Knowledge/status`.
             public var status: Components.Schemas.KnowledgeStatus
+            /// The entry that replaced this one.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/superseded_by`.
+            public var supersededBy: Swift.Int64?
             /// The entry this one replaced.
             ///
             /// - Remark: Generated from `#/components/schemas/Knowledge/supersedes`.
             public var supersedes: Swift.Int64?
+            /// What accepting a proposal applies its body to: `spec` or `profile.<field>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/target`.
+            public var target: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Knowledge/title`.
             public var title: Swift.String
+            /// Its last audited change (`created_at` when none).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Knowledge/updated_at`.
+            public var updatedAt: Components.Schemas.Timestamp
             /// Creates a new `Knowledge`.
             ///
             /// - Parameters:
             ///   - body:
+            ///   - bodyTruncated: The body was cut to 16 KiB in a list.
+            ///   - createdAt:
             ///   - id:
             ///   - kind:
             ///   - projectId:
+            ///   - proposedByAgentId: The agent that proposed it; absent for an entry the admin added.
+            ///   - rationale: The proposer's one-line reason for it.
+            ///   - reason: Why it was accepted or rejected.
             ///   - retiredReason:
             ///   - status: `retired`: kept for history, never given to a run.
+            ///   - supersededBy: The entry that replaced this one.
             ///   - supersedes: The entry this one replaced.
+            ///   - target: What accepting a proposal applies its body to: `spec` or `profile.<field>`.
             ///   - title:
+            ///   - updatedAt: Its last audited change (`created_at` when none).
             public init(
                 body: Swift.String,
+                bodyTruncated: Swift.Bool,
+                createdAt: Components.Schemas.Timestamp,
                 id: Swift.Int64,
                 kind: Components.Schemas.KnowledgeKind,
                 projectId: Swift.Int64,
+                proposedByAgentId: Swift.Int64? = nil,
+                rationale: Swift.String? = nil,
+                reason: Swift.String? = nil,
                 retiredReason: Swift.String? = nil,
                 status: Components.Schemas.KnowledgeStatus,
+                supersededBy: Swift.Int64? = nil,
                 supersedes: Swift.Int64? = nil,
-                title: Swift.String
+                target: Swift.String? = nil,
+                title: Swift.String,
+                updatedAt: Components.Schemas.Timestamp
             ) {
                 self.body = body
+                self.bodyTruncated = bodyTruncated
+                self.createdAt = createdAt
                 self.id = id
                 self.kind = kind
                 self.projectId = projectId
+                self.proposedByAgentId = proposedByAgentId
+                self.rationale = rationale
+                self.reason = reason
                 self.retiredReason = retiredReason
                 self.status = status
+                self.supersededBy = supersededBy
                 self.supersedes = supersedes
+                self.target = target
                 self.title = title
+                self.updatedAt = updatedAt
             }
             public enum CodingKeys: String, CodingKey {
                 case body
+                case bodyTruncated = "body_truncated"
+                case createdAt = "created_at"
                 case id
                 case kind
                 case projectId = "project_id"
+                case proposedByAgentId = "proposed_by_agent_id"
+                case rationale
+                case reason
                 case retiredReason = "retired_reason"
                 case status
+                case supersededBy = "superseded_by"
                 case supersedes
+                case target
                 case title
+                case updatedAt = "updated_at"
+            }
+        }
+        /// A human's decision on a proposal.
+        ///
+        /// - Remark: Generated from `#/components/schemas/KnowledgeDecision`.
+        public struct KnowledgeDecision: Codable, Hashable, Sendable {
+            /// Why; required to reject.
+            ///
+            /// - Remark: Generated from `#/components/schemas/KnowledgeDecision/reason`.
+            public var reason: Swift.String?
+            /// Creates a new `KnowledgeDecision`.
+            ///
+            /// - Parameters:
+            ///   - reason: Why; required to reject.
+            public init(reason: Swift.String? = nil) {
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case reason
             }
         }
         /// - Remark: Generated from `#/components/schemas/KnowledgeKind`.
@@ -5271,6 +5561,67 @@ extension Components {
             }
             public enum CodingKeys: String, CodingKey {
                 case enabled
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/PrState`.
+        public struct PrState: Codable, Hashable, Sendable {
+            /// Where an issue's pull request is: `requested` (opened once the run that asked ends),
+            /// `open`, `merging` (approved; the poller merges it), `merged`, `closed` (not merged).
+            ///
+            /// - Remark: Generated from `#/components/schemas/PrState/value1`.
+            @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                case requested = "requested"
+                case open = "open"
+                case merging = "merging"
+                case merged = "merged"
+                case closed = "closed"
+            }
+            /// Where an issue's pull request is: `requested` (opened once the run that asked ends),
+            /// `open`, `merging` (approved; the poller merges it), `merged`, `closed` (not merged).
+            ///
+            /// - Remark: Generated from `#/components/schemas/PrState/value1`.
+            public var value1: Components.Schemas.PrState.Value1Payload?
+            /// - Remark: Generated from `#/components/schemas/PrState/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `PrState`.
+            ///
+            /// - Parameters:
+            ///   - value1: Where an issue's pull request is: `requested` (opened once the run that asked ends),
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.PrState.Value1Payload? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
             }
         }
         /// A harness and model's price, US dollars per million tokens; each set is a new version, and

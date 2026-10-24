@@ -10,6 +10,42 @@ struct ProjectSprintInfo: Identifiable, Equatable, Sendable {
     var state: String
 }
 
+extension Schemas.PrState: OpenWord {}
+
+/// An issue's pull request on one repo (API minor 16), as the server keeps it: it survives a reconnect, unlike
+/// the `pr.*` events it replaces on the thread.
+struct IssuePRInfo: Identifiable, Equatable, Sendable {
+    var id: Int64 { repoID }
+    let repoID: Int64
+    var repo: String
+    /// `requested`, `open`, `merging`, `merged`, `closed`, or a newer server's word.
+    var state: String
+    var title: String
+    var number: Int64?
+    var url: String?
+    var head: String
+    var base: String
+    /// `none`, `pending`, `success`, `failure`, or a newer server's word.
+    var checks: String
+    /// What `checks` is made of when the token cannot read every check.
+    var checksNote: String?
+    /// The forge's last refusal ("push rejected: …").
+    var lastError: String?
+    /// Why the runner's push was refused for good; it opens once the branch is on the forge.
+    var pushHeld: String?
+    /// When opening found its head branch not pushed (it waits for a later run's push).
+    var unpushedAt: Date?
+}
+
+extension IssuePRInfo {
+    init(_ pr: Schemas.IssuePr) {
+        self.init(
+            repoID: pr.repoId, repo: pr.repo, state: pr.state.word, title: pr.title, number: pr.number, url: pr.url,
+            head: pr.head, base: pr.base, checks: pr.checks, checksNote: pr.checksNote, lastError: pr.lastError,
+            pushHeld: pr.pushHeld, unpushedAt: pr.unpushedAt)
+    }
+}
+
 /// What a comment you posted did: the comment, and the agent it woke (API minor 14 targets it).
 struct PostedComment: Equatable, Sendable {
     var comment: CommentInfo
@@ -64,6 +100,14 @@ extension CitadelServer {
             guard case .ok(let ok) = try await client.listSprints(path: .init(id: project)) else { return nil }
             return try ok.body.json.map { ProjectSprintInfo(id: $0.id, name: $0.name, state: $0.state.word) }
                 .sorted { $0.id > $1.id }
+        }
+    }
+
+    /// The issue's pull requests, one per repo it asked for, in its project's repo order.
+    func pullRequests(issue: Int64) async -> [IssuePRInfo]? {
+        await read("listIssuePrs") {
+            guard case .ok(let ok) = try await client.listIssuePrs(path: .init(id: issue)) else { return nil }
+            return try ok.body.json.map(IssuePRInfo.init)
         }
     }
 
