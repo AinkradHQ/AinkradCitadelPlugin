@@ -161,6 +161,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/companies/{id}/settings/overridden`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/settings/overridden/get(listOverriddenSettings)`.
     func listOverriddenSettings(_ input: Operations.ListOverriddenSettings.Input) async throws -> Operations.ListOverriddenSettings.Output
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/skills`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/skills/get(listSkills)`.
+    func listSkills(_ input: Operations.ListSkills.Input) async throws -> Operations.ListSkills.Output
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/skills`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/skills/post(publishSkill)`.
+    func publishSkill(_ input: Operations.PublishSkill.Input) async throws -> Operations.PublishSkill.Output
     /// - Remark: HTTP `GET /api/v1/companies/{id}/spend`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/spend/get(getSpendSeries)`.
     func getSpendSeries(_ input: Operations.GetSpendSeries.Input) async throws -> Operations.GetSpendSeries.Output
@@ -193,6 +199,15 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/issues/{id}/backlog`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/backlog/post(moveToBacklog)`.
     func moveToBacklog(_ input: Operations.MoveToBacklog.Input) async throws -> Operations.MoveToBacklog.Output
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/blockers`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/get(listBlockers)`.
+    func listBlockers(_ input: Operations.ListBlockers.Input) async throws -> Operations.ListBlockers.Output
+    /// - Remark: HTTP `PUT /api/v1/issues/{id}/blockers/{blocker_id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/{blocker_id}/put(linkBlocker)`.
+    func linkBlocker(_ input: Operations.LinkBlocker.Input) async throws -> Operations.LinkBlocker.Output
+    /// - Remark: HTTP `DELETE /api/v1/issues/{id}/blockers/{blocker_id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/{blocker_id}/delete(unlinkBlocker)`.
+    func unlinkBlocker(_ input: Operations.UnlinkBlocker.Input) async throws -> Operations.UnlinkBlocker.Output
     /// - Remark: HTTP `GET /api/v1/issues/{id}/comments`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/comments/get(listComments)`.
     func listComments(_ input: Operations.ListComments.Input) async throws -> Operations.ListComments.Output
@@ -244,6 +259,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/issues/{id}/transition`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/transition/post(transitionIssue)`.
     func transitionIssue(_ input: Operations.TransitionIssue.Input) async throws -> Operations.TransitionIssue.Output
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/retire`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/retire/post(retireKnowledge)`.
+    func retireKnowledge(_ input: Operations.RetireKnowledge.Input) async throws -> Operations.RetireKnowledge.Output
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/supersede`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/supersede/post(supersedeKnowledge)`.
+    func supersedeKnowledge(_ input: Operations.SupersedeKnowledge.Input) async throws -> Operations.SupersedeKnowledge.Output
     /// - Remark: HTTP `GET /api/v1/me`.
     /// - Remark: Generated from `#/paths//api/v1/me/get(getMe)`.
     func getMe(_ input: Operations.GetMe.Input) async throws -> Operations.GetMe.Output
@@ -298,6 +319,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/v1/projects/{id}/labels/{label_id}`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/labels/{label_id}/delete(deleteLabel)`.
     func deleteLabel(_ input: Operations.DeleteLabel.Input) async throws -> Operations.DeleteLabel.Output
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/policy`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/get(getProjectPolicy)`.
+    func getProjectPolicy(_ input: Operations.GetProjectPolicy.Input) async throws -> Operations.GetProjectPolicy.Output
+    /// - Remark: HTTP `PUT /api/v1/projects/{id}/policy`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/put(setProjectPolicy)`.
+    func setProjectPolicy(_ input: Operations.SetProjectPolicy.Input) async throws -> Operations.SetProjectPolicy.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}/profile`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/get(getProjectProfile)`.
     func getProjectProfile(_ input: Operations.GetProjectProfile.Input) async throws -> Operations.GetProjectProfile.Output
@@ -442,6 +469,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/settings/{scope}/{key}/history`.
     /// - Remark: Generated from `#/paths//api/v1/settings/{scope}/{key}/history/get(settingHistory)`.
     func settingHistory(_ input: Operations.SettingHistory.Input) async throws -> Operations.SettingHistory.Output
+    /// - Remark: HTTP `DELETE /api/v1/sprints/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/sprints/{id}/delete(deleteSprint)`.
+    func deleteSprint(_ input: Operations.DeleteSprint.Input) async throws -> Operations.DeleteSprint.Output
     /// - Remark: HTTP `POST /api/v1/sprints/{id}/close`.
     /// - Remark: Generated from `#/paths//api/v1/sprints/{id}/close/post(closeSprint)`.
     func closeSprint(_ input: Operations.CloseSprint.Input) async throws -> Operations.CloseSprint.Output
@@ -1052,6 +1082,30 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/skills`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/skills/get(listSkills)`.
+    public func listSkills(
+        path: Operations.ListSkills.Input.Path,
+        headers: Operations.ListSkills.Input.Headers = .init()
+    ) async throws -> Operations.ListSkills.Output {
+        try await listSkills(Operations.ListSkills.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/skills`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/skills/post(publishSkill)`.
+    public func publishSkill(
+        path: Operations.PublishSkill.Input.Path,
+        headers: Operations.PublishSkill.Input.Headers = .init(),
+        body: Operations.PublishSkill.Input.Body
+    ) async throws -> Operations.PublishSkill.Output {
+        try await publishSkill(Operations.PublishSkill.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/companies/{id}/spend`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/spend/get(getSpendSeries)`.
     public func getSpendSeries(
@@ -1144,6 +1198,39 @@ extension APIProtocol {
         headers: Operations.MoveToBacklog.Input.Headers = .init()
     ) async throws -> Operations.MoveToBacklog.Output {
         try await moveToBacklog(Operations.MoveToBacklog.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/blockers`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/get(listBlockers)`.
+    public func listBlockers(
+        path: Operations.ListBlockers.Input.Path,
+        headers: Operations.ListBlockers.Input.Headers = .init()
+    ) async throws -> Operations.ListBlockers.Output {
+        try await listBlockers(Operations.ListBlockers.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PUT /api/v1/issues/{id}/blockers/{blocker_id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/{blocker_id}/put(linkBlocker)`.
+    public func linkBlocker(
+        path: Operations.LinkBlocker.Input.Path,
+        headers: Operations.LinkBlocker.Input.Headers = .init()
+    ) async throws -> Operations.LinkBlocker.Output {
+        try await linkBlocker(Operations.LinkBlocker.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `DELETE /api/v1/issues/{id}/blockers/{blocker_id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/blockers/{blocker_id}/delete(unlinkBlocker)`.
+    public func unlinkBlocker(
+        path: Operations.UnlinkBlocker.Input.Path,
+        headers: Operations.UnlinkBlocker.Input.Headers = .init()
+    ) async throws -> Operations.UnlinkBlocker.Output {
+        try await unlinkBlocker(Operations.UnlinkBlocker.Input(
             path: path,
             headers: headers
         ))
@@ -1353,6 +1440,32 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/retire`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/retire/post(retireKnowledge)`.
+    public func retireKnowledge(
+        path: Operations.RetireKnowledge.Input.Path,
+        headers: Operations.RetireKnowledge.Input.Headers = .init(),
+        body: Operations.RetireKnowledge.Input.Body
+    ) async throws -> Operations.RetireKnowledge.Output {
+        try await retireKnowledge(Operations.RetireKnowledge.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/knowledge/{id}/supersede`.
+    /// - Remark: Generated from `#/paths//api/v1/knowledge/{id}/supersede/post(supersedeKnowledge)`.
+    public func supersedeKnowledge(
+        path: Operations.SupersedeKnowledge.Input.Path,
+        headers: Operations.SupersedeKnowledge.Input.Headers = .init(),
+        body: Operations.SupersedeKnowledge.Input.Body
+    ) async throws -> Operations.SupersedeKnowledge.Output {
+        try await supersedeKnowledge(Operations.SupersedeKnowledge.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/me`.
     /// - Remark: Generated from `#/paths//api/v1/me/get(getMe)`.
     public func getMe(headers: Operations.GetMe.Input.Headers = .init()) async throws -> Operations.GetMe.Output {
@@ -1553,6 +1666,30 @@ extension APIProtocol {
         try await deleteLabel(Operations.DeleteLabel.Input(
             path: path,
             headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/policy`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/get(getProjectPolicy)`.
+    public func getProjectPolicy(
+        path: Operations.GetProjectPolicy.Input.Path,
+        headers: Operations.GetProjectPolicy.Input.Headers = .init()
+    ) async throws -> Operations.GetProjectPolicy.Output {
+        try await getProjectPolicy(Operations.GetProjectPolicy.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PUT /api/v1/projects/{id}/policy`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/put(setProjectPolicy)`.
+    public func setProjectPolicy(
+        path: Operations.SetProjectPolicy.Input.Path,
+        headers: Operations.SetProjectPolicy.Input.Headers = .init(),
+        body: Operations.SetProjectPolicy.Input.Body
+    ) async throws -> Operations.SetProjectPolicy.Output {
+        try await setProjectPolicy(Operations.SetProjectPolicy.Input(
+            path: path,
+            headers: headers,
+            body: body
         ))
     }
     /// - Remark: HTTP `GET /api/v1/projects/{id}/profile`.
@@ -2099,6 +2236,17 @@ extension APIProtocol {
         headers: Operations.SettingHistory.Input.Headers = .init()
     ) async throws -> Operations.SettingHistory.Output {
         try await settingHistory(Operations.SettingHistory.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `DELETE /api/v1/sprints/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/sprints/{id}/delete(deleteSprint)`.
+    public func deleteSprint(
+        path: Operations.DeleteSprint.Input.Path,
+        headers: Operations.DeleteSprint.Input.Headers = .init()
+    ) async throws -> Operations.DeleteSprint.Output {
+        try await deleteSprint(Operations.DeleteSprint.Input(
             path: path,
             headers: headers
         ))

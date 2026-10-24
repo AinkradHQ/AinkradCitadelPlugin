@@ -685,7 +685,8 @@
               "budget_overrun",
               "hire_agent",
               "permission_escalation",
-              "plan_approval"
+              "plan_approval",
+              "workflow_push"
             ],
             "type": "string"
           },
@@ -2201,6 +2202,87 @@
         ],
         "type": "object"
       },
+      "Knowledge": {
+        "description": "A project knowledge entry (E8).",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/KnowledgeKind"
+          },
+          "project_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "retired_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/KnowledgeStatus",
+            "description": "`retired`: kept for history, never given to a run."
+          },
+          "supersedes": {
+            "description": "The entry this one replaced.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "kind",
+          "title",
+          "body",
+          "status"
+        ],
+        "type": "object"
+      },
+      "KnowledgeKind": {
+        "anyOf": [
+          {
+            "enum": [
+              "decision",
+              "landmine",
+              "state",
+              "retro"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "KnowledgeStatus": {
+        "anyOf": [
+          {
+            "enum": [
+              "proposed",
+              "accepted",
+              "rejected",
+              "retired"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
       "Label": {
         "description": "A label of a project, put on its issues.",
         "properties": {
@@ -2555,6 +2637,14 @@
               "string",
               "null"
             ]
+          },
+          "wake_agent_id": {
+            "description": "The agent to wake (one of the issue's company). Absent: the first agent the body\nmentions (`@agent:<id>`, or `@<name>`, any case), else the agent working a `todo` or\n`in_progress` issue (its owner), else its next actor. An open question on the issue is\nanswered by the comment and wakes its asker either way.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -2786,6 +2876,43 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "NewSkillVersion": {
+        "description": "A new version of a skill.",
+        "properties": {
+          "attach_id": {
+            "description": "The department or project id.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "attach_role": {
+            "description": "The role (matched exactly against an agent's role).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attach_to": {
+            "description": "`company`, `department`, `role` or `project`.",
+            "type": "string"
+          },
+          "body": {
+            "description": "Markdown; at most the company's `skills.max_bytes`.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "body",
+          "attach_to"
         ],
         "type": "object"
       },
@@ -3167,7 +3294,7 @@
             "$ref": "#/components/schemas/Comment"
           },
           "woke_agent_id": {
-            "description": "The agent the comment woke: the issue's next actor, else its owner.",
+            "description": "The agent the comment woke (see `NewComment.wake_agent_id`).",
             "format": "int64",
             "type": [
               "integer",
@@ -3600,6 +3727,30 @@
             "type": "string"
           }
         ]
+      },
+      "ProjectPolicy": {
+        "description": "A project's harness permission policy (E3.10).",
+        "properties": {
+          "allow": {
+            "description": "What goes ahead without asking: a tool name (`Edit`), or `<tool>:<command prefix>`\n(`Bash:npm run`), which never matches a command with shell operators. A path outside\nthe worktree always asks.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/PermissionMode",
+            "description": "`ask`: everything outside the allowlist asks; `accept_edits`: file edits inside the\nrun's worktree go ahead too; `sandboxed`: the harness acts without asking, only on a\nsandboxed runner."
+          },
+          "sandboxed": {
+            "description": "Runs need a sandboxed runner; implied by the `sandboxed` mode.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
       },
       "ProjectProfile": {
         "properties": {
@@ -4282,6 +4433,17 @@
         ],
         "type": "object"
       },
+      "Retirement": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "Retried": {
         "description": "The wake that will start a retry.",
         "properties": {
@@ -4572,6 +4734,13 @@
             "$ref": "#/components/schemas/Timestamp",
             "description": "When the admin drained it: it takes no new run; its runs finish."
           },
+          "harness_status": {
+            "description": "Every harness with how its reported version stands against the tested ones (API\nminor 10), under the runner's current settings.",
+            "items": {
+              "$ref": "#/components/schemas/RunnerHarness"
+            },
+            "type": "array"
+          },
           "harnesses": {
             "additionalProperties": {
               "type": "string"
@@ -4677,6 +4846,7 @@
           "tags",
           "status",
           "harnesses",
+          "harness_status",
           "logins",
           "asleep"
         ],
@@ -4761,6 +4931,49 @@
           "full",
           "idle_limit_secs",
           "worktrees"
+        ],
+        "type": "object"
+      },
+      "RunnerHarness": {
+        "description": "One harness the runner can drive, judged against Citadel's tested versions (E3.6).",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "offered": {
+            "description": "Whether runs are dispatched to it.",
+            "type": "boolean"
+          },
+          "reason": {
+            "description": "Why it is refused, or the note on an untested version.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "`supported` (a tested version), `untested_newer` (newer than tested; runs unless the\nsettings refuse it), `too_old`, `known_bad`, `missing`, `unreadable` or\n`unknown_harness` — open.",
+            "type": "string"
+          },
+          "tested_up_to": {
+            "description": "The newest version Citadel's adapter was tested against.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "What it reported; absent when not installed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "offered"
         ],
         "type": "object"
       },
@@ -5042,7 +5255,8 @@
               "count",
               "tokens",
               "bytes",
-              "per_minute"
+              "per_minute",
+              "version"
             ],
             "type": "string"
           },
@@ -5196,7 +5410,7 @@
       "SprintBody": {
         "properties": {
           "sprint_id": {
-            "description": "The planned sprint to join; absent takes it out of its sprint.",
+            "description": "The sprint to join: a planned one, or an active one (a scope change: the issue needs\npoints, the sprint's committed points move by them, audited as `sprint.scope_added`);\nabsent takes it out of its planned or active sprint (`sprint.scope_removed` from an\nactive one). A closed sprint's scope is fixed.",
             "format": "int64",
             "type": [
               "integer",
@@ -5456,6 +5670,35 @@
             "type": "string"
           }
         ]
+      },
+      "Supersession": {
+        "description": "A new version of an accepted entry.",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/KnowledgeKind"
+          },
+          "reason": {
+            "description": "Why the old one goes; \"superseded by #<new>\" when absent.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "The old entry's when absent.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
       },
       "TaskCost": {
         "description": "One issue's runs and what they used. Dollars are the priced runs' only; unpriced and\nsubscription runs are counted in tokens, never as $0.",
@@ -6014,7 +6257,15 @@
         "type": "object"
       },
       "TransitionBlock": {
+        "description": "Needs an open blocker: link one first (`PUT /issues/{id}/blockers/{blocker_id}`), or\nname it here to link it and block in one step.",
         "properties": {
+          "blocker_issue_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "kind": {
             "enum": [
               "block"
@@ -6482,7 +6733,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.9.0"
+    "version": "1.15.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -9595,6 +9846,123 @@
         ]
       }
     },
+    "/api/v1/companies/{id}/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentSkill"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Every version of the company's skills, by name then version; the latest of a name is the one runs are given"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "post": {
+        "operationId": "publishSkill",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSkillVersion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSkill"
+                }
+              }
+            },
+            "description": "The new version (1 for a new name); an old version is never edited (audited as `skill.published`). A blank name or body, a body over `skills.max_bytes`, or a department or project not of the company is a 400"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
     "/api/v1/companies/{id}/spend": {
       "get": {
         "operationId": "getSpendSeries",
@@ -10140,6 +10508,186 @@
         },
         "tags": [
           "controls"
+        ]
+      }
+    },
+    "/api/v1/issues/{id}/blockers": {
+      "get": {
+        "operationId": "listBlockers",
+        "parameters": [
+          {
+            "description": "Issue id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Issue"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The issues that block it"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "issues"
+        ]
+      }
+    },
+    "/api/v1/issues/{id}/blockers/{blocker_id}": {
+      "delete": {
+        "operationId": "unlinkBlocker",
+        "parameters": [
+          {
+            "description": "The blocked issue",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The issue that blocks it",
+            "in": "path",
+            "name": "blocker_id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "The issue after; unblocked and its next actor woken when that was its last open blocker"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "issues"
+        ]
+      },
+      "put": {
+        "operationId": "linkBlocker",
+        "parameters": [
+          {
+            "description": "The blocked issue",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The issue that blocks it, in the same company",
+            "in": "path",
+            "name": "blocker_id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "The blocked issue, its state unchanged (block it with the `block` transition); an existing link is kept"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "issues"
         ]
       }
     },
@@ -11148,6 +11696,132 @@
         },
         "tags": [
           "issues"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{id}/retire": {
+      "post": {
+        "operationId": "retireKnowledge",
+        "parameters": [
+          {
+            "description": "Knowledge entry id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Retirement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Knowledge"
+                }
+              }
+            },
+            "description": "The entry, retired: kept, no longer given to runs (audited as `knowledge.retired`). A blank reason is a 400; an entry not accepted is a 409"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{id}/supersede": {
+      "post": {
+        "operationId": "supersedeKnowledge",
+        "parameters": [
+          {
+            "description": "The accepted entry it replaces",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Supersession"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Knowledge"
+                }
+              }
+            },
+            "description": "The new entry, accepted, its `supersedes` naming the old one, which is retired (audited as `knowledge.added` and `knowledge.retired`). An entry not accepted is a 409"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
         ]
       }
     },
@@ -12193,6 +12867,120 @@
               }
             },
             "description": "The label, renamed (audited as `label.renamed`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/policy": {
+      "get": {
+        "operationId": "getProjectPolicy",
+        "parameters": [
+          {
+            "description": "Project id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPolicy"
+                }
+              }
+            },
+            "description": "The project's permission policy"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
+        ]
+      },
+      "put": {
+        "operationId": "setProjectPolicy",
+        "parameters": [
+          {
+            "description": "Project id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectPolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPolicy"
+                }
+              }
+            },
+            "description": "The policy, replaced whole (audited as `project.policy_set`); a blank allowlist entry is a 400"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -15049,6 +15837,59 @@
         },
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/sprints/{id}": {
+      "delete": {
+        "operationId": "deleteSprint",
+        "parameters": [
+          {
+            "description": "Sprint id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            },
+            "description": "The deleted sprint: a planned one with no issues whose commit is not waiting on an approval (audited as `sprint.deleted`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "projects"
         ]
       }
     },
