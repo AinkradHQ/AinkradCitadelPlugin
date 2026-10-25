@@ -111,12 +111,13 @@ struct HomeHero: View {
     }
 
     private var statusLine: some View {
-        let live = store.streamStatus == .live
+        let offline: Bool = if case .offline = store.phase { true } else { false }
+        let live = store.streamStatus == .live && !offline
         return AinkradFlowLayout(spacing: skin.size.s8, lineSpacing: skin.size.s4) {
             HStack(spacing: skin.size.s6) {
                 Circle().fill(live ? status.success : status.warning).frame(width: skin.size.s6, height: skin.size.s6)
                     .breathing(live)
-                Text(live ? "live" : "polling").citadelFont("t11", weight: "semibold")
+                Text(live ? "live" : offline ? "offline" : "polling").citadelFont("t11", weight: "semibold")
             }
             .foregroundStyle(live ? status.success : status.warning)
             .padding(.horizontal, skin.size.s9)

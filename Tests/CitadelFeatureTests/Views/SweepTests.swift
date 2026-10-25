@@ -164,6 +164,10 @@ final class SweepTests: XCTestCase {
         let wide = CGSize(width: 1280, height: 800)
         var all: [(String, CitadelStore, CGSize)] = shots.map { ($0.0, $0.1, small) }
         all.append(("02-home", company(.home), CGSize(width: 1400, height: 1060)))
+        let offline = company(.home)
+        offline.phase = .offline(attempt: 4, retryAt: Date().addingTimeInterval(8), reason: "timed out")
+        all.append(("11-b-offline-home", offline, CGSize(width: 1400, height: 900)))
+        all.append(("11-e-empty-company", company(.home) { $0.agents = [:] }, CGSize(width: 1400, height: 900)))
         let search = company(.home)
         search.isSearching = true
         all.append(("01-search", search, CGSize(width: 1400, height: 900)))

@@ -98,10 +98,19 @@ struct ShellView: View {
 
     @ViewBuilder
     private func screenView(_ model: CompanyModel) -> some View {
+        // 11 E: a company with no agents shows its onboarding on every screen but the ones that set it up.
+        if model.agents.isEmpty, ![.accounts, .runners].contains(store.screen), store.detail == nil {
+            NoAgentsView(store: store, model: model)
+        } else {
+            routed(model)
+        }
+    }
+
+    @ViewBuilder
+    private func routed(_ model: CompanyModel) -> some View {
         switch (store.detail, store.screen) {
         case (.agent(let id)?, _): AgentView(store: store, model: model, agentID: id)
         case (.run(let id)?, _): RunView(store: store, model: model, runID: id)
-        case (nil, .home) where model.agents.isEmpty: NoAgentsView(store: store, model: model)
         case (nil, .home): HomeView(store: store, model: model)
         case (nil, .org): OrgView(store: store, model: model)
         case (nil, .approvals): ApprovalsView(store: store, model: model)
@@ -197,8 +206,8 @@ private struct OfflineDimmed: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .opacity(offline == nil ? 1 : skin.opacity.o45)
-            .saturation(offline == nil ? 1 : skin.opacity.o60)
+            .saturation(offline == nil ? 1 : skin.opacity.o55)
+            .brightness(offline == nil ? 0 : -skin.opacity.o20)
             .allowsHitTesting(offline == nil)
     }
 }
