@@ -64,6 +64,8 @@ final class CompanyModel {
     /// The Cost screen's period: its issues, its days (oldest first), this company's account use.
     var costTasks: [TaskCostInfo] = []
     var costDays: [DaySpend] = []
+    /// The models with no price, most tokens first (API minor 18; empty on an older server).
+    var unpriced: [UnpricedModelInfo] = []
     var accountUse: [AccountUseInfo] = []
     /// The period the cost data is for; `nil` until the Cost screen first loads.
     var costPeriod: CostPeriod?

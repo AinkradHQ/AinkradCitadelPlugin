@@ -19,7 +19,9 @@ extension CitadelStore {
             async let breakdown = server.spendBreakdown(company: company, since: start)
             async let days = server.spendSeries(
                 company: company, bucket: period == .today ? "hour" : "day", since: first)
+            async let unpriced = loadUnpriced(server, company: company)
             guard model.costPeriod == period else { return }
+            if let unpriced = await unpriced { model.unpriced = unpriced }
             if let tasks = await tasks { model.costTasks = tasks }
             if let use = await use { model.accountUse = use }
             if let (agents, departments) = await breakdown {
@@ -30,11 +32,18 @@ extension CitadelStore {
         }
     }
 
+    /// The unpriced models (API minor 18); `nil` on an older server, which has no such list.
+    func loadUnpriced(_ server: CitadelServer, company: Int64) async -> [UnpricedModelInfo]? {
+        guard serverSupports(minor: Self.trancheBMinor) else { return nil }
+        return await server.unpricedModels(company: company)?.sorted { $0.tokens > $1.tokens }
+    }
+
     /// The period read again after a run or budget event: its issues, breakdown and bars.
     func refreshCostTasks(_ model: CompanyModel, server: CitadelServer) async {
         guard let period = model.costPeriod else { return }
         let start = period.start(sprintStart: model.sprint?.startsOn)
         if let tasks = await server.taskCosts(company: model.companyID, since: start) { model.costTasks = tasks }
+        if let unpriced = await loadUnpriced(server, company: model.companyID) { model.unpriced = unpriced }
         if let (agents, departments) = await server.spendBreakdown(company: model.companyID, since: start) {
             model.costByAgent = agents
             model.costByDepartment = departments

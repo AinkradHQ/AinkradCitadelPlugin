@@ -208,8 +208,7 @@ struct CostKinds: View {
                     + Text("run\(t.unpricedRuns == 1 ? "" : "s") · \(Fmt.tokens(t.unpricedTokens)) tok").font(
                         skin.font(AinkradFontToken(sizeKey: "t12", weight: "medium"))
                     ).foregroundStyle(skin.color(skin.text.faint)),
-                sub: t.unpricedRuns > 0
-                    ? "A model with no price — never counted as $0" : "Every model in this period has a price"
+                sub: t.unpricedRuns > 0 ? unpricedLine : "Every model in this period has a price"
             ) {
                 AinkradDockButton(
                     "Set a price", systemImage: "plus", tone: t.unpricedRuns > 0 ? .warning : .plain, action: setPrice
@@ -230,6 +229,13 @@ struct CostKinds: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// "qwen3-coder via OpenCode has no price — never counted as $0", naming the biggest model (API minor 18).
+    private var unpricedLine: String {
+        guard let first = model.unpriced.first else { return "A model with no price — never counted as $0" }
+        let more = model.unpriced.count > 1 ? " · +\(model.unpriced.count - 1) more" : ""
+        return "\(first.model) via \(AgentLook.harnessName(first.harness)) has no price — never counted as $0\(more)"
     }
 
     private func tile<Foot: View>(

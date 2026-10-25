@@ -78,4 +78,20 @@ final class WireEighteenBudgetsTests: XCTestCase {
         let now = try await Wire17.sent("POST", "/api/v1/prices")
         XCTAssertNil(now["apply_from"])
     }
+
+    func testTheUnpricedModelIsReadFromMinor18Only() async throws {
+        let json = #"[{"harness":"opencode","model":"qwen3-coder","runs":12,"tokens":2100000}]"#
+        let store = try Wire17.store(minor: 18)
+        FakeServer.serve { .init(json: $0.url?.path.hasSuffix("/costs/unpriced") == true ? json : "[]") }
+        store.loadCost(.month)
+        await eventually { store.model?.unpriced.first?.model == "qwen3-coder" }
+        XCTAssertEqual(store.model?.unpriced.first?.runs, 12)
+
+        let older = try Wire17.store(minor: 17)
+        FakeServer.serve { .init(json: $0.url?.path.hasSuffix("/costs/unpriced") == true ? json : "[]") }
+        older.loadCost(.month)
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertFalse(FakeServer.requests.contains { $0.url?.path.hasSuffix("/costs/unpriced") == true })
+        XCTAssertEqual(older.model?.unpriced, [])
+    }
 }

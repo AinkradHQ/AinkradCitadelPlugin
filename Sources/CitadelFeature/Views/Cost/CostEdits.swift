@@ -10,19 +10,39 @@ extension SpendTotals {
     }
 }
 
-/// Cost › Set a price (`costPrice`): the model and its dollars per million tokens. Runs are priced from now on —
-/// "Past runs too" needs the server's re-cost job, and the unpriced model's name isn't reported yet.
+/// Cost › Set a price (`costPrice`): the model and its dollars per million tokens, starting from the model that
+/// has no price (API minor 18). "Past runs too" re-costs its unpriced runs; "From now on" (and any older server)
+/// prices the next ones only.
 struct SetPriceForm: View {
     let store: CitadelStore
+    let unpriced: [UnpricedModelInfo]
     @Binding var isPresented: Bool
-    @State private var harness = "opencode"
-    @State private var modelName = ""
+    @State private var harness: String
+    @State private var modelName: String
     @State private var input = ""
     @State private var output = ""
     @State private var cache = ""
+    @State private var applyPast = true
     @State private var problem: PriceProblem?
     @State private var history: [PriceVersionInfo] = []
     @Environment(\.ainkradSkin) private var skin
+
+    init(store: CitadelStore, unpriced: [UnpricedModelInfo] = [], isPresented: Binding<Bool>) {
+        self.store = store
+        self.unpriced = unpriced
+        self._isPresented = isPresented
+        let first = unpriced.first
+        self._harness = State(
+            initialValue: first.map { PriceDraft.harnesses.contains($0.harness) ? $0.harness : "opencode" }
+                ?? "opencode")
+        self._modelName = State(initialValue: first?.model ?? "")
+    }
+
+    private var tranche: Bool { store.serverSupports(minor: CitadelStore.trancheBMinor) }
+    /// The runs the typed model has without a price, when the server listed it.
+    private var pending: UnpricedModelInfo? {
+        unpriced.first { $0.model == modelName.trimmingCharacters(in: .whitespaces) && $0.harness == harness }
+    }
 
     var body: some View {
         let amber = skin.color(skin.palette.warning)
@@ -47,6 +67,19 @@ struct SetPriceForm: View {
                 AinkradSegmentedPicker(items: PriceDraft.harnesses, selection: $harness) { AgentLook.harnessName($0) }
                     .fixedSize()
                 AinkradTextField(text: $modelName, placeholder: "qwen3-coder").monospaced()
+                if unpriced.count > 1 {
+                    AinkradMenuButton(
+                        items: unpriced.map { item in
+                            AinkradMenuItem(
+                                title: "\(item.model) · \(Wording.count(Int(item.runs), "run"))", systemName: nil
+                            ) {
+                                harness = PriceDraft.harnesses.contains(item.harness) ? item.harness : harness
+                                modelName = item.model
+                            }
+                        }
+                    ) { Text("Unpriced models") }
+                    .fixedSize()
+                }
             }
             AinkradDrawerSection(title: "Price per 1M tokens · USD") {
                 HStack(spacing: skin.size.s8) {
@@ -60,10 +93,11 @@ struct SetPriceForm: View {
                 AinkradOptionGrid(
                     options: [
                         AinkradOption(
-                            id: "past", title: "Past runs too", detail: "re-cost this period's unpriced runs",
-                            isEnabled: false, help: "Re-pricing past runs needs the server (apply_from)"),
+                            id: "past", title: "Past runs too", detail: "re-cost the unpriced runs of this model",
+                            isEnabled: tranche, help: tranche ? nil : store.help(minor: CitadelStore.trancheBMinor)),
                         AinkradOption(id: "now", title: "From now on", detail: "runs before stay unpriced"),
-                    ], columns: 2, isOn: { $0 == "now" }, pick: { _ in })
+                    ], columns: 2, isOn: { ($0 == "past") == (applyPast && tranche) }
+                ) { applyPast = $0 == "past" }
             }
             if !history.isEmpty {
                 AinkradDrawerSection(title: "Earlier prices") {
@@ -72,7 +106,11 @@ struct SetPriceForm: View {
                     }
                 }
             }
-            AinkradDrawerHint("Audited · company setting. Runs from now on move from unpriced to priced.")
+            AinkradDrawerHint(
+                "Audited · company setting. "
+                    + (applyPast && tranche
+                        ? "\(pending.map { Wording.count(Int($0.runs), "run") } ?? "Its unpriced runs") move from unpriced to priced."
+                        : "Runs from now on move from unpriced to priced."))
             if let problem { AinkradBanner(message: problem.message, status: .danger) }
         } footer: {
             Spacer()
@@ -94,7 +132,7 @@ struct SetPriceForm: View {
     private func save() {
         switch PriceDraft.parse(harness: harness, model: modelName, input: input, output: output, cache: cache) {
         case .success(let price):
-            store.savePrice(price)
+            store.savePrice(price, pastToo: applyPast && tranche)
             isPresented = false
         case .failure(let why): problem = why
         }

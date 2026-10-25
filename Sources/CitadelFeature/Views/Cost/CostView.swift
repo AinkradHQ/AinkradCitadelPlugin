@@ -7,8 +7,8 @@ enum CostDrawer: Equatable {
 }
 
 /// Screen 09 (prototype `cost.js`): three kinds of spend never mixed into one number — priced dollars, unpriced runs
-/// and tokens (never $0), subscription tokens. The hero rings the company budget (tokens until the server stores
-/// dollar caps) with its pace; the kinds, the per-day chart, the tabbed breakdown, per task, and the budgets as ring
+/// and tokens (never $0), subscription tokens. The hero rings the company budget (dollars when it has a dollar cap)
+/// with its pace; the kinds, the per-day chart, the tabbed breakdown, per task, and the budgets as ring
 /// cards edited inline. Set a price and New budget open as inset drawers.
 struct CostView: View {
     let store: CitadelStore
@@ -49,7 +49,7 @@ struct CostView: View {
         ) {
             let shown = Binding(get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } })
             switch model.costPage.drawer {
-            case .price: SetPriceForm(store: store, isPresented: shown)
+            case .price: SetPriceForm(store: store, unpriced: model.unpriced, isPresented: shown)
             case .newBudget: NewBudgetForm(store: store, model: model, isPresented: shown)
             case nil: EmptyView()
             }
@@ -88,7 +88,7 @@ struct CostView: View {
     private var crumb: Text {
         var parts = [periodLabel]
         if let company = model.budgets.first(where: { $0.scope.hasPrefix("company:") }) {
-            parts.append("company budget \(Fmt.tokens(company.cap)) tok")
+            parts.append("company budget \(company.capWord)\(company.isDollars ? "" : " tok")")
         }
         return Text(parts.joined(separator: "  ·  ")).foregroundStyle(skin.color(skin.text.muted))
     }

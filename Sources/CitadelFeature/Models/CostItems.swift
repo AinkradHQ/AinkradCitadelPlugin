@@ -63,6 +63,17 @@ struct TaskCostInfo: Identifiable, Equatable, Sendable {
     }
 }
 
+/// A model whose runs have no price (`listUnpriced`, API minor 18): what the Unpriced tile names and the Set a
+/// price drawer starts from.
+struct UnpricedModelInfo: Identifiable, Equatable, Sendable {
+    var id: String { "\(harness)|\(model)" }
+    var harness: String
+    var model: String
+    var runs: Int64
+    var tokens: Int64
+    var accountID: Int64?
+}
+
 /// What this company used of one pool account (decision #41: never another company's share).
 struct AccountUseInfo: Identifiable, Equatable, Sendable {
     let id: Int64
