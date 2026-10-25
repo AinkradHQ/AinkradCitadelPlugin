@@ -17,3 +17,13 @@ extension CitadelServer {
         }
     }
 }
+
+extension CitadelServer {
+    /// An agent's week, 8-week success, 28-day heatmap and spend by day (API minor 18).
+    func agentStats(_ agent: Int64) async -> Schemas.AgentStats? {
+        await read("getAgentStats") {
+            guard case .ok(let ok) = try await client.getAgentStats(path: .init(id: agent)) else { return nil }
+            return try ok.body.json
+        }
+    }
+}

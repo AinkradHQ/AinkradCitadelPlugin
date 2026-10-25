@@ -74,6 +74,8 @@ final class CompanyModel {
     var chainPresets: [ChainPresetInfo] = []
     /// The company's roles for the hire wizard and the Roles tab (API minor 18; empty on an older server).
     var roles: [RoleInfo] = []
+    /// Each agent's server-side stats once read (API minor 18): the agent page, the Org peek.
+    var agentStats: [Int64: Schemas.AgentStats] = [:]
     var accountUse: [AccountUseInfo] = []
     /// The period the cost data is for; `nil` until the Cost screen first loads.
     var costPeriod: CostPeriod?

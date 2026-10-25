@@ -174,7 +174,7 @@ private struct AgentStageStats: View {
 
     var body: some View {
         let budget = model.monthBudget(of: agent.id)
-        let stats = AgentStats(runs: model.agentRuns[agent.id] ?? [])
+        let stats = model.stats(of: agent.id)
         let page = model.orgPage
         VStack(spacing: skin.size.s8) {
             StageStat(open: { page.drawer = .init(section: .settings, anchor: "budget") }) {

@@ -24,6 +24,13 @@ extension CitadelStore {
             if let chain = await server.fallbacks(agent: agent) { page.chains[agent] = chain }
         }
         if page.pool.isEmpty { loadOrgExtras() }
+        loadAgentStats(agent)
+    }
+
+    /// The server's stats for an agent (API minor 18); below it the screens derive them from the loaded runs.
+    func loadAgentStats(_ agent: Int64) {
+        guard serverSupports(minor: Self.trancheBMinor), let server, let model else { return }
+        Task { if let stats = await server.agentStats(agent) { model.agentStats[agent] = stats } }
     }
 
     /// The peek panel's week, success and recent runs: the agent's runs, once.
@@ -32,6 +39,7 @@ extension CitadelStore {
         if model.orgPage.agentSkills[agent] == nil {
             Task { if let skills = await server.agentSkills(agent) { model.orgPage.agentSkills[agent] = skills } }
         }
+        loadAgentStats(agent)
         guard model.agentRuns[agent] == nil else { return }
         Task {
             if let runs = await server.agentRuns(agent, limit: 50) { model.agentRuns[agent] = runs }

@@ -55,7 +55,9 @@ struct AgentView: View {
     private func pausedBar(_ agent: AgentInfo) -> some View {
         HStack(spacing: skin.size.s10) {
             Text("⏸").foregroundStyle(status.warning)
-            Text("Paused by you · new wakes queue until you resume")
+            Text(
+                agent.queuedWakes.map { "Paused by you · \(Wording.count(Int($0), "wake")) queued until you resume" }
+                    ?? "Paused by you · new wakes queue until you resume")
             Spacer()
             AinkradButton(title: "Resume", style: .secondary) { store.resume(agent) }.compact().fixedSize()
         }

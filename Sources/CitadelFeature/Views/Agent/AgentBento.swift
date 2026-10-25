@@ -13,7 +13,7 @@ struct AgentBento: View {
     var body: some View {
         let gap = skin.size.s14
         let runs = model.agentRuns[agent.id] ?? []
-        let stats = AgentStats(runs: runs)
+        let stats = model.stats(of: agent.id)
         let right = VStack(spacing: gap) {
             HStack(alignment: .top, spacing: gap) {
                 BurnTile(model: model, agent: agent, runs: runs)
@@ -125,20 +125,24 @@ private struct BurnTile: View {
         let budget = model.monthBudget(of: agent.id)
         let calendar = Calendar.current
         let days = calendar.range(of: .day, in: .month, for: Date())?.count ?? 30
-        let series = AgentStats.burn(runs: runs, spent: budget?.spent ?? 0)
-        let projection = series.isEmpty ? 0 : (budget?.spent ?? 0) / Int64(series.count) * Int64(days)
+        // The server's daily spend (API minor 18) in dollars where the budget counts dollars; else the loaded runs.
+        let series =
+            model.agentStats[agent.id].map { AgentStats.burn(server: $0, dollars: budget?.isDollars ?? false) }
+            ?? AgentStats.burn(runs: runs, spent: budget?.spent ?? 0)
+        let spent = budget?.shownSpent ?? 0
+        let projection = series.isEmpty ? 0 : spent / Int64(series.count) * Int64(days)
         BentoBox(onTap: { model.orgPage.drawer = .init(section: .settings, anchor: "budget") }) {
             BentoHead(
                 title: "Budget burn · \(Date().formatted(.dateTime.month(.wide)))",
                 trailing: "day \(series.count)/\(days)")
             if let budget {
                 HStack(alignment: .firstTextBaseline, spacing: skin.size.s6) {
-                    Text(Fmt.tokens(budget.spent)).citadelFont("t24", weight: "bold")
-                    Text("/ \(Fmt.tokens(budget.cap)) tok").citadelFont("t12", weight: "medium")
+                    Text(budget.spentWord).citadelFont("t24", weight: "bold")
+                    Text("/ \(budget.capWord)\(budget.isDollars ? "" : " tok")").citadelFont("t12", weight: "medium")
                         .foregroundStyle(skin.color(skin.text.muted))
                     Spacer()
-                    let over = projection > budget.cap
-                    Text("→ \(Fmt.tokens(projection)) by \(Date().formatted(.dateTime.month(.abbreviated))) \(days)")
+                    let over = projection > budget.shownCap
+                    Text("→ \(budget.word(projection)) by \(Date().formatted(.dateTime.month(.abbreviated))) \(days)")
                         .citadelFont("t11", weight: "medium")
                         .foregroundStyle(
                             over ? skin.color(skin.palette.warning) : skin.color(skin.palette.accentSecondary)
@@ -150,7 +154,7 @@ private struct BurnTile: View {
                             in: RoundedRectangle(cornerRadius: skin.size.s6))
                 }
                 BurnChart(
-                    series: series, days: days, cap: budget.cap, warn: budget.warnFraction, projection: projection
+                    series: series, days: days, cap: budget.shownCap, warn: budget.warnFraction, projection: projection
                 )
                 .frame(height: skin.size.s110)
                 .mask(alignment: .leading) {
@@ -166,10 +170,10 @@ private struct BurnTile: View {
                 HStack(spacing: skin.size.s12) {
                     legend(
                         skin.color(skin.palette.warning),
-                        "warn \(Fmt.tokens(budget.cap * Int64(budget.warnPercent) / 100))")
+                        "warn \(budget.word(budget.shownCap * Int64(budget.warnPercent) / 100))")
                     legend(
                         skin.color(skin.palette.danger),
-                        budget.hardStop ? "hard stop \(Fmt.tokens(budget.cap))" : "cap \(Fmt.tokens(budget.cap))")
+                        budget.hardStop ? "hard stop \(budget.capWord)" : "cap \(budget.capWord)")
                     legend(skin.color(skin.palette.accentSecondary).opacity(skin.opacity.o60), "projection")
                 }
             } else {
@@ -293,7 +297,7 @@ private struct HeatTile: View {
 
     var body: some View {
         BentoBox {
-            BentoHead(title: "When it works", trailing: "this week")
+            BentoHead(title: "When it works", trailing: stats.heatSpan)
             AinkradHeatmap(
                 rows: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], columns: ["00", "04", "08", "12", "16", "20"],
                 values: stats.heat)

@@ -208,6 +208,7 @@ extension CitadelStore {
             }
         case .agent(let agent):
             if let info = await server.agent(agent) { model.agents[agent] = info }
+            if model.agentStats[agent] != nil { loadAgentStats(agent) }
             await self.reload(.agentRun(agent), model: model, server: server)
         case .agentRun(let agent):
             if let run = await server.agentRuns(agent, limit: 1)?.first {

@@ -22,7 +22,7 @@ struct OrgPeekPanel: View {
                         hireCard
                     } else {
                         nowCard(live, runs: runs)
-                        statsAndWeek(AgentStats(runs: runs))
+                        statsAndWeek(model.stats(of: agent.id))
                     }
                     chain
                     setup
@@ -240,7 +240,7 @@ struct OrgPeekPanel: View {
 
     @ViewBuilder private var budget: some View {
         let budget = model.monthBudget(of: agent.id)
-        let stats = AgentStats(runs: model.agentRuns[agent.id] ?? [])
+        let stats = model.stats(of: agent.id)
         VStack(alignment: .leading, spacing: skin.size.s6) {
             HStack {
                 PeekLabel(text: "Month budget")
