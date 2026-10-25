@@ -202,7 +202,7 @@ struct StuckCard: View {
             TintDockButton(title: "Retry on \(runner.name)", tint: tint, busyTitle: busy) {
                 busy = "Retrying…"
                 store.retryFix(stuck, on: runner)
-            }
+            }.fixedSize()
         } else {
             switch stuck.repair {
             case "unblock" where stuck.issueID != nil:

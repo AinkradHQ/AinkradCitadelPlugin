@@ -70,7 +70,7 @@ struct OrgView: View {
                         HiresLink(count: pending) { page.sheet = .pendingHires }
                     }
                 }
-                .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
+                .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1).fixedSize()
             }
             Spacer(minLength: skin.size.s10)
             AinkradGlideTabs(
@@ -83,7 +83,9 @@ struct OrgView: View {
             .frame(width: skin.size.s520)
             AinkradButton(title: "Structure", style: .secondary) { page.sheet = .structure(page.structureTab) }
                 .fixedSize()
-            AinkradButton(title: "New agent", icon: "plus") { page.sheet = .hire(team: nil, step: 0) }.fixedSize()
+            AinkradDockButton("New agent", systemImage: "plus", tone: .primary, height: skin.size.s34) {
+                page.sheet = .hire(team: nil, step: 0)
+            }
         }
         .padding(.horizontal, skin.size.s20)
         .padding(.top, skin.size.s14)

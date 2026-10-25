@@ -44,7 +44,7 @@ struct AccountsOverview: View {
                 SegmentDonut(
                     segments: counts.enumerated().map {
                         DonutSegment(id: $0.offset, value: Double($0.element.2), color: $0.element.0.tone.tint(skin))
-                    }, diameter: skin.size.s104, lineWidth: skin.size.s12, gap: skin.size.s3
+                    }, diameter: skin.size.s90, lineWidth: skin.size.s10, gap: skin.size.s3
                 ) {
                     VStack(spacing: 0) {
                         Text("\(accounts.count)").citadelFont("t21", weight: "bold", mono: true)
@@ -65,6 +65,7 @@ struct AccountsOverview: View {
                         .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
                     }
                 }
+                .fixedSize()
             }
             .frame(maxHeight: .infinity)
         }
@@ -123,9 +124,11 @@ struct AccountsOverview: View {
         return tile {
             title("On the pool now", "bolt")
             HStack(alignment: .firstTextBaseline, spacing: skin.size.s6) {
-                Text("\(live.count)").citadelFont("t30", weight: "bold", mono: true)
+                Text("\(live.count)").citadelFont("t30", weight: "bold", mono: true).fixedSize().layoutPriority(1)
                     .foregroundStyle(skin.color(skin.palette.accentSecondary))
                 Text(live.count == 1 ? "run" : "runs").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
+                    .fixedSize()
+                    .layoutPriority(1)
                 Spacer(minLength: skin.size.s4)
                 AvatarStack(items: Array(agents.prefix(5)), size: skin.size.s28) {
                     AgentFigure(agent: $0, model: model, size: skin.size.s28)
@@ -142,6 +145,8 @@ struct AccountsOverview: View {
                         + Text(" resets ")
                         + Text(reset?.formatted(date: .omitted, time: .shortened) ?? "soon").bold()
                         .foregroundStyle(skin.color(skin.text.primary)))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 } else {
                     Text("No account at its limit")
                 }

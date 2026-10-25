@@ -98,11 +98,12 @@ struct StuckView: View {
             leading()
             VStack(alignment: .leading, spacing: 0) {
                 Text(value).citadelFont("t17", weight: "bold", mono: true).foregroundStyle(tint)
-                Text(label).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                Text(label).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1).fixedSize()
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, skin.size.s12)
+        .layoutPriority(1)
         .frame(maxWidth: .infinity)
         .frame(height: skin.size.s52)
         .background(shape.fill(skin.color(.palette("background", skin.opacity.o72))))

@@ -158,19 +158,19 @@ struct ApprovalBody: View {
             out.append(AnyView(QuoteCard(agent: asker, text: notes, model: model)))
         }
         let first = prs.first?["repo"]
-        let checks = prs.compactMap { $0["checks_note"] }.filter { !$0.isEmpty }
         out.append(
             AnyView(
                 InfoTileGrid(tiles: [
                     InfoTile(
                         systemImage: "arrow.triangle.branch", tint: green, label: "Merge order",
                         value: "project repo order\(first.map { " · \($0) first" } ?? "")"),
+                    // Server policy, static copy (the merge runs the same way for every PR).
                     InfoTile(
-                        systemImage: "checkmark.circle", tint: green, label: "Done when",
-                        value: "every PR merged · the issue closes"),
+                        systemImage: "arrow.triangle.merge", tint: green, label: "Method",
+                        value: "merge commit, branches deleted"),
                     InfoTile(
-                        systemImage: "checkmark.seal", tint: green, label: "Checks",
-                        value: checks.isEmpty ? "passed" : checks.joined(separator: " · ")),
+                        systemImage: "exclamationmark.triangle", tint: green, label: "If one fails",
+                        value: "stop, reopen this approval"),
                     InfoTile(
                         systemImage: "person.crop.circle.badge.checkmark", tint: green, label: "Verified by",
                         value: asker?.nameAndRole ?? "QA"),
@@ -263,16 +263,30 @@ struct ApprovalBody: View {
         let role = (f["role"] ?? hired?.role ?? "agent").capitalizedFirst
         let line = [role, model.teamPath(of: approval.agentID), "resting until hired"].compactMap { $0 }
             .joined(separator: " · ")
+        // The prototype's six cells; a cell whose value the store does not have is left out, not guessed.
         var tiles = [
             InfoTile(
                 systemImage: "server.rack", tint: violet, label: "Harness · model",
-                value: "\(AgentLook.harnessName(f["harness"] ?? "")) · \(f["model"] ?? "—")"),
-            InfoTile(
-                systemImage: "person.text.rectangle", tint: violet, label: "Org role",
-                value: f["org_role"].flatMap { $0 == "none" ? nil : $0.uppercased() } ?? "member"),
+                value: "\(AgentLook.harnessName(f["harness"] ?? "")) · \(f["model"] ?? "—")")
         ]
+        let skills = model.orgPage.agentSkills[approval.agentID ?? -1] ?? []
+        if !skills.isEmpty {
+            tiles.append(
+                InfoTile(
+                    systemImage: "square.stack.3d.up", tint: violet, label: "Skills",
+                    value: skills.map(\.name).joined(separator: ", ")))
+        }
+        if let budget = model.budgets.first(where: { $0.scope == "agent:\(approval.agentID ?? -1)" }) {
+            tiles.append(
+                InfoTile(
+                    systemImage: "chart.bar", tint: violet, label: "Budget",
+                    value: "\(Fmt.tokens(budget.cap)) / \(budget.period)"))
+        }
         if let tags = f["runner_tags"], !tags.isEmpty {
             tiles.append(InfoTile(systemImage: "tag", tint: violet, label: "Runner tags", value: tags))
+        }
+        if let sandbox = hired?.sandbox, !sandbox.isEmpty {
+            tiles.append(InfoTile(systemImage: "shield", tint: violet, label: "Sandbox", value: sandbox))
         }
         if let boss = model.agent(hired?.reportsTo) {
             tiles.append(

@@ -176,7 +176,9 @@ struct PendingHiresSheet: View {
             VStack(spacing: skin.size.s6) {
                 if let approval {
                     AinkradButton(title: "Approve") { store.decideHire(approval, approve: true) }
-                    AinkradButton(title: "Reject", style: .danger) { rejecting = approval }
+                    AinkradDockButton("Reject", tone: .danger, height: skin.size.s34, fillsWidth: true) {
+                        rejecting = approval
+                    }
                     AinkradButton(title: "Details", style: .ghost) {
                         store.selectedApproval = approval.id
                         store.screen = .approvals

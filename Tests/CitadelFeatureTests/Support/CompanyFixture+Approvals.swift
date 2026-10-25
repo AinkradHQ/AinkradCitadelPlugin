@@ -19,21 +19,25 @@ extension CompanyFixture {
             id: 42, key: "CIT-42", title: "Event stream replay", projectID: 1, requirementID: 12)
         model.issues[61] = IssueInfo(
             id: 61, key: "CIT-61", title: "runner lease heartbeat", projectID: 1, requirementID: 12)
+        echoHireStore(model)
         model.approvals = [
             ApprovalInfo(
                 id: 23, kind: "permission_escalation", agentID: 4, issueID: 42, requestedBy: 4, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-60),
                 fields: [
                     "run": "418", "request": "toolu_7", "tool": "Bash",
                     "input.command": "cargo add tokio-tungstenite@0.26 --features rustls",
                 ]),
             ApprovalInfo(
                 id: 24, kind: "budget_overrun", agentID: 15, issueID: 8, requestedBy: 15, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-180),
                 fields: [
                     "scope": "issue", "scope_id": "8", "period": "total", "token_cap": "200000", "spent": "168000",
                     "raised": "0", "run": "427",
                 ]),
             ApprovalInfo(
                 id: 21, kind: "sprint_commit", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-720),
                 fields: [
                     "name": "S5", "points": "31", "capacity": "34", "starts_on": "2026-10-27", "ends_on": "2026-11-07",
                     "goal":
@@ -43,6 +47,7 @@ extension CompanyFixture {
                 lists: ["issues": sprint.map { ["id": "\($0.0)", "key": $0.1, "title": $0.2, "points": "\($0.3)"] }]),
             ApprovalInfo(
                 id: 22, kind: "pr_merge", agentID: nil, issueID: 61, requestedBy: 9, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-1500),
                 fields: [
                     "summary": "Merge CIT-61 · 2 PRs · lease heartbeat",
                     "qa_notes":
@@ -56,6 +61,7 @@ extension CompanyFixture {
                 ]),
             ApprovalInfo(
                 id: 25, kind: "hire_agent", agentID: 18, issueID: nil, requestedBy: 14, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-7200),
                 fields: [
                     "name": "Echo", "role": "social media", "org_role": "none", "harness": "opencode",
                     "model": "qwen3-coder", "runner_tags": "linux",
@@ -66,6 +72,7 @@ extension CompanyFixture {
         model.answeredApprovals = [
             ApprovalInfo(
                 id: 17, kind: "pr_merge", agentID: nil, issueID: 49, requestedBy: 9, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-5400),
                 fields: ["summary": "Merge PR #58 · wake queue"], status: "approved", reply: "merged")
         ]
         var run = CompanyFixture.run(418, agent: 4, issue: 42, minutes: 5, tokens: 40_000)
@@ -86,6 +93,23 @@ extension CompanyFixture {
             RepoDiffInfo(repo: "ainkrad-citadel-plugin", files: 3, insertions: 52, deletions: 9),
         ]
         model.projectsPage.policies[1] = PolicyInfo(mode: "sandboxed", allow: ["Bash:cargo test"], sandboxed: true)
+    }
+
+    /// Echo (the hire under review) as the store would hold it: its sandbox, attached skills and a month budget.
+    static func echoHireStore(_ model: CompanyModel) {
+        model.agents[18]?.sandbox = "read-only + web"
+        model.orgPage.agentSkills[18] = [
+            SkillInfo(
+                id: 1, name: "brand-voice", version: 2, attachedTo: "agent", attachedID: 18, attachedRole: nil, bytes: 0
+            ),
+            SkillInfo(
+                id: 2, name: "social-posting", version: 1, attachedTo: "agent", attachedID: 18, attachedRole: nil,
+                bytes: 0),
+        ]
+        model.budgets.append(
+            BudgetInfo(
+                id: 18, label: "Echo · month", scope: "agent:18", period: "month", periodKey: "2026-10", spent: 0,
+                cap: 5_000_000, warnPercent: 80))
     }
 
     static func stuckProto(_ model: CompanyModel) {

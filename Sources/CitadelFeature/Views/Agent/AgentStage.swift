@@ -276,52 +276,59 @@ private struct AgentDock: View {
     var body: some View {
         let page = model.orgPage
         let live = model.currentRun(of: agent.id).flatMap { $0.isLive ? $0 : nil }
-        AinkradFlowLayout(spacing: skin.size.s6) {
-            AinkradDockButton("Chat", systemImage: "bubble.left") { store.chat(with: agent.id) }
-            if agent.isHirePending, let approval = model.hireApproval(of: agent.id) {
-                AinkradDockButton("Approve hire", systemImage: "play", tone: .primary) {
-                    store.decideHire(approval, approve: true)
-                }
-                AinkradDockButton("Reject", systemImage: "xmark.circle", tone: .danger) {
-                    store.decideHire(approval, approve: false)
-                }
-            } else if !agent.isHirePending {
-                if agent.isPaused {
-                    AinkradDockButton("Resume", systemImage: "play", tone: .success) { store.resume(agent) }
-                } else {
-                    AinkradDockButton("Pause", systemImage: "pause", tone: .warning) { page.sheet = .pause(agent.id) }
-                }
-                if let live {
-                    AinkradDockButton("Open run", systemImage: "arrow.up.right.square", tone: .primary) {
-                        store.open(.run(live.id))
+        HStack(spacing: skin.size.s6) {
+            AinkradFlowLayout(spacing: skin.size.s6) {
+                AinkradDockButton("Chat", systemImage: "bubble.left") { store.chat(with: agent.id) }
+                if agent.isHirePending, let approval = model.hireApproval(of: agent.id) {
+                    AinkradDockButton("Approve hire", systemImage: "play", tone: .primary) {
+                        store.decideHire(approval, approve: true)
                     }
-                } else {
-                    AinkradDockButton(
-                        "Wake now", systemImage: "bolt", tone: .primary,
-                        isEnabled: store.serverSupports(minor: CitadelStore.structureMinor)
-                    ) { store.wake(agent) }
-                    .help(store.help(ready: "Run it on what is waiting for it"))
+                    AinkradDockButton("Reject", systemImage: "xmark.circle", tone: .danger) {
+                        store.decideHire(approval, approve: false)
+                    }
+                } else if !agent.isHirePending {
+                    if agent.isPaused {
+                        AinkradDockButton("Resume", systemImage: "play", tone: .success) { store.resume(agent) }
+                    } else {
+                        AinkradDockButton("Pause", systemImage: "pause", tone: .warning) {
+                            page.sheet = .pause(agent.id)
+                        }
+                    }
+                    if let live {
+                        AinkradDockButton("Open run", systemImage: "arrow.up.right.square", tone: .primary) {
+                            store.open(.run(live.id))
+                        }
+                    } else {
+                        AinkradDockButton(
+                            "Wake now", systemImage: "bolt", tone: .primary,
+                            isEnabled: store.serverSupports(minor: CitadelStore.structureMinor)
+                        ) { store.wake(agent) }
+                        .help(store.help(ready: "Run it on what is waiting for it"))
+                    }
+                }
+                AinkradDockSeparator()
+                AinkradDockButton("Instructions", systemImage: "doc.text") {
+                    page.drawer = .init(section: .instructions)
+                }
+                AinkradDockButton("Budget", systemImage: "dollarsign.circle") {
+                    page.drawer = .init(section: .settings, anchor: "budget")
+                }
+                AinkradDockButton("Model", systemImage: "cpu") {
+                    page.drawer = .init(section: .settings, anchor: "model")
+                }
+                AinkradDockButton("Look", systemImage: "paintpalette") {
+                    page.drawer = .init(section: .settings, anchor: "look")
                 }
             }
-            AinkradDockSeparator()
-            AinkradDockButton("Instructions", systemImage: "doc.text") {
-                page.drawer = .init(section: .instructions)
-            }
-            AinkradDockButton("Budget", systemImage: "dollarsign.circle") {
-                page.drawer = .init(section: .settings, anchor: "budget")
-            }
-            AinkradDockButton("Model", systemImage: "cpu") {
-                page.drawer = .init(section: .settings, anchor: "model")
-            }
-            AinkradDockButton("Look", systemImage: "paintpalette") {
-                page.drawer = .init(section: .settings, anchor: "look")
-            }
-            if let live {
-                AinkradDockButton("Stop run", systemImage: "stop", tone: .danger) { page.sheet = .stopRun(live.id) }
-            }
-            if !agent.isHirePending {
-                AinkradDockButton("Terminate", systemImage: "xmark.circle", tone: .danger) {
-                    page.sheet = .terminate(agent.id)
+            Spacer(minLength: 0)
+            HStack(spacing: skin.size.s6) {
+                if let live {
+                    AinkradDockButton("Stop run", systemImage: "stop", tone: .danger) { page.sheet = .stopRun(live.id) }
+                }
+                if !agent.isHirePending {
+                    AinkradDockButton("Terminate", systemImage: "xmark.circle", tone: .danger) {
+                        page.sheet = .terminate(agent.id)
+                    }
                 }
             }
         }
