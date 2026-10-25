@@ -40,3 +40,32 @@ extension ProfilePreviewInfo {
             text: preview.text, bytes: preview.bytes, budgetBytes: preview.budgetBytes, dropped: preview.dropped)
     }
 }
+
+/// What "Add repository"'s check found out about a repo before anything is saved (API minor 18).
+struct RepoProbe: Equatable, Sendable {
+    /// The URL answers.
+    var reachable: Bool
+    /// The token can push a branch and open a PR; `nil` when none was given or the server could not tell.
+    var canPush: Bool?
+    var defaultBranch: String?
+    /// What it is built with, "Rust · Node"; empty when unknown.
+    var stack: String
+    var note: String?
+    var build: String?
+    var test: String?
+    var lint: String?
+    var format: String?
+
+    /// Safe to add: it answers and its token, when it was checked, can push.
+    var passes: Bool { reachable && canPush != false }
+}
+
+extension RepoProbe {
+    init(_ probed: Schemas.Probed) {
+        self.init(
+            reachable: probed.reachable, canPush: probed.canPush, defaultBranch: probed.defaultBranch.nonEmpty,
+            stack: probed.stack, note: probed.note.nonEmpty, build: probed.commands.build.nonEmpty,
+            test: probed.commands.test.nonEmpty, lint: probed.commands.lint.nonEmpty,
+            format: probed.commands.format.nonEmpty)
+    }
+}

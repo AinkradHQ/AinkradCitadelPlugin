@@ -88,19 +88,36 @@ extension CitadelStore {
         repoChange(project: repo.id) { await $0.removeRepo(repo.id) }
     }
 
-    func addRepo(project: Int64, name: String, url: String, branch: String, forge: String, tokenFile: String) {
+    /// `probe` is the staged check's finding (API minor 18): the repo is saved with the stack and commands it read.
+    func addRepo(
+        project: Int64, name: String, url: String, branch: String, forge: String, tokenFile: String,
+        probe: RepoProbe? = nil
+    ) {
         guard let server, let model else { return }
         let page = model.projectsPage
         let forgeConfig =
             tokenFile.isEmpty ? nil : Schemas.RepoForge(kind: forge, repo: name, tokenFile: tokenFile)
+        let found = hasTrancheB ? probe : nil
         let body = Schemas.RepoBody(
-            defaultBranch: branch.isEmpty ? nil : branch, forge: forgeConfig, name: name, url: url)
+            commands: found.map { .init(build: $0.build, format: $0.format, lint: $0.lint, test: $0.test) },
+            defaultBranch: branch.isEmpty ? nil : branch, forge: forgeConfig, name: name,
+            stack: found?.stack.isEmpty == false ? found?.stack : nil, url: url)
         Task {
             switch await server.addRepo(project: project, body) {
             case .success(let repo): page.repos[project, default: []].append(repo)
             case .failure(let refusal): page.problem = refusal
             }
         }
+    }
+
+    /// "Check": the URL, the token and the stack, before anything is saved. An older server has no check.
+    func probeRepo(
+        project: Int64, name: String, url: String, forge: String, tokenFile: String,
+        done: @escaping @MainActor (Result<RepoProbe, ServerAnswer>) -> Void
+    ) {
+        guard hasTrancheB, let server else { return }
+        let forgeConfig = tokenFile.isEmpty ? nil : Schemas.RepoForge(kind: forge, repo: name, tokenFile: tokenFile)
+        Task { done(await server.probeRepo(project: project, url: url, forge: forgeConfig)) }
     }
 
     /// A repo action that answers with the project's repos; `project` is found from the repo.

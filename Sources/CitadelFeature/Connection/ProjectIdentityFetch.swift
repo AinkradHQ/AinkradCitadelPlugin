@@ -64,3 +64,16 @@ extension CitadelServer {
         }
     }
 }
+
+/// "＋ Add repository"'s staged check (API minor 18): the URL resolves, the token can push, the stack is read.
+/// Nothing is saved; the token stays in git's environment on the server.
+extension CitadelServer {
+    func probeRepo(project: Int64, url: String, forge: Schemas.RepoForge?) async -> Result<RepoProbe, ServerAnswer> {
+        await attempt({
+            try await client.probeRepo(path: .init(id: project), body: .json(.init(forge: forge, url: url)))
+        }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            return RepoProbe(try ok.body.json)
+        }
+    }
+}

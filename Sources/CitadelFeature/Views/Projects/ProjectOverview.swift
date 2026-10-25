@@ -219,11 +219,20 @@ struct ProjectOverview: View {
                 (Text(repo.name) + Text(repo.isPrimary ? " ★" : "").foregroundStyle(skin.color(skin.palette.warning)))
                     .citadelFont("t12_5", weight: "semibold", mono: true).foregroundStyle(skin.color(skin.text.primary))
                     .lineLimit(1)
-                if repo.isPrimary, let stack = facts.profile?.stack, !stack.isEmpty {
+                // Each repo's own stack from API minor 18; before, only the primary's, from the profile.
+                if let stack = facts.hasTrancheB ? repo.stack : (repo.isPrimary ? facts.profile?.stack : nil),
+                    !stack.isEmpty
+                {
                     Text(stack).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(2)
                 }
-                Text("⑂ \(repo.defaultBranch)").citadelFont("t10_5").foregroundStyle(skin.color(skin.text.muted))
-                    .padding(.top, skin.size.s6)
+                HStack(spacing: skin.size.s8) {
+                    Text("⑂ \(repo.defaultBranch)").citadelFont("t10_5").foregroundStyle(skin.color(skin.text.muted))
+                    if facts.hasTrancheB, !repo.inUseBy.isEmpty {
+                        Text("in use by \(repo.inUseBy.joined(separator: ", "))").citadelFont("t10_5", mono: true)
+                            .foregroundStyle(skin.color(skin.palette.accentSecondary)).lineLimit(1)
+                    }
+                }
+                .padding(.top, skin.size.s6)
             }
             Spacer(minLength: 0)
         }
