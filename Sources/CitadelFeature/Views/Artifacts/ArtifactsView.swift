@@ -1,89 +1,107 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Screen 13: every file, report and screenshot the company's agents published — grouped by day, filtered by
-/// requirement, type, agent and issue — beside the selected one's preview and where it came from. Storage use
-/// against the company's quota is in the header (decision #47).
+/// The Artifacts screen (prototype `artifacts.js`): every report, file and screenshot agents published — type tiles,
+/// agent and requirement pickers, Grid / List by day — with a peek drawer (‹ ›, provenance, siblings) and Quick Look.
+/// Storage use against the company's quota is in the head (decision #47).
 struct ArtifactsView: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
+    @Environment(\.ainkradTypography) private var typo
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @Environment(\.citadelOffline) private var offline
 
     private var page: ArtifactsPage { model.artifactsPage }
     private var items: [ArtifactInfo] { model.filteredArtifacts }
-    private var selected: ArtifactInfo? { page.items.first { $0.id == page.selectedID } ?? items.first }
 
     var body: some View {
-        HStack(spacing: 0) {
+        ZStack {
             VStack(alignment: .leading, spacing: 0) {
-                PaneTitle(
-                    title: "Artifacts",
-                    crumb: Text(model.artifactsCrumb(company: store.company?.name ?? "this company", now: Date()))
-                        .foregroundStyle(skin.color(skin.text.muted))
-                ) {
-                    AinkradSegmentedPicker(
-                        items: [true, false], selection: Binding(get: { page.isGrid }, set: { page.isGrid = $0 }),
-                        label: { $0 ? "Grid" : "List" }
-                    )
-                    .fixedSize()
-                }
-                filters
-                content.offlineDimmed()
+                head
+                filters.zIndex(2)
+                content
+                    .overlay {
+                        if page.openPicker != nil {
+                            Color.clear.contentShape(Rectangle()).onTapGesture { page.openPicker = nil }
+                        }
+                    }
+                    .offlineDimmed()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            Group {
-                if let selected {
-                    ArtifactPreviewPane(store: store, model: model, artifact: selected).id(selected.id)
-                        .transition(.opacity)
-                } else {
-                    Color.clear
+            if let id = page.selectedID, let artifact = page.items.first(where: { $0.id == id }) {
+                ArtifactPeek(store: store, model: model, artifact: artifact)
+            }
+        }
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.selectedID == nil)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: page.openPicker)
+        .onAppear { store.loadArtifacts() }
+        .background {
+            // Space opens Quick Look on the peeked artifact, or the first one.
+            AinkradTapArea(action: {
+                page.quickLookID = page.quickLookID == nil ? (page.selectedID ?? items.first?.id) : nil
+            }) { Color.clear }
+            .keyboardShortcut(.space, modifiers: [])
+            .opacity(0)
+        }
+    }
+
+    // MARK: - Head
+
+    private var head: some View {
+        HStack(alignment: .top, spacing: skin.size.s10) {
+            VStack(alignment: .leading, spacing: skin.size.s2) {
+                Text("Artifacts").citadelFont("t15", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
+                HStack(spacing: skin.size.s6) {
+                    (offline?.crumb
+                        ?? Text(model.artifactsCrumb(company: store.company?.name ?? "this company", now: Date()))
+                        .foregroundStyle(skin.color(skin.text.muted)))
+                        .font(skin.font(AinkradFontToken(sizeKey: "t11"), typography: typo)).lineLimit(1)
+                    if let usage = page.usage, usage.quota > 0, offline?.crumb == nil {
+                        AinkradBudgetBar(
+                            label: "Storage", value: Double(usage.used), limit: Double(usage.quota),
+                            warnFraction: model.warnFraction, showsHardLimit: false
+                        )
+                        .frame(width: skin.size.s90)
+                    }
                 }
             }
-            .frame(width: skin.size.s420)
-            .frame(maxHeight: .infinity)
-            .background(theme.surface.opacity(skin.opacity.o20))
-            .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: selected?.id)
+            Spacer(minLength: skin.size.s10)
+            let accent = skin.color(skin.palette.accentSecondary)
+            DockToggle("Grid", systemImage: "square.grid.2x2", isOn: page.isGrid, onTint: accent) { page.isGrid = true }
+            DockToggle("List", systemImage: "list.bullet", isOn: !page.isGrid, onTint: accent) { page.isGrid = false }
         }
-        .onAppear { store.loadArtifacts() }
+        .padding(.horizontal, skin.size.s20)
+        .padding(.top, skin.size.s14)
+        .padding(.bottom, skin.size.s10)
     }
+
+    // MARK: - Filters
 
     private var filters: some View {
         let all = page.items
-        let kinds: [String?] = [nil] + Array(Set(all.map(\.kind))).sorted()
-        let agents: [Int64?] = [nil] + Array(Set(all.compactMap(\.agentID))).sorted()
-        let issues: [Int64?] = [nil] + Array(Set(all.compactMap(\.issueID))).sorted()
-        return HStack(spacing: skin.size.s8) {
-            if let id = page.filter.requirementID {
-                AinkradChip(
-                    label: "Requirement: \(model.requirements.first { $0.id == id }?.key ?? "R-\(id)")",
-                    systemName: "rhombus.fill", onRemove: { page.filter.requirementID = nil }
-                )
-                .fixedSize()
+        let tiles =
+            [
+                TypeTile(
+                    id: "", label: "All", icon: ArtifactTypeLook(type: "").icon, count: all.count,
+                    tint: Hue.slate.color(skin))
+            ]
+            + ArtifactTypeLook.tiles.map { type in
+                let look = ArtifactTypeLook(type: type)
+                return TypeTile(
+                    id: type, label: look.plural, icon: look.icon, count: all.filter { $0.type == type }.count,
+                    tint: look.hue.color(skin))
             }
-            AinkradSelect(
-                items: kinds, selection: Binding(get: { page.filter.kind }, set: { page.filter.kind = $0 }),
-                label: { $0 ?? "All types" }
-            )
-            .fixedSize()
-            AinkradSelect(
-                items: agents, selection: Binding(get: { page.filter.agentID }, set: { page.filter.agentID = $0 }),
-                label: { id in id.map { model.agent($0)?.name ?? "Agent \($0)" } ?? "Agent" }
-            )
-            .fixedSize()
-            AinkradSelect(
-                items: issues, selection: Binding(get: { page.filter.issueID }, set: { page.filter.issueID = $0 }),
-                label: { id in id.map { model.issue($0)?.key ?? "#\($0)" } ?? "Issue" }
-            )
-            .fixedSize()
-            Spacer(minLength: skin.size.s8)
-            Text("\(items.count) artifact\(items.count == 1 ? "" : "s") · newest first").citadelFont("t11")
-                .foregroundStyle(skin.color(skin.text.faint)).lineLimit(1).layoutPriority(1)
+        return HStack(spacing: skin.size.s8) {
+            TypeTileBar(tiles: tiles, selection: page.filter.type ?? "") { page.filter.type = $0.isEmpty ? nil : $0 }
+            ArtifactAgentPicker(model: model, page: page)
+            ArtifactRequirementPicker(model: model, page: page)
         }
         .padding(.horizontal, skin.size.s20)
-        .padding(.bottom, skin.size.s10)
+        .padding(.bottom, skin.size.s12)
     }
+
+    // MARK: - Content
 
     @ViewBuilder private var content: some View {
         if !page.isLoaded || (page.items.isEmpty && page.usage == nil) {
@@ -93,43 +111,47 @@ struct ArtifactsView: View {
             .padding(.horizontal, skin.size.s20)
             Spacer(minLength: 0)
         } else if items.isEmpty {
-            AinkradEmptyState(
-                icon: "doc.text", title: page.items.isEmpty ? "No artifacts yet" : "Nothing matches",
-                message: page.items.isEmpty
-                    ? "Reports, screenshots and files agents publish land here — no conversation needed to find them."
-                    : "Clear a filter to see more."
-            )
+            VStack(spacing: skin.size.s10) {
+                AinkradEmptyState(
+                    icon: "doc.text", title: page.items.isEmpty ? "No artifacts yet" : "No artifacts match",
+                    message:
+                        "Agents publish reports, specs and screenshots with publish_artifact; they land here.")
+                if !page.items.isEmpty {
+                    AinkradDockButton("Clear filters", height: skin.size.s26) {
+                        page.filter = ArtifactFilter()
+                    }
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: skin.size.s10) {
+                VStack(alignment: .leading, spacing: skin.size.s20) {
                     ForEach(ArtifactGroup.groups(items, now: Date())) { group in
-                        Text(skin.labelCased(group.title)).citadelFont("t10", weight: "semibold")
-                            .foregroundStyle(skin.color(skin.text.muted))
-                            .padding(.top, skin.size.s4)
-                        if page.isGrid { grid(group.items) } else { rows(group.items) }
+                        VStack(alignment: .leading, spacing: skin.size.s10) {
+                            RunsSectionHead(title: group.title, count: group.items.count)
+                            if page.isGrid { grid(group.items) } else { list(group.items) }
+                        }
                     }
                 }
                 .padding(.horizontal, skin.size.s20)
-                .padding(.bottom, skin.size.s16)
+                .padding(.top, skin.size.s2)
+                .padding(.bottom, skin.size.s20)
                 .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: items.map(\.id))
             }
         }
     }
 
     private func grid(_ list: [ArtifactInfo]) -> some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: skin.size.s10), count: 3),
-            alignment: .leading, spacing: skin.size.s10
+        let newest = page.items.map(\.createdAt).max()
+        return LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: skin.size.s220), spacing: skin.size.s14)], alignment: .leading,
+            spacing: skin.size.s14
         ) {
             ForEach(list) { artifact in
-                AinkradFileThumbnail(
-                    name: artifact.name, typeLabel: artifact.typeLabel(imageSize: page.images[artifact.id]?.size),
-                    agent: model.agent(artifact.agentID)?.name, references: model.references(artifact),
-                    detail: detail(artifact), isSelected: artifact.id == selected?.id,
-                    action: { page.selectedID = artifact.id },
-                    preview: { ArtifactPreviewThumb(model: model, artifact: artifact) },
-                    avatar: { avatar(artifact) }
+                ArtifactCard(
+                    model: model, artifact: artifact, isSelected: artifact.id == page.selectedID,
+                    isFresh: artifact.createdAt == newest && Date().timeIntervalSince(artifact.createdAt) < 120,
+                    action: { page.selectedID = artifact.id }
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear { store.loadPreview(artifact) }
@@ -137,67 +159,125 @@ struct ArtifactsView: View {
         }
     }
 
-    private func rows(_ list: [ArtifactInfo]) -> some View {
-        VStack(alignment: .leading, spacing: skin.size.s2) {
+    private func list(_ list: [ArtifactInfo]) -> some View {
+        VStack(spacing: skin.size.s2) {
             ForEach(list) { artifact in
-                AinkradListRow(
-                    isSelected: artifact.id == selected?.id, onTap: { page.selectedID = artifact.id },
-                    leading: { avatar(artifact) }, title: artifact.name,
-                    subtitle: ([model.agent(artifact.agentID)?.name] + model.references(artifact).map(Optional.some)
-                        + [detail(artifact)]).compactMap { $0 }.joined(separator: " · "),
-                    trailing: {
-                        Text(artifact.typeLabel()).citadelFont("t10", mono: true)
-                            .foregroundStyle(skin.color(skin.text.faint))
-                    })
+                ArtifactRow(model: model, artifact: artifact, isSelected: artifact.id == page.selectedID) {
+                    page.selectedID = artifact.id
+                }
+                .onAppear { store.loadPreview(artifact) }
             }
         }
-    }
-
-    @ViewBuilder private func avatar(_ artifact: ArtifactInfo) -> some View {
-        if let agent = model.agent(artifact.agentID) { AgentFigure(agent: agent, model: model, size: skin.size.s18) }
-    }
-
-    /// "run #428" when it came from a run with no requirement to name, nothing when it names both an issue and a
-    /// requirement, else its time.
-    private func detail(_ artifact: ArtifactInfo) -> String? {
-        if let run = artifact.runID, artifact.requirementID == nil { return "run #\(run)" }
-        if model.references(artifact).count > 1 { return nil }
-        return RequirementThreadView.time(artifact.createdAt)
+        .padding(skin.size.s5)
+        .background(
+            RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
+                .fill(skin.color(.palette("background", skin.opacity.o55)))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
+                .strokeBorder(skin.color(.palette("foreground", skin.opacity.o05)), lineWidth: 1))
     }
 }
 
-/// A card's preview well: the first lines of a text file, the image, or an icon for anything else.
-struct ArtifactPreviewThumb: View {
+/// "Agent · Everyone": who published it.
+struct ArtifactAgentPicker: View {
     let model: CompanyModel
-    let artifact: ArtifactInfo
+    let page: ArtifactsPage
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
-        Group {
-            if let image = model.artifactsPage.images[artifact.id] {
-                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-            } else if let text = model.artifactsPage.texts[artifact.id] {
-                Text(Self.firstLines(text)).citadelFont("t9", mono: !artifact.isMarkdown).lineLimit(5)
-                    .foregroundStyle(skin.color(skin.text.muted)).lineSpacing(skin.size.s1)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.horizontal, skin.size.s10).padding(.top, skin.size.s8)
+        let all = page.items
+        let ids = Array(Set(all.compactMap(\.agentID))).sorted {
+            (model.agent($0)?.name ?? "") < (model.agent($1)?.name ?? "")
+        }
+        let selected = model.agent(page.filter.agentID)
+        RichPicker(
+            caption: "Agent", value: selected?.name ?? "Everyone", isOn: selected != nil,
+            isOpen: Binding(get: { page.openPicker == "agent" }, set: { page.openPicker = $0 ? "agent" : nil })
+        ) {
+            if let selected {
+                AgentFigure(agent: selected, model: model, size: skin.size.s30)
             } else {
-                Text(artifact.ext == "json" ? "{ }" : artifact.isImage ? "◫" : "⇩").citadelFont("t28")
-                    .foregroundStyle(theme.accentSecondary)
+                Image(systemName: "person.2").citadelFont("t14")
+            }
+        } menu: {
+            RichMenu(header: "Published by") {
+                RichMenuRow(
+                    title: "Everyone", subtitle: Wording.count(ids.count, "agent"), count: all.count,
+                    isChecked: page.filter.agentID == nil, action: { pick(nil) }
+                ) { AvatarStack(model: model, ids: Array(ids.prefix(4))) }
+                RichMenuSeparator()
+                ForEach(Array(ids.enumerated()), id: \.element) { index, id in
+                    if let agent = model.agent(id) {
+                        RichMenuRow(
+                            title: agent.name, subtitle: agent.role, count: all.filter { $0.agentID == id }.count,
+                            isChecked: page.filter.agentID == id, index: index + 1, action: { pick(id) }
+                        ) { AgentFigure(agent: agent, model: model, size: skin.size.s28) }
+                    }
+                }
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: skin.size.s96)
-        .clipped()
     }
 
-    /// The first five non-empty lines, markdown marks dropped (the type tag covers the rest).
-    static func firstLines(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: true).prefix(5)
-            .map {
-                $0.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "#|-* "))
+    private func pick(_ id: Int64?) {
+        page.filter.agentID = id
+        page.openPicker = nil
+    }
+}
+
+/// "Requirement · Any": the requirement it came from (its own, else its issue's).
+struct ArtifactRequirementPicker: View {
+    let model: CompanyModel
+    let page: ArtifactsPage
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        let all = page.items
+        let requirementOf = { (a: ArtifactInfo) in a.requirementID ?? model.issue(a.issueID)?.requirementID }
+        let ids = Array(Set(all.compactMap(requirementOf))).sorted(by: >)
+        let selected = model.requirements.first { $0.id == page.filter.requirementID }
+        RichPicker(
+            caption: "Requirement", value: selected.map { "\($0.key) · \($0.title)" } ?? "Any", isOn: selected != nil,
+            isOpen: Binding(
+                get: { page.openPicker == "requirement" }, set: { page.openPicker = $0 ? "requirement" : nil })
+        ) {
+            Image(systemName: "list.bullet").citadelFont("t14")
+        } menu: {
+            RichMenu(header: "From requirement") {
+                RichMenuRow(
+                    title: "Any requirement", subtitle: Wording.count(ids.count, "requirement"), count: all.count,
+                    isChecked: page.filter.requirementID == nil, action: { pick(nil) }
+                ) {
+                    Image(systemName: "list.bullet").citadelFont("t13").foregroundStyle(skin.color(skin.text.muted))
+                        .frame(width: skin.size.s30, height: skin.size.s30)
+                        .background(
+                            skin.color(.palette("foreground", skin.opacity.o08)),
+                            in: RoundedRectangle(cornerRadius: skin.size.s9))
+                }
+                RichMenuSeparator()
+                ForEach(Array(ids.enumerated()), id: \.element) { index, id in
+                    let requirement = model.requirements.first { $0.id == id }
+                    RichMenuRow(
+                        title: requirement?.title ?? "R-\(id)", subtitle: requirement?.key ?? "R-\(id)",
+                        count: all.filter { requirementOf($0) == id }.count, isChecked: page.filter.requirementID == id,
+                        index: index + 1, action: { pick(id) }
+                    ) {
+                        Text(requirement?.key ?? "R-\(id)").citadelFont("t10", weight: "semibold", mono: true)
+                            .foregroundStyle(skin.color(.palette("foreground", 1)))
+                            .frame(width: skin.size.s30, height: skin.size.s30)
+                            .background(
+                                LinearGradient(
+                                    colors: [Hue.blue.color(skin), Hue.violet.color(skin)], startPoint: .topLeading,
+                                    endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: skin.size.s9, style: .continuous))
+                    }
+                }
             }
-            .joined(separator: "\n")
+        }
+    }
+
+    private func pick(_ id: Int64?) {
+        page.filter.requirementID = id
+        page.openPicker = nil
     }
 }

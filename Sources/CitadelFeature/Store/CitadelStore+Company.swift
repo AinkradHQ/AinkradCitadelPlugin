@@ -18,7 +18,9 @@ enum Detail: Hashable {
 
 /// The selected company's data: one load when its stream goes live, then targeted reads the events ask for.
 extension CitadelStore {
-    static let limitKeys = ["run.token_cap", "run.stall_after_secs", "budget.warn_percent", "breaker.loop_threshold"]
+    static let limitKeys = [
+        "run.token_cap", "run.stall_after_secs", "budget.warn_percent", "breaker.loop_threshold", "issue.token_cap",
+    ]
 
     func open(_ detail: Detail?) {
         self.detail = detail
@@ -132,6 +134,9 @@ extension CitadelStore {
         if model.issues[issueID] == nil { model.issues[issueID] = await server.issue(issueID) }
         if model.issueRepos[issueID] == nil { model.issueRepos[issueID] = await server.issueRepos(issueID) }
         if let project = model.issues[issueID]?.projectID {
+            if model.projectsPage.policies[project] == nil, let policy = await server.policy(project: project) {
+                model.projectsPage.policies[project] = policy
+            }
             for key in Self.limitKeys where model.limits["project:\(project)|\(key)"] == nil {
                 model.limits["project:\(project)|\(key)"] = await server.setting(scope: "project:\(project)", key: key)
             }

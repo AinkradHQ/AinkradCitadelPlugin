@@ -158,7 +158,7 @@ final class RequirementsHubTests: XCTestCase {
             CompanyFixture.artifacts[1].typeLabel(imageSize: CGSize(width: 1440, height: 900)), "png · 1440×900")
         XCTAssertEqual(CompanyFixture.artifacts[5].typeLabel(), "log · 84 KB")
         XCTAssertEqual(model.references(report), ["CIT-61", "R-12"])
-        XCTAssertEqual(ArtifactPreviewPane.shortHash(report.sha256), "9f2c…e1")
+        XCTAssertEqual(ArtifactInfo.shortHash(report.sha256), "9f2c…e1")
         XCTAssertTrue(model.artifactsCrumb(company: "Ainkrad", now: CompanyFixture.now).hasSuffix("212 MB of 2 GB"))
 
         XCTAssertEqual(ArtifactInfo.safeFileName("../../etc/passwd", id: 1), "_.._etc_passwd")

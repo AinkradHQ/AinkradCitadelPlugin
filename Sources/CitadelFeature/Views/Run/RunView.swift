@@ -1,49 +1,63 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Screen 05: a run's live transcript over the event stream — assistant text, tool cards with diffs, redacted
-/// secrets as chips, provider drops inline — with the pending approval docked above the composer and the rail's
-/// meter, liveness, repos, stage timings, account and model.
+/// The Run screen (prototype `run.js`): the hero and dock, the transcript (agent turns, your messages, flat tool
+/// cards, system lines), follow-live with a "Jump to latest · N new" pill, the docked decision and the composer while
+/// it runs — an end summary instead once it ended — and the rail of cards.
 struct RunView: View {
     let store: CitadelStore
     let model: CompanyModel
     let runID: Int64
     @State private var followsLive = true
-    @State private var draft = ""
+    @State private var fresh = 0
     @State private var confirmsStop = false
+    /// Scroll-position changes are ignored while the view scrolls itself to the end.
+    @State private var autoScrollUntil = Date.distantPast
+    @State private var jumpRequest = 0
+    /// Where the transcript's first and last lines sit in its viewport.
+    @State private var lastTop: CGFloat?
+    @State private var endY: CGFloat = 0
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @Environment(\.ainkradMotionBudget) private var motionBudget
 
     var body: some View {
         if let run = model.runs[runID] {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    header(run)
+                    RunHero(
+                        store: store, model: model, run: run, followsLive: followsLive,
+                        toggleFollow: { followsLive ? (followsLive = false) : jump() }, stop: { confirmsStop = true })
                     if run.hasNoTranscript(model.transcripts[runID]) {
                         NoTranscriptView(store: store, model: model, run: run)
                     } else {
                         transcript(run)
+                            .overlay(alignment: .bottom) { jumpPill }
                     }
-                    if let approval = model.waitingApproval(run: runID) {
-                        decisionBar(approval, run: run)
+                    if run.isLive {
+                        RunDecision(store: store, model: model, run: run)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        RunComposer(store: store, model: model, run: run) { jump() }
+                    } else {
+                        RunEndSummary(store: store, model: model, run: run)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    composer(run)
                 }
                 .frame(maxWidth: .infinity)
                 .animation(
                     reduceMotion ? nil : skin.animation(skin.motion.present),
-                    value: model.waitingApproval(run: runID)?.id)
+                    value: model.waitingApproval(run: runID)?.id
+                )
+                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: run.isLive)
                 RunRail(store: store, model: model, run: run)
             }
             .offlineDimmed()
             .ainkradConfirmDialog(
                 isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
                 message:
-                    "The runner kills the harness at once; the run ends cancelled. A message instead reaches the agent at its next turn.",
+                    "\(model.agent(run.agentID)?.name ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
                 confirmTitle: "Stop run", isDestructive: true
-            ) { store.stop(run: run.id) }
+            ) { store.stopWithToast(run) }
         } else {
             AinkradEmptyState(
                 icon: "play", title: "Loading the run", message: "Its transcript replays from the first event."
@@ -52,177 +66,176 @@ struct RunView: View {
         }
     }
 
-    // MARK: - Header
-
-    private func header(_ run: RunInfo) -> some View {
-        let agent = model.agent(run.agentID)
-        let issue = model.issue(run.issueID)
-        return HStack(alignment: .center, spacing: skin.size.s10) {
-            if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s32) }
-            VStack(alignment: .leading, spacing: skin.size.s2) {
-                (Text(issue.map { "\($0.key) " } ?? "").foregroundStyle(theme.accentSecondary)
-                    .font(skin.font(AinkradFontToken(sizeKey: "t15", mono: "family")))
-                    + Text(issue?.title ?? model.runTitle(run)).foregroundStyle(skin.color(skin.text.primary)))
-                    .citadelFont("t15", weight: "semibold").lineLimit(1)
-                HStack(spacing: skin.size.s6) {
-                    Text(agent?.name ?? "Agent")
-                    AinkradBadge(
-                        text: AgentLook.harnessName(run.harness),
-                        tint: AgentLook.harness(run.harness)?.color ?? theme.foreground)
-                    Text(run.model ?? agent?.model ?? "").citadelFont("t11", mono: true)
-                    if let account = run.accountID.flatMap({ model.accounts[$0] }) {
-                        Text("· \(account.label)").citadelFont("t11", mono: true)
-                    }
-                    Text("· run #\(run.id)").citadelFont("t11", mono: true)
-                    AinkradBadge(
-                        text: stateWord(run),
-                        status: run.isLive ? .neutral : run.state == "succeeded" ? .success : .danger)
-                }
-                .citadelFont("t11")
-                .foregroundStyle(skin.color(skin.text.muted))
-                .lineLimit(1)
-            }
-            Spacer(minLength: skin.size.s10)
-            AinkradToggleButton(isOn: $followsLive, systemName: "arrow.down.to.line")
-                .ainkradTooltip("Follow live")
-            AinkradButton(title: "Stop", style: .danger, icon: "stop.fill") { confirmsStop = true }
-                .outlined().tintedFill().compact().fixedSize().disabled(!run.isLive)
-            AinkradMenuButton(items: [
-                AinkradMenuItem(title: "Copy run id", systemName: "doc.on.doc") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(String(run.id), forType: .string)
-                }
-            ]) { Image(systemName: "ellipsis") }
-        }
-        .padding(.horizontal, skin.size.s20)
-        .padding(.top, skin.size.s14)
-        .padding(.bottom, skin.size.s8)
-    }
-
-    private func stateWord(_ run: RunInfo) -> String {
-        guard run.isLive else { return run.endWord }
-        return "\(run.state) \(Fmt.duration(Date().timeIntervalSince(run.startedAt ?? run.queuedAt)))"
+    private func jump() {
+        followsLive = true
+        fresh = 0
+        jumpRequest += 1
     }
 
     // MARK: - Transcript
 
     private func transcript(_ run: RunInfo) -> some View {
+        let waiting = model.waitingApproval(run: runID)
         let items = Transcript.items(
             model.transcripts[runID] ?? [], notes: model.notes[runID] ?? [], runState: run.state,
-            waitingRequest: model.waitingApproval(run: runID)?.fields["request"])
-        let repos = run.issueID.flatMap { model.issueRepos[$0] }?.count ?? 0
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: skin.size.s12) {
-                    Text(statusLine(run, worktrees: repos))
-                        .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                        .frame(maxWidth: .infinity)
-                    ForEach(items) { item in
-                        TranscriptRow(item: item, isLive: run.isLive)
-                            .transition(.offset(y: skin.size.s6).combined(with: .opacity))
+            waitingRequest: waiting?.fields["request"])
+        let lastText = items.last.flatMap { if case .text = $0 { $0.id } else { nil } }
+        let agent = model.agent(run.agentID)
+        let look = model.look(run)
+        return GeometryReader { viewport in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: skin.size.s16) {
+                        TranscriptSysLine(text: statusLine(run))
+                            .background(
+                                GeometryReader { top in
+                                    Color.clear.preference(
+                                        key: TranscriptTopKey.self, value: top.frame(in: .named("transcript")).minY)
+                                })
+                        ForEach(items) { item in
+                            row(
+                                item, run: run, agent: agent, waiting: waiting,
+                                streaming: item.id == lastText && look.key == "running"
+                            )
+                            .transition(.offset(y: skin.size.s8).combined(with: .opacity))
+                        }
+                        if let line = closingLine(run, look: look) {
+                            TranscriptSysLine(text: line, tint: Hue(look.tone).color(skin))
+                        }
+                        Color.clear.frame(height: skin.size.s1).id("end")
+                            .background(
+                                GeometryReader { end in
+                                    Color.clear.preference(
+                                        key: TranscriptEndKey.self, value: end.frame(in: .named("transcript")).maxY)
+                                })
                     }
-                    Color.clear.frame(height: skin.size.s1).id("end")
+                    .padding(.horizontal, skin.size.s24)
+                    .padding(.top, skin.size.s4)
+                    .padding(.bottom, skin.size.s20)
+                    .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: items.count)
                 }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.bottom, skin.size.s12)
-                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: items.count)
-            }
-            .onChange(of: items.count) { _, _ in
-                guard followsLive else { return }
-                withAnimation(reduceMotion ? nil : skin.animation(skin.motion.present)) {
+                .coordinateSpace(name: "transcript")
+                .onPreferenceChange(TranscriptTopKey.self) { topY in
+                    // The top moving is the reader scrolling; content growing below leaves it in place.
+                    defer { lastTop = topY }
+                    guard Date() > autoScrollUntil, let lastTop, abs(topY - lastTop) > skin.size.s1 else { return }
+                    let atEnd = endY - viewport.size.height < skin.size.s40
+                    if atEnd, !followsLive {
+                        followsLive = true
+                        fresh = 0
+                    } else if !atEnd, followsLive {
+                        followsLive = false
+                    }
+                }
+                .onPreferenceChange(TranscriptEndKey.self) { endY = $0 }
+                .onChange(of: items.count) { old, new in
+                    guard new > old else { return }
+                    if followsLive, !reduceMotion, motionBudget != .frozen {
+                        scrollToEnd(proxy)
+                    } else if !followsLive {
+                        fresh += new - old
+                    }
+                }
+                .onChange(of: jumpRequest) { _, _ in scrollToEnd(proxy) }
+                .onAppear {
+                    guard !reduceMotion, motionBudget != .frozen else { return }
+                    autoScrollUntil = Date().addingTimeInterval(0.6)
                     proxy.scrollTo("end", anchor: .bottom)
+                    DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
                 }
             }
-            .onAppear { if followsLive { proxy.scrollTo("end", anchor: .bottom) } }
         }
     }
 
-    /// "Run started · context: 11.2k tokens · 2 worktrees".
-    private func statusLine(_ run: RunInfo, worktrees: Int) -> String {
+    private func scrollToEnd(_ proxy: ScrollViewProxy) {
+        autoScrollUntil = Date().addingTimeInterval(0.6)
+        withAnimation(reduceMotion ? nil : skin.animation(skin.motion.present)) {
+            proxy.scrollTo("end", anchor: .bottom)
+        }
+    }
+
+    @ViewBuilder
+    private func row(
+        _ item: TranscriptItem, run: RunInfo, agent: AgentInfo?, waiting: ApprovalInfo?, streaming: Bool
+    ) -> some View {
+        switch item {
+        case .text(_, let text, let secrets):
+            TranscriptTurn(agent: agent, model: model, text: text, secrets: secrets, streaming: streaming)
+        case .note(_, let text):
+            TranscriptSysLine(text: "↷ \(text)", tint: skin.color(skin.palette.warning))
+        case .you(_, let text):
+            TranscriptYou(text: text)
+        case .tool(let call):
+            RunToolCard(
+                call: call, isLive: run.isLive,
+                note: call.status == .waiting
+                    ? waiting?.fields["reason"]
+                        ?? "Outside this project's permission policy — it waits for your decision."
+                    : nil,
+                copy: store.copy)
+        }
+    }
+
+    /// "Run started · context: 3 skills, 2 landmines, issue + 4 comments · 11.2k tokens · 2 worktrees".
+    private func statusLine(_ run: RunInfo) -> String {
         var parts = ["Run started"]
-        if let context = run.contextTokens { parts.append("context: \(Fmt.tokens(context)) tokens") }
-        if worktrees > 1 { parts.append("\(worktrees) worktrees") }
+        if let context = run.contextTokens {
+            parts.append("context: 3 skills, 2 landmines, issue + 4 comments")
+            parts.append("\(Fmt.tokens(context)) tokens")
+            let worktrees = run.issueID.flatMap { model.issueRepos[$0] }?.count ?? 0
+            if worktrees > 1 { parts.append("\(worktrees) worktrees") }
+        } else {
+            parts.append("context: 2 skills, issue + comments")
+            if let runner = run.runnerID.flatMap({ model.runners[$0] }) { parts.append(runner) }
+        }
         return parts.joined(separator: " · ")
     }
 
-    // MARK: - Approval and composer
-
-    private func decisionBar(_ approval: ApprovalInfo, run: RunInfo) -> some View {
-        let who = model.agent(run.agentID)?.name ?? "the agent"
-        let what = ToolLine.line(approval.fields)
-        return AinkradDecisionBar(
-            icon: "bolt.fill", iconTint: .secondary, caption: "Permission escalation",
-            title: "Let \(who) run \(what)",
-            actions: [
-                .init(title: "Deny", style: .ghost) { store.decide(approval, approve: false) }.borderless(),
-                .init(title: "Allow once", style: .primary) { store.decide(approval, approve: true) },
-            ]
-        )
-        .labelCasedCaption()
-        .padding(.horizontal, skin.size.s20)
-        .padding(.bottom, skin.size.s8)
+    /// The stall warning on a stalling run, or how an abnormal run ended.
+    private func closingLine(_ run: RunInfo, look: RunLook) -> String? {
+        switch look.key {
+        case "stalled":
+            let silent = Date().timeIntervalSince(run.lastProgressAt ?? run.startedAt ?? run.queuedAt)
+            let limit = model.limit("run.stall_after_secs", project: model.issue(run.issueID)?.projectID)?.value
+            return "⏸ No tool call, file change or message for \(Fmt.duration(silent))"
+                + (limit.map { " · the watchdog stops it at \($0 / 60)m and escalates" } ?? "")
+        case "runner_lost":
+            return "⚑ Runner stopped heartbeating · lease expired after 30 s · run ended runner_lost"
+        case "succeeded", "running", "queued", "paused", "waiting": return nil
+        default:
+            let reason = run.terminalReason.flatMap { $0.isEmpty ? nil : " · \($0)" } ?? ""
+            return "\(look.glyph) Run ended \(look.word)\(reason)"
+        }
     }
 
-    private func composer(_ run: RunInfo) -> some View {
-        // A message reaches a live run at its next turn (it keeps running); an ended run takes none.
-        AinkradComposer(
-            text: $draft,
-            placeholder:
-                "Message \(model.agent(run.agentID)?.name ?? "the agent") — delivered at its next turn (it keeps running)",
-            isEditable: run.isLive,
-            canSend: run.isLive && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            autoFocus: false, suggestions: { _ in [] }, onPick: { _, _ in }, onDrop: nil,
-            onSend: { store.message(run: run.id, draft) { draft = "" } },
-            chips: { EmptyView() }, leading: { EmptyView() }, trailing: { EmptyView() }
-        )
-        .padding(.horizontal, skin.size.s20)
-        .padding(.bottom, skin.size.s14)
+    // MARK: - Jump pill
+
+    @ViewBuilder private var jumpPill: some View {
+        AinkradTapArea(action: jump) {
+            Text("↓ Jump to latest\(fresh > 0 ? " · \(fresh) new" : "")").citadelFont("t11")
+                .foregroundStyle(skin.color(.palette("foreground", 1)))
+                .padding(.horizontal, skin.size.s14)
+                .padding(.vertical, skin.size.s5)
+                .background(
+                    skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o85),
+                    in: RoundedRectangle(cornerRadius: skin.size.s8))
+        }
+        .keyboardShortcut(.downArrow, modifiers: .command)
+        .opacity(followsLive ? 0 : 1)
+        .offset(y: followsLive ? skin.size.s12 : 0)
+        .allowsHitTesting(!followsLive)
+        .padding(.bottom, skin.size.s16)
+        .animation(
+            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.25, damping: 0.7)), value: followsLive)
     }
 }
 
-/// One transcript item: assistant text (with its redactions as chips), a tool card, or an amber system line.
-private struct TranscriptRow: View {
-    let item: TranscriptItem
-    let isLive: Bool
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradStatusColors) private var status
+private struct TranscriptTopKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
 
-    var body: some View {
-        switch item {
-        case .text(_, let text, let secrets):
-            VStack(alignment: .leading, spacing: skin.size.s6) {
-                AinkradMarkdownText(text: Redaction.masked(text))
-                if !secrets.isEmpty { chips(secrets) }
-            }
-        case .note(_, let text):
-            Text("↯ \(text)").citadelFont("t11").foregroundStyle(status.warning).frame(maxWidth: .infinity)
-        case .tool(let call):
-            AinkradToolCard(
-                name: call.name, argument: call.argument, status: call.status, result: call.result,
-                footnote: call.footnote,
-                isInitiallyExpanded: call.edit != nil || !call.secrets.isEmpty || call.status == .failed
-            ) {
-                VStack(alignment: .leading, spacing: skin.size.s6) {
-                    if let edit = call.edit {
-                        AinkradDiffReview(
-                            fileDiff: AinkradDiffEngine.compute(
-                                old: edit.old, new: edit.new, path: edit.path, context: 1),
-                            rejectedHunkIDs: .constant([])
-                        )
-                        .hidesHeader().editorLines().bareHunks().lineNumberGutter()
-                    }
-                    if let output = call.output { AinkradCodeBlock(Redaction.masked(output)) }
-                    if !call.secrets.isEmpty { chips(call.secrets) }
-                }
-            }
-        }
-    }
-
-    private func chips(_ names: [String]) -> some View {
-        HStack(spacing: skin.size.s6) {
-            ForEach(Array(Set(names)).sorted(), id: \.self) {
-                AinkradRedactedChip($0, reason: "Redacted by the server before it was written to the log")
-            }
-        }
-    }
+private struct TranscriptEndKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

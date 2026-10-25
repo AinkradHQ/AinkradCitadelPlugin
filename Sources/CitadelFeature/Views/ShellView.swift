@@ -53,8 +53,18 @@ struct ShellView: View {
         .ainkradPanelModal(isPresented: $store.isComposingRequirement, contentWidth: skin.size.s380 * 2) {
             if let model = store.model { NewRequirementSheet(store: store, model: model) }
         }
+        .overlay {
+            if store.screen == .artifacts, !store.isShowingSettings, let model = store.model,
+                let id = model.artifactsPage.quickLookID,
+                let artifact = model.artifactsPage.items.first(where: { $0.id == id })
+            {
+                ArtifactQuickLook(store: store, model: model, artifact: artifact)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
+        }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.model?.artifactsPage.quickLookID)
     }
 
     /// Mockup 11 G away from the inbox (which shows it in place of the approval): what the server refused, said

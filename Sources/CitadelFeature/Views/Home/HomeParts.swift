@@ -53,6 +53,8 @@ struct LiveRunCard: View {
     let store: CitadelStore
     let model: CompanyModel
     let run: RunInfo
+    /// What a tap on the card does: Home opens the run, the Runs screen peeks it.
+    var onOpen: (() -> Void)?
     @State private var hovering = false
     @State private var nudging = false
     @State private var nudge = ""
@@ -78,12 +80,13 @@ struct LiveRunCard: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s18, style: .continuous)
+        let cap = model.cap(of: run)
         VStack(alignment: .leading, spacing: skin.size.s10) {
             header
             issueLine
             console
             AinkradBudgetBar(
-                label: "Run tokens", value: Double(run.tokens), limit: Double(model.runCap ?? max(run.tokens, 1)),
+                label: "Run tokens", value: Double(run.tokens), limit: Double(cap ?? max(run.tokens, 1)),
                 warnFraction: model.warnFraction, showsHardLimit: false, tone: state.tone == .warning ? .warning : nil)
             numbers
             actions
@@ -116,7 +119,7 @@ struct LiveRunCard: View {
         .animation(
             skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.75)), value: hovering
         )
-        .onTapGesture { store.open(.run(run.id)) }
+        .onTapGesture { if let onOpen { onOpen() } else { store.open(.run(run.id)) } }
         .ainkradPanelModal(isPresented: $nudging, contentWidth: skin.size.s420) { nudgeSheet }
     }
 
@@ -157,10 +160,9 @@ struct LiveRunCard: View {
         let silent = Date().timeIntervalSince(run.lastProgressAt ?? run.startedAt ?? run.queuedAt)
         return Group {
             if let waiting {
-                Text(
-                    "⌁ asks to \(ToolLine.line(waiting.fields).isEmpty ? "run a tool" : ToolLine.line(waiting.fields))"
-                )
-                .foregroundStyle(status.warning)
+                let fallback = ToolLine.line(waiting.fields).isEmpty ? "run a tool" : ToolLine.line(waiting.fields)
+                Text(waiting.fields["prompt"] ?? "asks to \(fallback)")
+                    .foregroundStyle(status.warning)
             } else if state.tone == .danger {
                 Text("⏸ silent \(Fmt.age(silent)) · watchdog at \(Int((model.stallAfter ?? 0) / 60))m")
                     .foregroundStyle(status.danger)
@@ -180,8 +182,9 @@ struct LiveRunCard: View {
     }
 
     private var numbers: some View {
-        HStack(spacing: skin.size.s8) {
-            Text("\(Fmt.tokens(run.tokens)) / \(model.runCap.map(Fmt.tokens) ?? "—")")
+        let cap = model.cap(of: run)
+        return HStack(spacing: skin.size.s8) {
+            Text("\(Fmt.tokens(run.tokens)) / \(cap.map(Fmt.tokens) ?? "—")")
             Spacer(minLength: skin.size.s4)
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text("⏱ \(Fmt.age(context.date.timeIntervalSince(run.startedAt ?? run.queuedAt)))")
@@ -197,12 +200,19 @@ struct LiveRunCard: View {
         let height = skin.size.s30
         HStack(spacing: skin.size.s8) {
             if let waiting {
-                AinkradDockButton("Deny", height: height, fillsWidth: true) { store.decide(waiting, approve: false) }
-                AinkradDockButton("Allow once", tone: .primary, height: height, fillsWidth: true) {
+                let isBudget = waiting.kind == "budget_overrun" || waiting.fields["ask"] != nil
+                AinkradDockButton(isBudget ? "Stop at cap" : "Deny", height: height, fillsWidth: true) {
+                    store.decide(waiting, approve: false)
+                }
+                AinkradDockButton(
+                    isBudget ? "Raise to \(waiting.fields["ask"] ?? "$6")" : "Allow once", tone: .primary,
+                    height: height, fillsWidth: true
+                ) {
                     store.decide(waiting, approve: true)
                     store.toast(
                         AinkradRichToast(
-                            title: "Allowed once", body: agent.map { "\($0.name) continues" }, status: .success))
+                            title: isBudget ? "Cap raised" : "Allowed once",
+                            body: agent.map { "\($0.name) continues" }, status: .success))
                 }
             } else if state.tone == .danger {
                 AinkradDockButton("Stop", tone: .danger, height: height, fillsWidth: true) { store.stop(run: run.id) }

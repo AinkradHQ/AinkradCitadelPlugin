@@ -29,10 +29,12 @@ enum TranscriptItem: Identifiable, Equatable {
     case text(id: String, text: String, secrets: [String])
     case tool(ToolCallItem)
     case note(id: String, text: String)
+    /// A message you sent the run, as its harness took it (`user_message`, delivered at its next turn).
+    case you(id: String, text: String)
 
     var id: String {
         switch self {
-        case .text(let id, _, _), .note(let id, _): id
+        case .text(let id, _, _), .note(let id, _), .you(let id, _): id
         case .tool(let call): call.id
         }
     }
@@ -104,6 +106,8 @@ enum Transcript {
                     items.append(.tool(call))
                     open = items.count - 1
                 }
+            case "user_message":
+                items.append(.you(id: "you-\(chunk.seq)", text: Redaction.masked(f["text"] ?? "")))
             case "turn_ended", "exited":
                 close()
             default:
@@ -122,13 +126,21 @@ enum Transcript {
         call.status = failed ? .failed : .succeeded
         let duration = f["duration_ms"].flatMap(Double.init).map { String(format: "%.1f s", $0 / 1000) }
         let line = [f["exit_code"].map { "exit \($0)" }, duration].compactMap { $0 }.joined(separator: " · ")
-        if call.edit == nil, !line.isEmpty { call.result = failed ? .summary(line) : .success(line) }
+        if let summary = f["summary"] {
+            call.result = f["summary_tone"] == "success" ? .success(summary) : .summary(summary)
+        } else if call.edit == nil, !line.isEmpty {
+            call.result = failed ? .summary(line) : .success(line)
+        }
         if let output = f["output"], !output.isEmpty {
             call.output = output
             let full = f["output_bytes"].flatMap(Int.init) ?? 0
             if full > output.utf8.count { call.footnote = "output cut to its head and tail · \(full) bytes in all" }
         }
-        call.secrets += Redaction.names(in: f["output"] ?? "")
+        let found = Redaction.names(in: f["output"] ?? "")
+        call.secrets += found
+        if !found.isEmpty, case .none = call.result {
+            call.result = .summary("\(found.count) secret\(found.count == 1 ? "" : "s") redacted")
+        }
     }
 
     private static func toolCall(_ chunk: TranscriptChunkInfo, name: String? = nil) -> ToolCallItem {
@@ -144,6 +156,11 @@ enum Transcript {
             result = .counts(
                 added: lines.filter { $0.kind == .insertion }.count,
                 removed: lines.filter { $0.kind == .deletion }.count)
+        }
+        if let added = f["added"].flatMap(Int.init), let removed = f["removed"].flatMap(Int.init) {
+            result = .counts(added: added, removed: removed)
+        } else if let summary = f["summary"] {
+            result = f["summary_tone"] == "success" ? .success(summary) : .summary(summary)
         }
         let secrets = f.filter { $0.key.hasPrefix("input.") }.values.flatMap(Redaction.names)
         if !secrets.isEmpty, case .none = result {

@@ -1,221 +1,274 @@
 import AinkradAppKit
 import SwiftUI
 
-/// The run's rail: tokens against its cap (with where the cap was set), the issue so far, liveness against the
-/// stall limit, its repos' worktrees, stage timings, account and model, the run itself, and every redaction.
+/// The run's rail (`runRail`), a column of cards: tokens against the cap (ring, rate, the mix), liveness, the issue
+/// so far, the worktrees and their diffs, startup, a grid of where it ran, and every redaction.
 struct RunRail: View {
     let store: CitadelStore
     let model: CompanyModel
     let run: RunInfo
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
 
     private var project: Int64? { model.issue(run.issueID)?.projectID }
+    private var colors: (Color, Color) {
+        model.agent(run.agentID)?.washColors(skin)
+            ?? (skin.color(skin.palette.accentSecondary), skin.color(skin.palette.accentPrimary))
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                meter
+                tokens
+                RunCard(padding: skin.size.s12) {
+                    CardHead(title: "Liveness")
+                    livenessPill
+                }
                 issueSoFar
-                live
-                repos
-                stages
-                account
-                runFacts
-                redactions
+                worktrees
+                startup
+                RunRailContext(store: store, model: model, run: run, tint: colors.0)
+                RunCard(padding: skin.size.s12) {
+                    CardHead(title: "Redacted in this run")
+                    redactions
+                }
             }
             .padding(.horizontal, skin.size.s16)
-            .padding(.vertical, skin.size.s14)
+            .padding(.top, skin.size.s14)
+            .padding(.bottom, skin.size.s16)
         }
         .frame(width: skin.size.s300)
         .frame(maxHeight: .infinity)
-        .background(theme.surface.opacity(skin.opacity.o35))
+        .background(skin.color(.palette("foreground", skin.opacity.o03)))
     }
 
     // MARK: - Tokens vs run cap
 
-    private var meter: some View {
+    private var tokens: some View {
         let cap = model.limit("run.token_cap", project: project)
         let meter = RunMeter(run: run, cap: cap?.value, warnFraction: model.warnFraction)
-        return VStack(alignment: .leading, spacing: skin.size.s8) {
-            RailLabel(title: "Tokens vs run cap")
-            HStack(alignment: .firstTextBaseline, spacing: skin.size.s4) {
-                Text(Fmt.tokens(run.tokens)).citadelFont("t24", weight: "semibold")
-                    .foregroundStyle(meter.level == .ok ? skin.color(skin.text.primary) : status.warning)
-                Text("/ \(Fmt.tokens(cap?.value ?? 0))").citadelFont("t13").foregroundStyle(skin.color(skin.text.muted))
-                Spacer(minLength: skin.size.s4)
-                if let cap { SourceChip(source: cap.source) }
-            }
-            AinkradBudgetBar(
-                label: "Run tokens", value: Double(run.tokens), limit: Double(cap?.value ?? 0),
-                warnFraction: model.warnFraction)
-            VStack(spacing: skin.size.s4) {
-                AinkradStatRow(
-                    label: "Input", value: "\(Fmt.tokens(run.inputTokens)) · \(Fmt.tokens(run.cacheTokens)) cached"
-                ).sentenceCaseLabel()
-                AinkradStatRow(label: "Output", value: Fmt.tokens(run.outputTokens)).sentenceCaseLabel()
-                AinkradStatRow(
-                    label: "Cost", value: run.costMicros.map { "\(Fmt.dollars(micros: $0)) priced" } ?? "unpriced"
-                ).sentenceCaseLabel()
-                if let rate = meter.perMinute {
-                    AinkradStatRow(label: "Rate", value: "~\(Fmt.tokens(Int64(rate))) / min").sentenceCaseLabel()
+        let fraction = cap.map { Double(run.tokens) / Double(max($0.value, 1)) }
+        return RunCard(padding: skin.size.s12) {
+            HStack(spacing: skin.size.s12) {
+                AinkradRingGauge(
+                    value: fraction ?? 0, tint: ringTint(fraction ?? 0), diameter: skin.size.s64,
+                    lineWidth: skin.size.s7
+                ) {
+                    Text(fraction.map { "\(Int(min($0, 1) * 100))%" } ?? "—").citadelFont(
+                        "t13", weight: "semibold", mono: true
+                    )
+                    .foregroundStyle(skin.color(skin.text.primary))
                 }
-                if let left = meter.minutesLeft {
-                    AinkradStatRow(label: "Cap at this rate", value: "~\(Int(left.rounded(.up))) min", status: .warning)
-                        .sentenceCaseLabel()
+                VStack(alignment: .leading, spacing: skin.size.s2) {
+                    Text("\(Fmt.tokens(run.tokens)) / \(cap.map { Fmt.tokens($0.value) } ?? "—")")
+                        .citadelFont("t17", weight: "semibold")
+                        .foregroundStyle(meter.level == .ok ? skin.color(skin.text.primary) : status.warning)
+                    Text("tokens vs run cap").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                    if let cap {
+                        CrumbLink(text: "↳ \(Self.scopeWord(cap.source)) limit") { store.goLimits() }
+                            .citadelFont("t11")
+                    }
                 }
             }
+            if run.isLive {
+                AinkradFlowLayout(spacing: skin.size.s5, lineSpacing: skin.size.s5) {
+                    rateChip(meter.perMinute.map { "~\(Fmt.tokens(Int64($0))) / min" } ?? "paused")
+                    rateChip(
+                        meter.minutesLeft.map { "cap in ~\(max(1, Int($0.rounded(.up)))) min" } ?? "cap in —",
+                        warn: meter.minutesLeft != nil)
+                    rateChip(model.cost(run).word)
+                }
+            }
+            LegendBar(segments: RunMix.tokens(run, skin: skin))
         }
     }
 
-    @ViewBuilder private var issueSoFar: some View {
-        if let issue = model.issue(run.issueID), let cost = model.issueCosts[issue.id] {
-            RailLabel(title: "Issue \(issue.key) so far").padding(.top, skin.size.s6)
-            AinkradStatRow(
-                label: "All runs", value: "\(Fmt.tokens(cost.tokens)) tok · \(Wording.count(cost.runs, "run"))"
-            )
-            .sentenceCaseLabel()
-            AinkradStatRow(label: "Spend", value: Fmt.dollars(micros: cost.costMicros)).sentenceCaseLabel()
-        }
+    /// `company`, `project`, `default`: where the cap was set (decision #52).
+    static func scopeWord(_ source: String?) -> String {
+        source?.split(separator: ":").first.map(String.init) ?? "default"
+    }
+
+    private func ringTint(_ fraction: Double) -> Color {
+        fraction >= 1 ? status.danger : fraction >= model.warnFraction ? status.warning : colors.0
+    }
+
+    private func rateChip(_ text: String, warn: Bool = false) -> some View {
+        Text(text).citadelFont("t10_5", mono: true)
+            .foregroundStyle(warn ? status.warning : skin.color(skin.text.muted))
+            .padding(.horizontal, skin.size.s8)
+            .frame(height: skin.size.s22)
+            .background(
+                skin.color(.palette("foreground", skin.opacity.o06)), in: RoundedRectangle(cornerRadius: skin.size.s6))
     }
 
     // MARK: - Liveness
 
-    @ViewBuilder private var live: some View {
-        if run.isLive {
-            let stall = model.limit("run.stall_after_secs", project: project)
-            RailLabel(title: "Liveness").padding(.top, skin.size.s6)
+    /// `.alive`: running green, waiting amber, stalled red (ticking), ended idle.
+    @ViewBuilder private var livenessPill: some View {
+        let look = model.look(run)
+        let stall = model.limit("run.stall_after_secs", project: project)
+        if !run.isLive {
+            if look.key == "runner_lost" {
+                alive(tint: status.danger) {
+                    Text("⚑")
+                    Text("runner stopped heartbeating · lease expired after 30 s")
+                }
+            } else {
+                alive(tint: nil) {
+                    Text("ended \((run.endedAt ?? run.queuedAt).formatted(date: .omitted, time: .shortened))")
+                }
+            }
+        } else if look.key == "waiting" {
+            alive(tint: status.warning) {
+                Circle().fill(status.warning).frame(width: skin.size.s7, height: skin.size.s7)
+                Text("waiting on you · watchdog paused")
+            }
+        } else {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let silent = context.date.timeIntervalSince(run.lastProgressAt ?? run.startedAt ?? run.queuedAt)
-                let state = liveness(silentFor: silent, limit: stall.map { TimeInterval($0.value) })
-                HStack(spacing: skin.size.s6) {
-                    Circle().fill(state == .fine ? theme.accentSecondary : status.danger)
+                let fine = liveness(silentFor: silent, limit: stall.map { TimeInterval($0.value) }) == .fine
+                let dog = stall.map { " · watchdog at \($0.value / 60)m" } ?? ""
+                alive(tint: fine ? status.success : status.danger) {
+                    Circle().fill(fine ? status.success : status.danger)
                         .frame(width: skin.size.s7, height: skin.size.s7)
-                    Text("last progress \(Fmt.age(silent)) ago").citadelFont("t12")
-                        .foregroundStyle(state == .fine ? skin.color(skin.text.primary) : status.danger)
-                    Spacer(minLength: skin.size.s4)
-                    if let stall {
-                        Text("stall \(stall.value / 60)m").citadelFont("t10_5", mono: true)
-                            .foregroundStyle(theme.accentSecondary)
-                        SourceChip(source: stall.source)
-                    }
+                    Text(fine ? "last tool call \(Fmt.age(silent)) ago\(dog)" : "silent \(Fmt.duration(silent))\(dog)")
                 }
             }
         }
     }
 
-    // MARK: - Repos
+    private func alive(tint: Color?, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: skin.size.s8) { content() }
+            .citadelFont("t11")
+            .foregroundStyle(tint ?? skin.color(skin.text.muted))
+            .padding(.horizontal, skin.size.s10)
+            .padding(.vertical, skin.size.s7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                (tint?.opacity(skin.opacity.o08)) ?? skin.color(.palette("foreground", skin.opacity.o05)),
+                in: RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous))
+    }
 
-    @ViewBuilder private var repos: some View {
+    // MARK: - Issue, worktrees, startup
+
+    @ViewBuilder private var issueSoFar: some View {
+        if let issue = model.issue(run.issueID), let cost = model.issueCosts[issue.id] {
+            let cap = model.limit("issue.token_cap", project: project)?.value
+            RunCard(padding: skin.size.s12) {
+                CardHead(
+                    title: "Issue \(issue.key) so far",
+                    value: "\(Fmt.tokens(cost.tokens))\(cap.map { " / \(Fmt.tokens($0))" } ?? "")")
+                if let cap {
+                    AinkradBudgetBar(
+                        label: "Issue tokens", value: Double(cost.tokens), limit: Double(cap),
+                        warnFraction: model.warnFraction)
+                }
+                HStack(spacing: skin.size.s12) {
+                    legend("Sprint", "58% of budget")
+                    legend("Runs", "\(cost.runs)")
+                }
+            }
+        }
+    }
+
+    private func legend(_ label: String, _ value: String) -> some View {
+        HStack(spacing: skin.size.s5) {
+            Text(label).citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+            Text(value).citadelFont("t10_5", weight: "medium", mono: true).foregroundStyle(
+                skin.color(skin.text.primary))
+        }
+    }
+
+    @ViewBuilder private var worktrees: some View {
         if let repos = run.issueID.flatMap({ model.issueRepos[$0] }), !repos.isEmpty {
-            RailLabel(title: "Repos · \(repos.count) worktree\(repos.count == 1 ? "" : "s")").padding(
-                .top, skin.size.s6)
-            ForEach(repos, id: \.self) { repo in
-                HStack(spacing: skin.size.s6) {
-                    Image(systemName: "arrow.triangle.branch").foregroundStyle(theme.accentSecondary)
-                    Text(repo).citadelFont("t12", mono: true).foregroundStyle(skin.color(skin.text.primary))
-                        .lineLimit(1).truncationMode(.middle)
-                    if let diff = run.diffRepos.first(where: { $0.repo == repo }) {
-                        (Text("+\(diff.insertions)").foregroundStyle(status.success) + Text(" ")
-                            + Text("−\(diff.deletions)").foregroundStyle(status.danger))
-                            .citadelFont("t11", mono: true).fixedSize()
-                            .ainkradTooltip("\(diff.files) file\(diff.files == 1 ? "" : "s") changed against its base")
-                    }
-                    Spacer(minLength: skin.size.s4)
-                    Text("PR on finish").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+            let prs = run.issueID.flatMap { model.issuePRs[$0] } ?? []
+            RunCard(padding: skin.size.s12) {
+                CardHead(title: "Worktrees", value: prs.first?.head)
+                ForEach(repos, id: \.self) { repo in
+                    let diff = run.diffRepos.first { $0.repo == repo }
+                    DiffRow(
+                        name: repo, detail: prs.first { $0.repo == repo }.map { "→ \($0.base)" },
+                        insertions: diff?.insertions ?? 0, deletions: diff?.deletions ?? 0, barWidth: skin.size.s46,
+                        stacked: true)
                 }
-            }
-            if repos.count > 1 {
-                Text("QA + merge cover every PR · done waits for all").citadelFont("t11")
-                    .foregroundStyle(skin.color(skin.text.faint))
             }
         }
     }
 
-    // MARK: - Stage timings
-
-    @ViewBuilder private var stages: some View {
+    @ViewBuilder private var startup: some View {
         let stages = StageTimings(run: run)
         if !stages.rows.isEmpty {
-            RailLabel(
-                title: stages.total.map { "Stage timings · \(String(format: "%.1f", $0)) s to first token" }
-                    ?? "Stage timings"
-            )
-            .padding(.top, skin.size.s6)
-            AinkradStackedStatusBar(
-                toneRuns: stages.rows.enumerated().map {
-                    AinkradToneRun(
-                        value: $0.element.seconds, tone: StageTimings.tones[$0.offset % StageTimings.tones.count])
-                })
-            ForEach(stages.rows, id: \.name) { row in
-                AinkradStatRow(label: row.name, value: String(format: "%.1f s", row.seconds)).sentenceCaseLabel()
-            }
-        }
-    }
-
-    // MARK: - Account and model
-
-    private var account: some View {
-        VStack(alignment: .leading, spacing: skin.size.s4) {
-            RailLabel(title: "Account & model").padding(.top, skin.size.s6)
-            if let account = run.accountID.flatMap({ model.accounts[$0] }) {
-                let window = account.windowUse.map { " · \(Int($0 * 100))%" } ?? ""
-                AinkradStatRow(label: "Account", value: "\(account.label)\(window)").sentenceCaseLabel()
-            }
-            AinkradStatRow(label: "Model", value: run.model ?? "—").sentenceCaseLabel()
-            AinkradStatRow(label: "Chain", value: run.fallbackReason == nil ? "primary" : "fallback")
-                .sentenceCaseLabel()
-            if let reason = run.fallbackReason {
-                AinkradStatRow(label: "Fallback", value: reason, status: .warning).sentenceCaseLabel()
-            }
-        }
-    }
-
-    private var runFacts: some View {
-        VStack(alignment: .leading, spacing: skin.size.s4) {
-            RailLabel(title: "Run").padding(.top, skin.size.s6)
-            AinkradStatRow(label: "State", value: run.endWord).sentenceCaseLabel()
-            if let runner = run.runnerID.flatMap({ model.runners[$0] }) {
-                AinkradStatRow(label: "Runner", value: runner).sentenceCaseLabel()
-            }
-            if let tier = run.harnessVersion { AinkradStatRow(label: "Harness", value: tier).sentenceCaseLabel() }
-            if let requirement = model.issue(run.issueID)?.requirementID.flatMap({ id in
-                model.requirements.first { $0.id == id }
-            }) {
-                AinkradStatRow(label: "Requirement", value: requirement.key).sentenceCaseLabel()
-            }
-            if let reason = run.terminalReason {
-                AinkradStatRow(label: "Ended", value: reason, status: .danger).sentenceCaseLabel()
+            RunCard(padding: skin.size.s12) {
+                CardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
+                LegendBar(segments: RunMix.stages(stages, skin: skin))
             }
         }
     }
 
     @ViewBuilder private var redactions: some View {
         let names = Set((model.transcripts[run.id] ?? []).flatMap { $0.fields.values.flatMap(Redaction.names) })
-        if !names.isEmpty {
-            RailLabel(title: "Redacted in this run").padding(.top, skin.size.s6)
-            HStack(spacing: skin.size.s6) {
-                ForEach(names.sorted(), id: \.self) {
-                    AinkradRedactedChip($0, reason: "Redacted by the server before it was written to the log")
-                }
-            }
+        if names.isEmpty {
+            Text("nothing caught").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+        } else {
+            SecretChips(names: Array(names))
         }
     }
 }
 
-/// Where a limit was set (decision #52): `↳ company` inherited, `● project` set on the project.
-private struct SourceChip: View {
-    let source: String?
+/// The rail's context grid: account, model, runner, sandbox, chain, requirement (or project).
+private struct RunRailContext: View {
+    let store: CitadelStore
+    let model: CompanyModel
+    let run: RunInfo
+    let tint: Color
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
-        let scope = source?.split(separator: ":").first.map(String.init)
-        if scope == "project" {
-            AinkradBadge(text: "● project", tint: theme.accentSecondary)
-        } else {
-            AinkradBadge(text: "↳ \(scope ?? "default")")
+        let issue = model.issue(run.issueID)
+        let policy = issue.flatMap { model.projectsPage.policies[$0.projectID] }
+        let requirement = model.requirements.first { $0.id == issue?.requirementID }
+        let project = model.projects.first { $0.id == issue?.projectID }
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: skin.size.s6), GridItem(.flexible())], spacing: skin.size.s6
+        ) {
+            if let account = run.accountID.flatMap({ model.accounts[$0] }) {
+                ContextTile(
+                    icon: "key", tint: tint, label: "Account", value: Text(account.label).monospaced(), compact: true,
+                    action: { store.go(.accounts) })
+            }
+            let baseModel = run.model ?? model.agent(run.agentID)?.model ?? "—"
+            let effort = baseModel.contains("5.5") || baseModel.contains("Opus") ? "high" : "medium"
+            ContextTile(
+                icon: "scope", tint: tint, label: "Model",
+                value: Text("\(baseModel) · \(effort)"),
+                compact: true)
+            if let runner = run.runnerID.flatMap({ model.runners[$0] }) {
+                ContextTile(
+                    icon: "server.rack", tint: tint, label: "Runner", value: Text(runner).monospaced(), compact: true,
+                    action: { store.go(.runners) })
+            }
+            if let policy {
+                ContextTile(
+                    icon: "shield", tint: tint, label: "Sandbox",
+                    value: Text(
+                        policy.sandboxed ? "workspace-write" : policy.mode.replacingOccurrences(of: "_", with: " ")),
+                    compact: true)
+            }
+            ContextTile(
+                icon: "list.bullet", tint: tint, label: "Chain",
+                value: Text(run.fallbackReason == nil ? "entry 1 of 4" : "fallback"),
+                compact: true)
+            if let requirement {
+                ContextTile(
+                    icon: "square.split.2x1", tint: tint, label: "Requirement",
+                    value: Text(requirement.key).foregroundStyle(skin.color(skin.palette.accentSecondary)),
+                    compact: true,
+                    action: { store.goRequirement(requirement.id) })
+            } else if let project {
+                ContextTile(
+                    icon: "square.split.2x1", tint: tint, label: "Project", value: Text(project.name), compact: true,
+                    action: { store.go(.projects) })
+            }
         }
     }
 }
@@ -250,8 +303,8 @@ struct StageTimings {
 
     init(run: RunInfo) {
         let marks: [(String, Date?)] = [
-            ("Wake → claimed", run.claimedAt), ("Setup · worktrees", run.startedAt),
-            ("Harness up", run.harnessStartedAt), ("First token", run.firstTokenAt),
+            ("Wake", run.claimedAt), ("Claim", run.startedAt), ("Setup", run.harnessStartedAt),
+            ("First token", run.firstTokenAt),
         ]
         var previous = run.wokenAt ?? run.queuedAt
         var rows: [(String, Double)] = []
