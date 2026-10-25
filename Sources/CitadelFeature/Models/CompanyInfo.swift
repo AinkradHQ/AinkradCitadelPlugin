@@ -20,6 +20,8 @@ struct AgentInfo: Identifiable, Equatable, Sendable {
     /// The uploaded image's path on the server (decision #61), drawn instead of the orb.
     var avatarPath: String?
     var reportsTo: Int64?
+    /// When it was proposed (`hired_at`; the approval seats it).
+    var hiredAt: Date? = nil
 
     var isPaused: Bool { status == "paused" }
     var isHirePending: Bool { status == "pending_approval" }

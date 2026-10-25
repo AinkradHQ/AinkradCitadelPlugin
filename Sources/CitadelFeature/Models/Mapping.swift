@@ -76,7 +76,7 @@ extension AgentInfo {
             id: agent.id, name: agent.name, role: agent.role, orgRole: agent.orgRole.word, harness: agent.harness.word,
             model: agent.model, runnerTags: agent.runnerTags, status: agent.status.word,
             figure: AgentLook.figure(agent.figureState.word), paletteID: agent.appearance.paletteId,
-            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo)
+            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo, hiredAt: agent.hiredAt)
     }
 }
 

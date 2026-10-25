@@ -117,6 +117,7 @@ final class CompanyModel {
     let limitsPage = LimitsPage()
     let accountsPage = AccountsPage()
     let runnersPage = RunnersPage()
+    let orgPage = OrgPage()
 
     init(companyID: Int64) {
         self.companyID = companyID
