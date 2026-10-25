@@ -22,10 +22,6 @@ final class SweepFormTests: XCTestCase {
         store.model = model
         let forms: [(String, AnyView, CGFloat)] = [
             (
-                "11-a-propose-agent",
-                AnyView(ProposeAgentSheet(store: store, model: model, isPresented: .constant(true))), 560
-            ),
-            (
                 "09-cost-new-budget", AnyView(NewBudgetForm(store: store, model: model, isPresented: .constant(true))),
                 400
             ),
