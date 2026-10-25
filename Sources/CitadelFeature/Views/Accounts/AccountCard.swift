@@ -79,6 +79,13 @@ struct AccountCard: View {
             }
             Spacer(minLength: skin.size.s6)
             HealthPill(health: health)
+            // The prototype's trash: revealed on hover in the head, never a row button.
+            if hovering && store.serverSupports(minor: CitadelStore.structureMinor) {
+                AinkradIconButton(systemName: "trash", size: skin.size.s26, tooltip: "Remove it from the pool") {
+                    confirmingRemove = true
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
         }
     }
 
@@ -246,13 +253,6 @@ struct AccountCard: View {
             AinkradDockButton("Limits", systemImage: "gauge.with.dots.needle.33percent", height: height) {
                 open(.limits(account.id))
             }
-            AinkradDockButton(
-                "Remove", systemImage: "trash", tone: .danger,
-                isEnabled: store.serverSupports(minor: CitadelStore.structureMinor), height: height
-            ) {
-                confirmingRemove = true
-            }
-            .help(store.help(ready: "Remove it from the pool"))
         }
     }
 
