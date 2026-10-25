@@ -212,6 +212,7 @@ final class SweepTests: XCTestCase {
         all += Self.orgShots(stage)
         all += Self.costShots(stage)
         all += Self.runsShots(stage)
+        all += Self.newCompanyShots(stage)
         return all
     }
 

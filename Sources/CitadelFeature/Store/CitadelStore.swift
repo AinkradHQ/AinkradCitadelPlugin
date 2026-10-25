@@ -64,6 +64,9 @@ final class CitadelStore {
     var isComposingRequirement = false
     /// The company menu (⌘⇧O) and the keyboard sheet (?) are open.
     var isSwitchingCompany = false
+    /// The New company wizard is open (switcher menu, ⌘K), and what it has collected.
+    var isCreatingCompany = false
+    var newCompany = NewCompanySession()
     var isShowingShortcuts = false
     /// The window's toasts (top-right), shown after an action lands.
     let toasts = AinkradRichToastCenter()
@@ -218,7 +221,7 @@ final class CitadelStore {
                 title: "Connected to \(host)", body: "\(who) · replayed \(replayed) events", status: .success))
     }
 
-    func select(company id: Int64) {
+    func select(company id: Int64, announce: Bool = true) {
         guard id != settings.document.companyID, let server else { return }
         saveCursor(force: true)
         remember(company: id)
@@ -229,7 +232,7 @@ final class CitadelStore {
         stream?.stop()
         startStream(server.scoped(to: id))
         Task { agentCount = try? await server.scoped(to: id).agentCount(company: id) }
-        if let name = companies.first(where: { $0.id == id })?.name {
+        if announce, let name = companies.first(where: { $0.id == id })?.name {
             toast(
                 AinkradRichToast(
                     title: "Switched to \(name)", body: "Accounts, runners and cost are per company — nothing is mixed."

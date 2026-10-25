@@ -156,7 +156,8 @@ extension CompanyModel {
         }
         for (key, title, hint) in [
             ("newRequirement", "New requirement…", "⌘N"), ("pauseAll", "Pause all runs", nil),
-            ("switchCompany", "Switch company…", "⌘⇧O"), ("shortcuts", "Keyboard shortcuts", "?"),
+            ("switchCompany", "Switch company…", "⌘⇧O"), ("newCompany", "New company…", nil),
+            ("shortcuts", "Keyboard shortcuts", "?"),
             ("settings", "Company settings", nil),
         ] {
             items.append(

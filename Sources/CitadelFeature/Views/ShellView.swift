@@ -53,6 +53,12 @@ struct ShellView: View {
         .ainkradPanelModal(isPresented: $store.isComposingRequirement, contentWidth: skin.size.s380 * 2) {
             if let model = store.model { NewRequirementSheet(store: store, model: model) }
         }
+        // New company: from the switcher menu and ⌘K.
+        .ainkradPanelModal(
+            isPresented: $store.isCreatingCompany, contentWidth: skin.size.s860 + skin.size.s200 - skin.size.s48
+        ) {
+            NewCompanyWizard(store: store)
+        }
         .overlay {
             if store.screen == .artifacts, !store.isShowingSettings, let model = store.model,
                 let id = model.artifactsPage.quickLookID,

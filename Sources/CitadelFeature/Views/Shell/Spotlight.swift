@@ -302,6 +302,7 @@ struct Spotlight: View {
             case "newRequirement": store.isComposingRequirement = true
             case "pauseAll": store.setCompanyPaused(true)
             case "switchCompany": store.isSwitchingCompany = true
+            case "newCompany": store.openNewCompany()
             case "shortcuts": store.isShowingShortcuts = true
             default: store.isShowingSettings = true
             }

@@ -40,6 +40,8 @@ struct AgentDraft: Equatable, Sendable {
     var teamID: Int64?
     var teamRole: String?
     var paletteID: String?
+    /// `ceo` seats the company's CEO (the New company wizard); absent for every other hire.
+    var orgRole: String?
 
     static let harnesses = ["claude", "codex", "opencode", "agy"]
 
@@ -75,6 +77,7 @@ struct AgentDraft: Equatable, Sendable {
         proposal.teamId = teamID
         proposal.teamRole = teamRole.map { Schemas.TeamRole(value1: .init(rawValue: $0), value2: $0) }
         proposal.paletteId = paletteID
+        proposal.orgRole = orgRole.map { Schemas.OrgRole(value1: .init(rawValue: $0), value2: $0) }
         return proposal
     }
 }

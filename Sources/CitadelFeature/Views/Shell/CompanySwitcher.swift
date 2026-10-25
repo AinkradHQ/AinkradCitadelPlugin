@@ -135,6 +135,10 @@ struct CompanySwitcher: View {
             }
             Spacer().frame(height: skin.size.s6)
             MenuRow(
+                leading: AnyView(NewCompanyTile(size: skin.size.s32)), title: "New company",
+                detail: "Name it, hire its CEO, set its budget"
+            ) { store.openNewCompany() }
+            MenuRow(
                 leading: AnyView(GlyphTile(icon: "gearshape", size: skin.size.s32)), title: "Company settings",
                 detail: current.name
             ) {
@@ -323,5 +327,22 @@ enum CompanyLook {
             skin.palette.danger, skin.palette.accentSecondary,
         ]
         return skin.color(swatches[Int(company.id.magnitude % UInt64(swatches.count))])
+    }
+}
+
+/// The dashed ＋ tile of the menu's "New company" row.
+struct NewCompanyTile: View {
+    let size: CGFloat
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+        Image(systemName: "plus").citadelFont("t13", weight: "semibold")
+            .foregroundStyle(skin.color(skin.palette.accentPrimary))
+            .frame(width: size, height: size)
+            .overlay(
+                shape.strokeBorder(
+                    skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o50),
+                    style: StrokeStyle(lineWidth: 1, dash: [skin.size.s4, skin.size.s3])))
     }
 }
