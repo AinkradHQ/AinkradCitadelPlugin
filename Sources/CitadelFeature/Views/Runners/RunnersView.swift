@@ -106,7 +106,7 @@ private struct RunnerDrawers: ViewModifier {
                 isPresented: Binding(get: { page.relogin != nil }, set: { if !$0 { page.relogin = nil } }),
                 crumb: ["Runners", "Re-login on \(reloginRunner?.name ?? "runner")"]
             ) {
-                if let reloginRunner { ReloginDrawer(page: page, runner: reloginRunner) }
+                if let reloginRunner { RunnerReloginDrawer(page: page, runner: reloginRunner) }
             } foot: {
                 if let reloginRunner { ReloginFoot(page: page, runner: reloginRunner) }
             }

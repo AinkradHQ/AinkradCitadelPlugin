@@ -154,7 +154,7 @@ struct RunnerHero: View {
 
 /// "Re-login on server": the login command for each harness the runner reports logged out, run on its host as the
 /// runner's user; then its harnesses as tiles until its next probe reports them back.
-struct ReloginDrawer: View {
+struct RunnerReloginDrawer: View {
     let page: RunnersPage
     let runner: RunnerInfo
     @Environment(\.ainkradSkin) private var skin

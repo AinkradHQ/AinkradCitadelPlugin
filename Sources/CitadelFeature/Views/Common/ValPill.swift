@@ -78,7 +78,7 @@ struct ValPill: View {
 }
 
 /// The prototype's `.scope` chip: "↳ server" (inherited, faint) or "● company ↺" (set here, cyan, with reset).
-struct ScopeChip: View {
+struct SettingsScopeChip: View {
     let text: String
     let isOverridden: Bool
     var help: String?

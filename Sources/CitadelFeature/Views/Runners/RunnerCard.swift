@@ -323,7 +323,7 @@ struct RunnerCard: View {
                                 validate: setting.accepts,
                                 commit: { store.setRunnerLimit(runner.id, key: setting.key, text: $0) },
                                 onRefuse: { refuse($0, setting) })
-                            ScopeChip(
+                            SettingsScopeChip(
                                 text: set
                                     ? "runner · server \(page.serverSettings[setting.key]?.text ?? "")" : "server",
                                 isOverridden: set,

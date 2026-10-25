@@ -95,7 +95,7 @@ struct LimitRowView: View {
                                 title: "Refused: \(text.isEmpty ? "empty" : text) is outside \(company.bounds)",
                                 body: "Values are validated against the bounds — never clamped.", status: .danger))
                     })
-                ScopeChip(
+                SettingsScopeChip(
                     text: set ? "company" : company.sourceKind, isOverridden: set,
                     help: set ? "Set for this company" : "Inherited from the \(company.sourceKind)",
                     reset: set ? { store.resetLimitWithToast(company, scope: scope) } : nil)

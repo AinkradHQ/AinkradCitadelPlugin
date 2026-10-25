@@ -186,7 +186,7 @@ struct FilterChip: View {
 
 /// A choice card in a grid (`aa-prov`): the tile, a title and a faint line; on = tinted with a coloured rim. Lifts on
 /// hover.
-struct ChoiceCard<Leading: View>: View {
+struct SettingsChoiceCard<Leading: View>: View {
     let title: String
     let detail: String
     let tint: Color

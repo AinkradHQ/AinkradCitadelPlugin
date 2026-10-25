@@ -99,7 +99,7 @@ struct AddRunnerDrawer: View {
         DrawerSection(title: "Machine") {
             HStack(spacing: skin.size.s8) {
                 ForEach(AddRunnerDraft.machines, id: \.id) { option in
-                    ChoiceCard(
+                    SettingsChoiceCard(
                         title: option.title, detail: option.tags.joined(separator: " · "),
                         tint: skin.color(skin.palette.accentPrimary), isOn: page.addDraft.machine == option.id
                     ) {
