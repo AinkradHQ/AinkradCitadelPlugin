@@ -53,6 +53,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/v1/agents/{id}/avatar`.
     /// - Remark: Generated from `#/paths//api/v1/agents/{id}/avatar/delete(resetAvatar)`.
     func resetAvatar(_ input: Operations.ResetAvatar.Input) async throws -> Operations.ResetAvatar.Output
+    /// - Remark: HTTP `PUT /api/v1/agents/{id}/chain`.
+    /// - Remark: Generated from `#/paths//api/v1/agents/{id}/chain/put(setAgentChain)`.
+    func setAgentChain(_ input: Operations.SetAgentChain.Input) async throws -> Operations.SetAgentChain.Output
     /// - Remark: HTTP `GET /api/v1/agents/{id}/fallbacks`.
     /// - Remark: Generated from `#/paths//api/v1/agents/{id}/fallbacks/get(listFallbacks)`.
     func listFallbacks(_ input: Operations.ListFallbacks.Input) async throws -> Operations.ListFallbacks.Output
@@ -71,6 +74,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/agents/{id}/skills`.
     /// - Remark: Generated from `#/paths//api/v1/agents/{id}/skills/get(listAgentSkills)`.
     func listAgentSkills(_ input: Operations.ListAgentSkills.Input) async throws -> Operations.ListAgentSkills.Output
+    /// - Remark: HTTP `GET /api/v1/agents/{id}/stats`.
+    /// - Remark: Generated from `#/paths//api/v1/agents/{id}/stats/get(getAgentStats)`.
+    func getAgentStats(_ input: Operations.GetAgentStats.Input) async throws -> Operations.GetAgentStats.Output
     /// - Remark: HTTP `POST /api/v1/agents/{id}/terminate`.
     /// - Remark: Generated from `#/paths//api/v1/agents/{id}/terminate/post(terminateAgent)`.
     func terminateAgent(_ input: Operations.TerminateAgent.Input) async throws -> Operations.TerminateAgent.Output
@@ -110,6 +116,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/v1/budgets/{id}`.
     /// - Remark: Generated from `#/paths//api/v1/budgets/{id}/delete(deleteBudget)`.
     func deleteBudget(_ input: Operations.DeleteBudget.Input) async throws -> Operations.DeleteBudget.Output
+    /// - Remark: HTTP `PUT /api/v1/chain-presets/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/chain-presets/{id}/put(updateChainPreset)`.
+    func updateChainPreset(_ input: Operations.UpdateChainPreset.Input) async throws -> Operations.UpdateChainPreset.Output
+    /// - Remark: HTTP `DELETE /api/v1/chain-presets/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/chain-presets/{id}/delete(deleteChainPreset)`.
+    func deleteChainPreset(_ input: Operations.DeleteChainPreset.Input) async throws -> Operations.DeleteChainPreset.Output
     /// - Remark: HTTP `GET /api/v1/companies`.
     /// - Remark: Generated from `#/paths//api/v1/companies/get(listCompanies)`.
     func listCompanies(_ input: Operations.ListCompanies.Input) async throws -> Operations.ListCompanies.Output
@@ -140,6 +152,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `PUT /api/v1/companies/{id}/budgets`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/budgets/put(setBudget)`.
     func setBudget(_ input: Operations.SetBudget.Input) async throws -> Operations.SetBudget.Output
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/chain-presets`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/chain-presets/get(listChainPresets)`.
+    func listChainPresets(_ input: Operations.ListChainPresets.Input) async throws -> Operations.ListChainPresets.Output
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/chain-presets`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/chain-presets/post(createChainPreset)`.
+    func createChainPreset(_ input: Operations.CreateChainPreset.Input) async throws -> Operations.CreateChainPreset.Output
     /// - Remark: HTTP `GET /api/v1/companies/{id}/costs`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/costs/get(getCompanyCosts)`.
     func getCompanyCosts(_ input: Operations.GetCompanyCosts.Input) async throws -> Operations.GetCompanyCosts.Output
@@ -149,6 +167,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/companies/{id}/costs/tasks`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/costs/tasks/get(getTaskCosts)`.
     func getTaskCosts(_ input: Operations.GetTaskCosts.Input) async throws -> Operations.GetTaskCosts.Output
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/costs/unpriced`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/costs/unpriced/get(listUnpriced)`.
+    func listUnpriced(_ input: Operations.ListUnpriced.Input) async throws -> Operations.ListUnpriced.Output
     /// - Remark: HTTP `POST /api/v1/companies/{id}/departments`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/departments/post(createDepartment)`.
     func createDepartment(_ input: Operations.CreateDepartment.Input) async throws -> Operations.CreateDepartment.Output
@@ -161,6 +182,15 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/v1/companies/{id}/logo`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/logo/delete(resetCompanyLogo)`.
     func resetCompanyLogo(_ input: Operations.ResetCompanyLogo.Input) async throws -> Operations.ResetCompanyLogo.Output
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/notifications`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/get(getNotifications)`.
+    func getNotifications(_ input: Operations.GetNotifications.Input) async throws -> Operations.GetNotifications.Output
+    /// - Remark: HTTP `PUT /api/v1/companies/{id}/notifications`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/put(setNotifications)`.
+    func setNotifications(_ input: Operations.SetNotifications.Input) async throws -> Operations.SetNotifications.Output
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/notifications/test`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/test/post(testNotification)`.
+    func testNotification(_ input: Operations.TestNotification.Input) async throws -> Operations.TestNotification.Output
     /// - Remark: HTTP `GET /api/v1/companies/{id}/org`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/org/get(getOrgChart)`.
     func getOrgChart(_ input: Operations.GetOrgChart.Input) async throws -> Operations.GetOrgChart.Output
@@ -182,6 +212,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/companies/{id}/resume`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/resume/post(resumeCompany)`.
     func resumeCompany(_ input: Operations.ResumeCompany.Input) async throws -> Operations.ResumeCompany.Output
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/roles`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/roles/get(listRoles)`.
+    func listRoles(_ input: Operations.ListRoles.Input) async throws -> Operations.ListRoles.Output
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/roles`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/roles/post(createRole)`.
+    func createRole(_ input: Operations.CreateRole.Input) async throws -> Operations.CreateRole.Output
     /// - Remark: HTTP `GET /api/v1/companies/{id}/runs`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/runs/get(listCompanyRuns)`.
     func listCompanyRuns(_ input: Operations.ListCompanyRuns.Input) async throws -> Operations.ListCompanyRuns.Output
@@ -215,11 +251,20 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/devices`.
     /// - Remark: Generated from `#/paths//api/v1/devices/post(createDevice)`.
     func createDevice(_ input: Operations.CreateDevice.Input) async throws -> Operations.CreateDevice.Output
+    /// - Remark: HTTP `POST /api/v1/devices/pair`.
+    /// - Remark: Generated from `#/paths//api/v1/devices/pair/post(pairDevice)`.
+    func pairDevice(_ input: Operations.PairDevice.Input) async throws -> Operations.PairDevice.Output
+    /// - Remark: HTTP `POST /api/v1/devices/pairing`.
+    /// - Remark: Generated from `#/paths//api/v1/devices/pairing/post(startPairing)`.
+    func startPairing(_ input: Operations.StartPairing.Input) async throws -> Operations.StartPairing.Output
     /// Revokes at once, the calling device's own key included; the row stays, marked revoked.
     ///
     /// - Remark: HTTP `DELETE /api/v1/devices/{id}`.
     /// - Remark: Generated from `#/paths//api/v1/devices/{id}/delete(revokeDevice)`.
     func revokeDevice(_ input: Operations.RevokeDevice.Input) async throws -> Operations.RevokeDevice.Output
+    /// - Remark: HTTP `PATCH /api/v1/epics/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/epics/{id}/patch(updateEpic)`.
+    func updateEpic(_ input: Operations.UpdateEpic.Input) async throws -> Operations.UpdateEpic.Output
     /// - Remark: HTTP `GET /api/v1/events`.
     /// - Remark: Generated from `#/paths//api/v1/events/get(listEvents)`.
     func listEvents(_ input: Operations.ListEvents.Input) async throws -> Operations.ListEvents.Output
@@ -232,6 +277,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/issues/{id}`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/get(getIssue)`.
     func getIssue(_ input: Operations.GetIssue.Input) async throws -> Operations.GetIssue.Output
+    /// - Remark: HTTP `PATCH /api/v1/issues/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/patch(updateIssue)`.
+    func updateIssue(_ input: Operations.UpdateIssue.Input) async throws -> Operations.UpdateIssue.Output
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/activity`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/activity/get(listIssueActivity)`.
+    func listIssueActivity(_ input: Operations.ListIssueActivity.Input) async throws -> Operations.ListIssueActivity.Output
     /// - Remark: HTTP `POST /api/v1/issues/{id}/backlog`.
     /// - Remark: Generated from `#/paths//api/v1/issues/{id}/backlog/post(moveToBacklog)`.
     func moveToBacklog(_ input: Operations.MoveToBacklog.Input) async throws -> Operations.MoveToBacklog.Output
@@ -337,6 +388,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `PUT /api/v1/projects/{id}/capacity/{agent_id}`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/capacity/{agent_id}/put(setMemberCapacity)`.
     func setMemberCapacity(_ input: Operations.SetMemberCapacity.Input) async throws -> Operations.SetMemberCapacity.Output
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/cfd`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/cfd/get(getProjectCfd)`.
+    func getProjectCfd(_ input: Operations.GetProjectCfd.Input) async throws -> Operations.GetProjectCfd.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}/epics`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/epics/get(listEpics)`.
     func listEpics(_ input: Operations.ListEpics.Input) async throws -> Operations.ListEpics.Output
@@ -367,6 +421,15 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/v1/projects/{id}/labels/{label_id}`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/labels/{label_id}/delete(deleteLabel)`.
     func deleteLabel(_ input: Operations.DeleteLabel.Input) async throws -> Operations.DeleteLabel.Output
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/get(getProjectLogo)`.
+    func getProjectLogo(_ input: Operations.GetProjectLogo.Input) async throws -> Operations.GetProjectLogo.Output
+    /// - Remark: HTTP `PUT /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/put(uploadProjectLogo)`.
+    func uploadProjectLogo(_ input: Operations.UploadProjectLogo.Input) async throws -> Operations.UploadProjectLogo.Output
+    /// - Remark: HTTP `DELETE /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/delete(resetProjectLogo)`.
+    func resetProjectLogo(_ input: Operations.ResetProjectLogo.Input) async throws -> Operations.ResetProjectLogo.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}/policy`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/get(getProjectPolicy)`.
     func getProjectPolicy(_ input: Operations.GetProjectPolicy.Input) async throws -> Operations.GetProjectPolicy.Output
@@ -382,6 +445,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/projects/{id}/profile/history`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/history/get(getProfileHistory)`.
     func getProfileHistory(_ input: Operations.GetProfileHistory.Input) async throws -> Operations.GetProfileHistory.Output
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/profile/preview`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/preview/get(getProfilePreview)`.
+    func getProfilePreview(_ input: Operations.GetProfilePreview.Input) async throws -> Operations.GetProfilePreview.Output
     /// - Remark: HTTP `POST /api/v1/projects/{id}/profile/proposals/{proposal_id}/decision`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/proposals/{proposal_id}/decision/post(decideProfileProposal)`.
     func decideProfileProposal(_ input: Operations.DecideProfileProposal.Input) async throws -> Operations.DecideProfileProposal.Output
@@ -394,6 +460,9 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/projects/{id}/repos`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/repos/post(addRepo)`.
     func addRepo(_ input: Operations.AddRepo.Input) async throws -> Operations.AddRepo.Output
+    /// - Remark: HTTP `POST /api/v1/projects/{id}/repos/probe`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/repos/probe/post(probeRepo)`.
+    func probeRepo(_ input: Operations.ProbeRepo.Input) async throws -> Operations.ProbeRepo.Output
     /// - Remark: HTTP `GET /api/v1/projects/{id}/sprints`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/sprints/get(listSprints)`.
     func listSprints(_ input: Operations.ListSprints.Input) async throws -> Operations.ListSprints.Output
@@ -448,6 +517,15 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/v1/requirements/{id}/cancel`.
     /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/cancel/post(cancelRequirement)`.
     func cancelRequirement(_ input: Operations.CancelRequirement.Input) async throws -> Operations.CancelRequirement.Output
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/done`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/done/post(finishRequirement)`.
+    func finishRequirement(_ input: Operations.FinishRequirement.Input) async throws -> Operations.FinishRequirement.Output
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/pause`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/pause/post(pauseRequirement)`.
+    func pauseRequirement(_ input: Operations.PauseRequirement.Input) async throws -> Operations.PauseRequirement.Output
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/resume`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/resume/post(resumeRequirement)`.
+    func resumeRequirement(_ input: Operations.ResumeRequirement.Input) async throws -> Operations.ResumeRequirement.Output
     /// - Remark: HTTP `GET /api/v1/requirements/{id}/thread`.
     /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/thread/get(getRequirementThread)`.
     func getRequirementThread(_ input: Operations.GetRequirementThread.Input) async throws -> Operations.GetRequirementThread.Output
@@ -457,6 +535,12 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/v1/requirements/{id}/tree`.
     /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/tree/get(getRequirementTree)`.
     func getRequirementTree(_ input: Operations.GetRequirementTree.Input) async throws -> Operations.GetRequirementTree.Output
+    /// - Remark: HTTP `PUT /api/v1/roles/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/roles/{id}/put(updateRole)`.
+    func updateRole(_ input: Operations.UpdateRole.Input) async throws -> Operations.UpdateRole.Output
+    /// - Remark: HTTP `DELETE /api/v1/roles/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/roles/{id}/delete(deleteRole)`.
+    func deleteRole(_ input: Operations.DeleteRole.Input) async throws -> Operations.DeleteRole.Output
     /// - Remark: HTTP `GET /api/v1/runners`.
     /// - Remark: Generated from `#/paths//api/v1/runners/get(listRunners)`.
     func listRunners(_ input: Operations.ListRunners.Input) async throws -> Operations.ListRunners.Output
@@ -733,6 +817,19 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `PUT /api/v1/agents/{id}/chain`.
+    /// - Remark: Generated from `#/paths//api/v1/agents/{id}/chain/put(setAgentChain)`.
+    public func setAgentChain(
+        path: Operations.SetAgentChain.Input.Path,
+        headers: Operations.SetAgentChain.Input.Headers = .init(),
+        body: Operations.SetAgentChain.Input.Body
+    ) async throws -> Operations.SetAgentChain.Output {
+        try await setAgentChain(Operations.SetAgentChain.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/agents/{id}/fallbacks`.
     /// - Remark: Generated from `#/paths//api/v1/agents/{id}/fallbacks/get(listFallbacks)`.
     public func listFallbacks(
@@ -799,6 +896,17 @@ extension APIProtocol {
         headers: Operations.ListAgentSkills.Input.Headers = .init()
     ) async throws -> Operations.ListAgentSkills.Output {
         try await listAgentSkills(Operations.ListAgentSkills.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/agents/{id}/stats`.
+    /// - Remark: Generated from `#/paths//api/v1/agents/{id}/stats/get(getAgentStats)`.
+    public func getAgentStats(
+        path: Operations.GetAgentStats.Input.Path,
+        headers: Operations.GetAgentStats.Input.Headers = .init()
+    ) async throws -> Operations.GetAgentStats.Output {
+        try await getAgentStats(Operations.GetAgentStats.Input(
             path: path,
             headers: headers
         ))
@@ -948,6 +1056,30 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `PUT /api/v1/chain-presets/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/chain-presets/{id}/put(updateChainPreset)`.
+    public func updateChainPreset(
+        path: Operations.UpdateChainPreset.Input.Path,
+        headers: Operations.UpdateChainPreset.Input.Headers = .init(),
+        body: Operations.UpdateChainPreset.Input.Body
+    ) async throws -> Operations.UpdateChainPreset.Output {
+        try await updateChainPreset(Operations.UpdateChainPreset.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `DELETE /api/v1/chain-presets/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/chain-presets/{id}/delete(deleteChainPreset)`.
+    public func deleteChainPreset(
+        path: Operations.DeleteChainPreset.Input.Path,
+        headers: Operations.DeleteChainPreset.Input.Headers = .init()
+    ) async throws -> Operations.DeleteChainPreset.Output {
+        try await deleteChainPreset(Operations.DeleteChainPreset.Input(
+            path: path,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/companies`.
     /// - Remark: Generated from `#/paths//api/v1/companies/get(listCompanies)`.
     public func listCompanies(headers: Operations.ListCompanies.Input.Headers = .init()) async throws -> Operations.ListCompanies.Output {
@@ -1062,6 +1194,30 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/chain-presets`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/chain-presets/get(listChainPresets)`.
+    public func listChainPresets(
+        path: Operations.ListChainPresets.Input.Path,
+        headers: Operations.ListChainPresets.Input.Headers = .init()
+    ) async throws -> Operations.ListChainPresets.Output {
+        try await listChainPresets(Operations.ListChainPresets.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/chain-presets`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/chain-presets/post(createChainPreset)`.
+    public func createChainPreset(
+        path: Operations.CreateChainPreset.Input.Path,
+        headers: Operations.CreateChainPreset.Input.Headers = .init(),
+        body: Operations.CreateChainPreset.Input.Body
+    ) async throws -> Operations.CreateChainPreset.Output {
+        try await createChainPreset(Operations.CreateChainPreset.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/companies/{id}/costs`.
     /// - Remark: Generated from `#/paths//api/v1/companies/{id}/costs/get(getCompanyCosts)`.
     public func getCompanyCosts(
@@ -1096,6 +1252,17 @@ extension APIProtocol {
         try await getTaskCosts(Operations.GetTaskCosts.Input(
             path: path,
             query: query,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/costs/unpriced`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/costs/unpriced/get(listUnpriced)`.
+    public func listUnpriced(
+        path: Operations.ListUnpriced.Input.Path,
+        headers: Operations.ListUnpriced.Input.Headers = .init()
+    ) async throws -> Operations.ListUnpriced.Output {
+        try await listUnpriced(Operations.ListUnpriced.Input(
+            path: path,
             headers: headers
         ))
     }
@@ -1143,6 +1310,41 @@ extension APIProtocol {
         headers: Operations.ResetCompanyLogo.Input.Headers = .init()
     ) async throws -> Operations.ResetCompanyLogo.Output {
         try await resetCompanyLogo(Operations.ResetCompanyLogo.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/notifications`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/get(getNotifications)`.
+    public func getNotifications(
+        path: Operations.GetNotifications.Input.Path,
+        headers: Operations.GetNotifications.Input.Headers = .init()
+    ) async throws -> Operations.GetNotifications.Output {
+        try await getNotifications(Operations.GetNotifications.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PUT /api/v1/companies/{id}/notifications`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/put(setNotifications)`.
+    public func setNotifications(
+        path: Operations.SetNotifications.Input.Path,
+        headers: Operations.SetNotifications.Input.Headers = .init(),
+        body: Operations.SetNotifications.Input.Body
+    ) async throws -> Operations.SetNotifications.Output {
+        try await setNotifications(Operations.SetNotifications.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/notifications/test`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/notifications/test/post(testNotification)`.
+    public func testNotification(
+        path: Operations.TestNotification.Input.Path,
+        headers: Operations.TestNotification.Input.Headers = .init()
+    ) async throws -> Operations.TestNotification.Output {
+        try await testNotification(Operations.TestNotification.Input(
             path: path,
             headers: headers
         ))
@@ -1226,6 +1428,30 @@ extension APIProtocol {
         try await resumeCompany(Operations.ResumeCompany.Input(
             path: path,
             headers: headers
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/companies/{id}/roles`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/roles/get(listRoles)`.
+    public func listRoles(
+        path: Operations.ListRoles.Input.Path,
+        headers: Operations.ListRoles.Input.Headers = .init()
+    ) async throws -> Operations.ListRoles.Output {
+        try await listRoles(Operations.ListRoles.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/companies/{id}/roles`.
+    /// - Remark: Generated from `#/paths//api/v1/companies/{id}/roles/post(createRole)`.
+    public func createRole(
+        path: Operations.CreateRole.Input.Path,
+        headers: Operations.CreateRole.Input.Headers = .init(),
+        body: Operations.CreateRole.Input.Body
+    ) async throws -> Operations.CreateRole.Output {
+        try await createRole(Operations.CreateRole.Input(
+            path: path,
+            headers: headers,
+            body: body
         ))
     }
     /// - Remark: HTTP `GET /api/v1/companies/{id}/runs`.
@@ -1353,6 +1579,22 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `POST /api/v1/devices/pair`.
+    /// - Remark: Generated from `#/paths//api/v1/devices/pair/post(pairDevice)`.
+    public func pairDevice(
+        headers: Operations.PairDevice.Input.Headers = .init(),
+        body: Operations.PairDevice.Input.Body
+    ) async throws -> Operations.PairDevice.Output {
+        try await pairDevice(Operations.PairDevice.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/devices/pairing`.
+    /// - Remark: Generated from `#/paths//api/v1/devices/pairing/post(startPairing)`.
+    public func startPairing(headers: Operations.StartPairing.Input.Headers = .init()) async throws -> Operations.StartPairing.Output {
+        try await startPairing(Operations.StartPairing.Input(headers: headers))
+    }
     /// Revokes at once, the calling device's own key included; the row stays, marked revoked.
     ///
     /// - Remark: HTTP `DELETE /api/v1/devices/{id}`.
@@ -1364,6 +1606,19 @@ extension APIProtocol {
         try await revokeDevice(Operations.RevokeDevice.Input(
             path: path,
             headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PATCH /api/v1/epics/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/epics/{id}/patch(updateEpic)`.
+    public func updateEpic(
+        path: Operations.UpdateEpic.Input.Path,
+        headers: Operations.UpdateEpic.Input.Headers = .init(),
+        body: Operations.UpdateEpic.Input.Body
+    ) async throws -> Operations.UpdateEpic.Output {
+        try await updateEpic(Operations.UpdateEpic.Input(
+            path: path,
+            headers: headers,
+            body: body
         ))
     }
     /// - Remark: HTTP `GET /api/v1/events`.
@@ -1395,6 +1650,32 @@ extension APIProtocol {
     ) async throws -> Operations.GetIssue.Output {
         try await getIssue(Operations.GetIssue.Input(
             path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PATCH /api/v1/issues/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/patch(updateIssue)`.
+    public func updateIssue(
+        path: Operations.UpdateIssue.Input.Path,
+        headers: Operations.UpdateIssue.Input.Headers = .init(),
+        body: Operations.UpdateIssue.Input.Body
+    ) async throws -> Operations.UpdateIssue.Output {
+        try await updateIssue(Operations.UpdateIssue.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `GET /api/v1/issues/{id}/activity`.
+    /// - Remark: Generated from `#/paths//api/v1/issues/{id}/activity/get(listIssueActivity)`.
+    public func listIssueActivity(
+        path: Operations.ListIssueActivity.Input.Path,
+        query: Operations.ListIssueActivity.Input.Query = .init(),
+        headers: Operations.ListIssueActivity.Input.Headers = .init()
+    ) async throws -> Operations.ListIssueActivity.Output {
+        try await listIssueActivity(Operations.ListIssueActivity.Input(
+            path: path,
+            query: query,
             headers: headers
         ))
     }
@@ -1803,6 +2084,19 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/cfd`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/cfd/get(getProjectCfd)`.
+    public func getProjectCfd(
+        path: Operations.GetProjectCfd.Input.Path,
+        query: Operations.GetProjectCfd.Input.Query = .init(),
+        headers: Operations.GetProjectCfd.Input.Headers = .init()
+    ) async throws -> Operations.GetProjectCfd.Output {
+        try await getProjectCfd(Operations.GetProjectCfd.Input(
+            path: path,
+            query: query,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/projects/{id}/epics`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/epics/get(listEpics)`.
     public func listEpics(
@@ -1923,6 +2217,41 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/get(getProjectLogo)`.
+    public func getProjectLogo(
+        path: Operations.GetProjectLogo.Input.Path,
+        headers: Operations.GetProjectLogo.Input.Headers = .init()
+    ) async throws -> Operations.GetProjectLogo.Output {
+        try await getProjectLogo(Operations.GetProjectLogo.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PUT /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/put(uploadProjectLogo)`.
+    public func uploadProjectLogo(
+        path: Operations.UploadProjectLogo.Input.Path,
+        headers: Operations.UploadProjectLogo.Input.Headers = .init(),
+        body: Operations.UploadProjectLogo.Input.Body? = nil
+    ) async throws -> Operations.UploadProjectLogo.Output {
+        try await uploadProjectLogo(Operations.UploadProjectLogo.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `DELETE /api/v1/projects/{id}/logo`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/logo/delete(resetProjectLogo)`.
+    public func resetProjectLogo(
+        path: Operations.ResetProjectLogo.Input.Path,
+        headers: Operations.ResetProjectLogo.Input.Headers = .init()
+    ) async throws -> Operations.ResetProjectLogo.Output {
+        try await resetProjectLogo(Operations.ResetProjectLogo.Input(
+            path: path,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/projects/{id}/policy`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/policy/get(getProjectPolicy)`.
     public func getProjectPolicy(
@@ -1984,6 +2313,17 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// - Remark: HTTP `GET /api/v1/projects/{id}/profile/preview`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/preview/get(getProfilePreview)`.
+    public func getProfilePreview(
+        path: Operations.GetProfilePreview.Input.Path,
+        headers: Operations.GetProfilePreview.Input.Headers = .init()
+    ) async throws -> Operations.GetProfilePreview.Output {
+        try await getProfilePreview(Operations.GetProfilePreview.Input(
+            path: path,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `POST /api/v1/projects/{id}/profile/proposals/{proposal_id}/decision`.
     /// - Remark: Generated from `#/paths//api/v1/projects/{id}/profile/proposals/{proposal_id}/decision/post(decideProfileProposal)`.
     public func decideProfileProposal(
@@ -2029,6 +2369,19 @@ extension APIProtocol {
         body: Operations.AddRepo.Input.Body
     ) async throws -> Operations.AddRepo.Output {
         try await addRepo(Operations.AddRepo.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/projects/{id}/repos/probe`.
+    /// - Remark: Generated from `#/paths//api/v1/projects/{id}/repos/probe/post(probeRepo)`.
+    public func probeRepo(
+        path: Operations.ProbeRepo.Input.Path,
+        headers: Operations.ProbeRepo.Input.Headers = .init(),
+        body: Operations.ProbeRepo.Input.Body
+    ) async throws -> Operations.ProbeRepo.Output {
+        try await probeRepo(Operations.ProbeRepo.Input(
             path: path,
             headers: headers,
             body: body
@@ -2238,6 +2591,39 @@ extension APIProtocol {
             body: body
         ))
     }
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/done`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/done/post(finishRequirement)`.
+    public func finishRequirement(
+        path: Operations.FinishRequirement.Input.Path,
+        headers: Operations.FinishRequirement.Input.Headers = .init()
+    ) async throws -> Operations.FinishRequirement.Output {
+        try await finishRequirement(Operations.FinishRequirement.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/pause`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/pause/post(pauseRequirement)`.
+    public func pauseRequirement(
+        path: Operations.PauseRequirement.Input.Path,
+        headers: Operations.PauseRequirement.Input.Headers = .init()
+    ) async throws -> Operations.PauseRequirement.Output {
+        try await pauseRequirement(Operations.PauseRequirement.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `POST /api/v1/requirements/{id}/resume`.
+    /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/resume/post(resumeRequirement)`.
+    public func resumeRequirement(
+        path: Operations.ResumeRequirement.Input.Path,
+        headers: Operations.ResumeRequirement.Input.Headers = .init()
+    ) async throws -> Operations.ResumeRequirement.Output {
+        try await resumeRequirement(Operations.ResumeRequirement.Input(
+            path: path,
+            headers: headers
+        ))
+    }
     /// - Remark: HTTP `GET /api/v1/requirements/{id}/thread`.
     /// - Remark: Generated from `#/paths//api/v1/requirements/{id}/thread/get(getRequirementThread)`.
     public func getRequirementThread(
@@ -2269,6 +2655,30 @@ extension APIProtocol {
         headers: Operations.GetRequirementTree.Input.Headers = .init()
     ) async throws -> Operations.GetRequirementTree.Output {
         try await getRequirementTree(Operations.GetRequirementTree.Input(
+            path: path,
+            headers: headers
+        ))
+    }
+    /// - Remark: HTTP `PUT /api/v1/roles/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/roles/{id}/put(updateRole)`.
+    public func updateRole(
+        path: Operations.UpdateRole.Input.Path,
+        headers: Operations.UpdateRole.Input.Headers = .init(),
+        body: Operations.UpdateRole.Input.Body
+    ) async throws -> Operations.UpdateRole.Output {
+        try await updateRole(Operations.UpdateRole.Input(
+            path: path,
+            headers: headers,
+            body: body
+        ))
+    }
+    /// - Remark: HTTP `DELETE /api/v1/roles/{id}`.
+    /// - Remark: Generated from `#/paths//api/v1/roles/{id}/delete(deleteRole)`.
+    public func deleteRole(
+        path: Operations.DeleteRole.Input.Path,
+        headers: Operations.DeleteRole.Input.Headers = .init()
+    ) async throws -> Operations.DeleteRole.Output {
+        try await deleteRole(Operations.DeleteRole.Input(
             path: path,
             headers: headers
         ))

@@ -223,6 +223,7 @@ extension BudgetInfo {
             case .department(let s): "department:\(s.departmentId)"
             case .project(let s): "project:\(s.projectId)"
             case .sprint(let s): "sprint:\(s.sprintId)"
+            case .issue(let s): "issue:\(s.issueId)"
             }
         self.init(
             id: budget.budgetId, label: label(scope), scope: scope, period: budget.period.word,
