@@ -2,242 +2,164 @@ import AinkradAppKit
 import AppKit
 import SwiftUI
 
-/// Screen 08: issues that stopped moving and the engine's reason — stuck (red, nothing moves them without you)
-/// above slowing (amber), each with its reason, the engine's last repair, and the fixes the server can take. A
-/// card leaves when the engine's next read says the issue moves again, not on click.
+/// Screen 08: issues that stopped moving and the engine's reason — a summary strip (stuck, slowing, oldest, the
+/// agents waiting) beside project tabs, then stuck (nothing moves them without you) above slowing (past their usual
+/// time), one diagnosis card each. A fix that lands takes its card out; the engine's next read stays the truth.
 struct StuckView: View {
     let store: CitadelStore
     let model: CompanyModel
     @State private var project: Int64?
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let lists = model.stuckList(project: project)
         VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Why stuck", crumb: crumb(lists)) { filters }
+            PaneTitle(
+                title: "Why stuck",
+                crumb: Text("Issues that stopped moving, and the engine's reason · checked every 30 s")
+                    .foregroundStyle(skin.color(skin.text.muted)))
+            bar.padding(.horizontal, skin.size.s20).padding(.bottom, skin.size.s12)
             ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s12) {
+                VStack(alignment: .leading, spacing: skin.size.s20) {
                     if lists.stuck.isEmpty && lists.slowing.isEmpty {
-                        AinkradEmptyState(
-                            icon: "flag.fill", title: "Every issue has a moving next actor",
-                            message:
-                                "The engine watches every open issue. Anything that stops moving shows up here with the reason."
-                        )
-                        .frame(maxWidth: .infinity).padding(.top, skin.size.s60)
+                        zero.frame(maxWidth: .infinity).padding(.top, skin.size.s80)
+                    } else if lists.stuck.isEmpty {
+                        clear
                     }
-                    section("Stuck — no next actor can move these", lists.stuck)
-                    section("Slowing — moving, but past their usual time", lists.slowing)
+                    section("Stuck — nothing moves these without you", lists.stuck, offset: 0)
+                    section("Slowing — moving, but past their usual time", lists.slowing, offset: lists.stuck.count)
                 }
                 .padding(.horizontal, skin.size.s20)
                 .padding(.bottom, skin.size.s20)
                 .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: lists.stuck + lists.slowing)
             }
+            .scrollIndicators(.never)
             .offlineDimmed()
         }
     }
 
-    private func crumb(_ lists: (stuck: [StuckInfo], slowing: [StuckInfo])) -> Text {
-        let muted = skin.color(skin.text.muted)
-        return Text("Issues that stopped moving, and the engine's reason · ").foregroundStyle(muted)
-            + Text("\(lists.stuck.count) stuck").foregroundStyle(status.danger)
-            + Text(verbatim: " · ").foregroundStyle(muted)
-            + Text("\(lists.slowing.count) slowing").foregroundStyle(status.warning)
+    // MARK: - Summary bar
+
+    private var bar: some View {
+        let all = model.stuckList(project: nil)
+        let waiting = Array(Set(all.stuck.compactMap(\.agentID))).sorted().compactMap { model.agent($0) }
+        let oldest = all.stuck.compactMap(\.since).min()
+        return HStack(spacing: skin.size.s10) {
+            HStack(spacing: skin.size.s8) {
+                kpi(tint: skin.color(skin.palette.danger), icon: "flag", value: "\(all.stuck.count)", label: "stuck")
+                kpi(
+                    tint: skin.color(skin.palette.warning), icon: "clock", value: "\(all.slowing.count)",
+                    label: "slowing")
+                kpi(
+                    tint: skin.color(skin.palette.accentViolet), icon: "hourglass",
+                    value: oldest.map { Fmt.age(Date().timeIntervalSince($0)) } ?? "—", label: "oldest")
+                waitingTile(waiting)
+            }
+            AinkradGlideTabs(tabs(all), selection: $project)
+                .frame(width: skin.size.s380)
+        }
     }
 
-    private var filters: some View {
-        HStack(spacing: skin.size.s6) {
-            AinkradToggleButton(
-                isOn: Binding(get: { project == nil }, set: { if $0 { project = nil } }), title: "All projects")
-            ForEach(model.projects) { item in
-                AinkradToggleButton(
-                    isOn: Binding(get: { project == item.id }, set: { if $0 { project = item.id } }), title: item.key)
+    private func tabs(_ all: (stuck: [StuckInfo], slowing: [StuckInfo])) -> [AinkradGlideTab<Int64?>] {
+        let items = all.stuck + all.slowing
+        return [AinkradGlideTab(nil, title: "All", count: "\(items.count)")]
+            + model.projects.map { item in
+                AinkradGlideTab(
+                    item.id, title: item.key,
+                    count: "\(items.filter { model.issue($0.issueID)?.projectID == item.id }.count)")
+            }
+    }
+
+    private func kpi(tint: Color, icon: String, value: String, label: String) -> some View {
+        tile(tint: tint, value: value, label: label) {
+            Image(systemName: icon).citadelFont("t14", weight: "medium").foregroundStyle(tint)
+                .frame(width: skin.size.s32, height: skin.size.s32)
+                .background(tint.opacity(skin.opacity.o15), in: RoundedRectangle(cornerRadius: skin.size.s10))
+        }
+    }
+
+    private func waitingTile(_ agents: [AgentInfo]) -> some View {
+        tile(tint: skin.color(skin.palette.accentPrimary), value: "\(agents.count)", label: "agents waiting") {
+            HStack(spacing: -skin.size.s8) {
+                ForEach(agents) { agent in
+                    AgentFigure(agent: agent, model: model, size: skin.size.s26)
+                        .background(Circle().fill(skin.color(.palette("background", 1))))
+                }
             }
         }
     }
 
-    @ViewBuilder private func section(_ title: String, _ items: [StuckInfo]) -> some View {
-        if !items.isEmpty {
-            Text(skin.labelCased(title)).citadelFont("t10", weight: "semibold")
-                .foregroundStyle(skin.color(skin.text.muted)).padding(.top, skin.size.s4)
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                StuckCard(store: store, model: model, stuck: item)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+    private func tile<Leading: View>(
+        tint: Color, value: String, label: String, @ViewBuilder leading: () -> Leading
+    ) -> some View {
+        let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
+        return HStack(spacing: skin.size.s10) {
+            leading()
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value).citadelFont("t17", weight: "bold", mono: true).foregroundStyle(tint)
+                Text(label).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
             }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, skin.size.s12)
+        .frame(maxWidth: .infinity)
+        .frame(height: skin.size.s52)
+        .background(shape.fill(skin.color(.palette("background", skin.opacity.o72))))
+        .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o07)), lineWidth: 1))
+    }
+
+    // MARK: - Lists
+
+    @ViewBuilder private func section(_ title: String, _ items: [StuckInfo], offset: Int) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: skin.size.s10) {
+                SectionHead(title: title, count: "\(items.count)")
+                ForEach(Array(items.enumerated()), id: \.element.cardID) { index, item in
+                    StuckCard(store: store, model: model, stuck: item)
+                        .riseIn(delay: Double(offset + index) * 0.06)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    /// Stuck is empty, slowing is not (`.sk-clear`).
+    private var clear: some View {
+        let green = skin.color(skin.palette.success)
+        return HStack(spacing: skin.size.s10) {
+            Text("✓").citadelFont("t13", weight: "bold").foregroundStyle(green)
+            Text(
+                "Nothing is stuck\(project.flatMap { id in model.projects.first { $0.id == id } }.map { " in \($0.key)" } ?? "") — the engine checks every 30 s."
+            )
+            .citadelFont("t12_5").foregroundStyle(skin.color(skin.text.muted))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, skin.size.s16)
+        .padding(.vertical, skin.size.s12)
+        .background(green.opacity(skin.opacity.o08), in: RoundedRectangle(cornerRadius: skin.size.s14))
+        .overlay(RoundedRectangle(cornerRadius: skin.size.s14).strokeBorder(green.opacity(skin.opacity.o20)))
+    }
+
+    private var zero: some View {
+        let green = skin.color(skin.palette.success)
+        return VStack(spacing: skin.size.s8) {
+            Image(systemName: "checkmark").citadelFont("t24", weight: "semibold").foregroundStyle(green)
+                .frame(width: skin.size.s64, height: skin.size.s64)
+                .background(green.opacity(skin.opacity.o18), in: RoundedRectangle(cornerRadius: skin.size.s18))
+                .overlay(RoundedRectangle(cornerRadius: skin.size.s18).strokeBorder(green.opacity(skin.opacity.o30)))
+                .riseIn(delay: 0.1, distance: skin.size.s12)
+            Text("Every issue has a moving next actor").citadelFont("t14", weight: "semibold")
+                .foregroundStyle(skin.color(skin.text.primary))
+            Text("The engine checks every 30 s. Anything that stops moving shows up here with the reason.")
+                .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
         }
     }
 }
 
-/// One stuck issue: icon, key + title, the reason in one bold sentence and the detail plain, the engine's trail,
-/// then the fixes — the engine's recommendation first.
-private struct StuckCard: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    let stuck: StuckInfo
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @State private var confirmsPowerNap = false
-
-    private var issue: IssueInfo? { model.issue(stuck.issueID) }
-    private var tone: AinkradChartTone { stuck.isSlowing ? .warning : .danger }
-
-    var body: some View {
-        AinkradCard {
-            HStack(alignment: .top, spacing: skin.size.s14) {
-                TypeGlyph(glyph: stuck.glyph, tone: tone, isLarge: true)
-                VStack(alignment: .leading, spacing: skin.size.s6) {
-                    (Text(issue.map { "\($0.key) " } ?? "").foregroundStyle(theme.accentSecondary)
-                        .font(skin.font(AinkradFontToken(sizeKey: "t14", mono: "family")))
-                        + Text(issue?.title ?? stuck.kind.replacingOccurrences(of: "_", with: " "))
-                        .foregroundStyle(skin.color(skin.text.primary)))
-                        .citadelFont("t14", weight: "semibold").lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .overlay(alignment: .trailing) {
-                            if let since = stuck.since {
-                                Text(stuckAge(Date().timeIntervalSince(since))).citadelFont("t11", mono: true)
-                                    .foregroundStyle(skin.color(skin.text.muted))
-                            }
-                        }
-                    (Text(sentence(stuck.reason)).foregroundStyle(skin.color(skin.text.primary)).bold()
-                        + Text(" \(sentence(stuck.action, capitalized: false))").foregroundStyle(
-                            skin.color(skin.text.muted)))
-                        .citadelFont("t12_5").fixedSize(horizontal: false, vertical: true)
-                    if let trail {
-                        Text(trail).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
-                    }
-                    fixes.padding(.top, skin.size.s4)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .rimTint(tone)
-    }
-
-    /// "engine: rewake at 10:12 · next: reassign to lead".
-    private var trail: String? {
-        var parts: [String] = []
-        if let last = stuck.lastRepair {
-            let at = stuck.lastRepairAt.map { " at \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
-            parts.append("engine: \(last.replacingOccurrences(of: "_", with: " "))\(at)")
-        }
-        if let agent = model.agent(stuck.agentID) { parts.append("waits on \(agent.name)") }
-        parts.append(stuck.kind.replacingOccurrences(of: "_", with: " "))
-        return parts.joined(separator: " · ")
-    }
-
-    @ViewBuilder private var fixes: some View {
-        let lead = model.lead(ofProject: issue?.projectID)
-        HStack(spacing: skin.size.s8) {
-            if stuck.waitsOnASleepingRunner {
-                AinkradButton(title: "Wake my Mac", style: .primary) { store.wakeRunner(for: stuck, when: "now") }
-                    .compact().fixedSize()
-                AinkradButton(title: "Run when I'm back", style: .secondary) {
-                    store.wakeRunner(for: stuck, when: "when_back")
-                }
-                .compact().fixedSize()
-                AinkradButton(title: "Allow Power Nap runs…", style: .ghost) { confirmsPowerNap = true }
-                    .borderless().compact().fixedSize()
-                    .ainkradConfirmDialog(
-                        isPresented: $confirmsPowerNap, title: "Allow Power Nap runs?",
-                        message:
-                            "The sleeping Mac wakes for queued jobs under Power Nap, without you. Turn it off on the runner's card.",
-                        confirmTitle: "Allow"
-                    ) { store.allowPowerNap(for: stuck) }
-            } else {
-                recommended(lead: lead)
-            }
-            if stuck.issueID != nil {
-                AinkradMenuButton(
-                    items: model.agents.values.filter { $0.status == "active" }.sorted { $0.name < $1.name }.map {
-                        agent in
-                        AinkradMenuItem(title: agent.nameDotRole, systemName: nil) {
-                            store.reassign(stuck, to: agent.id)
-                        }
-                    }
-                ) { Text("Reassign…") }
-            }
-            if stuck.retries, !retryRunners.isEmpty {
-                AinkradMenuButton(
-                    items: retryRunners.map { runner in
-                        AinkradMenuItem(title: "Retry on \(runner.name)", systemName: nil) {
-                            store.retry(stuck, on: runner)
-                        }
-                    }
-                ) { Text("Retry on…") }
-            }
-            if stuck.issueID != nil, stuck.isSlowing {
-                AinkradButton(title: "Bump priority", style: .ghost) { store.bump(stuck) }
-                    .borderless().secondaryAccent().compact().fixedSize()
-            }
-            if stuck.issueID != nil, !stuck.isSlowing {
-                AinkradButton(title: "Move to backlog", style: .secondary) { store.moveToBacklog(stuck) }
-                    .compact().fixedSize()
-            }
-            if let agent = stuck.agentID {
-                AinkradButton(title: "Open \(model.agent(agent)?.name ?? "agent")", style: .ghost) {
-                    store.open(.agent(agent))
-                }
-                .borderless().secondaryAccent().compact().fixedSize()
-            }
-            Text(why(lead: lead)).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
-        }
-    }
-
-    /// The online runners that hold every tag the waiting agent needs (the server still refuses one without its
-    /// harness, or drained).
-    private var retryRunners: [RunnerInfo] {
-        let tags = Set(model.agent(stuck.agentID)?.runnerTags ?? [])
-        return model.runnersPage.runners.filter { $0.status == "online" && tags.isSubset(of: $0.tags) }
-    }
-
-    /// The engine's recommendation as the primary fix, when the server takes it; otherwise disabled with why.
-    @ViewBuilder private func recommended(lead: AgentInfo?) -> some View {
-        switch stuck.repair {
-        case "unblock" where stuck.issueID != nil:
-            AinkradButton(title: "Unblock", style: .primary) { store.unblock(stuck) }.compact().fixedSize()
-        case "reassign_to_lead", "escalate":
-            if let lead, stuck.issueID != nil {
-                AinkradButton(title: "Reassign to \(lead.name)", style: .primary) { store.reassign(stuck, to: lead.id) }
-                    .compact().fixedSize()
-            }
-        case "rewake" where stuck.issueID != nil:
-            AinkradButton(title: "Wake \(model.agent(stuck.agentID)?.name ?? "the agent") again", style: .primary) {
-                store.nudge(stuck)
-            }
-            .compact().fixedSize()
-        case "requeue" where stuck.issueID != nil:
-            AinkradButton(title: "Requeue", style: .primary) { store.nudge(stuck) }.compact().fixedSize()
-        case "release_checkout" where stuck.issueID != nil:
-            AinkradButton(title: "Release checkout", style: .primary) { store.releaseCheckout(stuck) }
-                .compact().fixedSize()
-        case let repair?:
-            // drop_wake / notify have no manual endpoint; the engine runs them by itself.
-            AinkradButton(title: repair.replacingOccurrences(of: "_", with: " ").capitalized, style: .primary) {}
-                .compact().fixedSize().disabled(true)
-                .ainkradTooltip("The engine does this by itself")
-        case nil: EmptyView()
-        }
-    }
-
-    private func why(lead: AgentInfo?) -> String {
-        if stuck.waitsOnASleepingRunner { return "Wake sends a push to the sleeping runner" }
-        return switch stuck.repair {
-        case "rewake", "requeue": "the engine recommends waking its next actor again"
-        case "reassign_to_lead", "escalate": lead.map { "the engine recommends \($0.name), the team lead" } ?? ""
-        case "unblock": "its blockers are closed"
-        case "release_checkout": "its run ended without letting go of it"
-        case let repair?: "the engine will \(repair.replacingOccurrences(of: "_", with: " ")) on its own"
-        case nil: ""
-        }
-    }
-
-    private func sentence(_ text: String, capitalized: Bool = true) -> String {
-        guard let first = text.first else { return text }
-        let capped = capitalized ? first.uppercased() + text.dropFirst() : text
-        return capped.hasSuffix(".") ? capped : capped + "."
-    }
+extension StuckInfo {
+    /// A card's identity in the list: its issue (or kind) and kind.
+    var cardID: String { "\(issueID.map(String.init) ?? "-")·\(kind)·\(agentID.map(String.init) ?? "-")" }
 }
 
 /// A stuck card's age: `48m`, `2h 04m`, `1d`.
