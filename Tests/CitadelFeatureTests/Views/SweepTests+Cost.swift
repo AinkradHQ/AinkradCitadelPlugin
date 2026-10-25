@@ -43,6 +43,16 @@ extension SweepTests {
             ("l6-accounts-limits", accounts { $0.accountsPage.drawer = .limits(4) }, window),
             ("l6-accounts-relogin", accounts { $0.accountsPage.drawer = .relogin(5) }, window),
             ("l6-accounts-add", accounts { $0.accountsPage.drawer = .add }, window),
+            ("l6-accounts-preset-edit", accounts { $0.accountsPage.drawer = .preset(1) }, window),
+            ("l6-accounts-preset-new", accounts { $0.accountsPage.drawer = .preset(nil) }, window),
+            ("l6-accounts-preset-assign", accounts { $0.accountsPage.drawer = .assign(1) }, window),
+            (
+                "l6-accounts-agents-custom",
+                accounts {
+                    $0.accountsPage.chainsTab = "agents"
+                    $0.accountsPage.chainAgent = 5
+                }, tall
+            ),
             (
                 "l6-accounts-chain",
                 accounts {

@@ -96,6 +96,7 @@ final class SweepTests: XCTestCase {
                 $0.apiMinor = 18
                 let model = CompanyFixture.model()
                 stage(model)
+                CompanyFixture.trancheB(model)
                 $0.model = model
                 $0.screen = screen
                 $0.detail = detail

@@ -26,6 +26,22 @@ extension SweepTests {
             ("17-settings-limits", settings(.limits), window),
             ("17-settings-limits-full", settings(.limits), CGSize(width: 1400, height: 2000)),
             ("17-settings-notifications", settings(.notifications), window),
+            (
+                "17-settings-pair",
+                settings(.devices) {
+                    $0.limitsPage.pairing = PairingSession(
+                        code: PairingCode(code: "K7Q2MX", expiresAt: Date().addingTimeInterval(272)),
+                        knownDevices: [1, 2, 3, 4])
+                }, window
+            ),
+            (
+                "17-settings-paired",
+                settings(.devices) {
+                    $0.limitsPage.pairing = PairingSession(
+                        code: PairingCode(code: "K7Q2MX", expiresAt: Date().addingTimeInterval(200)),
+                        knownDevices: [1, 2], paired: $0.limitsPage.devices?.last)
+                }, window
+            ),
             ("17-settings-skills", settings(.skills), window),
             ("17-settings-audit", settings(.audit), window),
             ("17-settings-audit-agents", settings(.audit) { $0.limitsPage.auditActor = "agents" }, window),
