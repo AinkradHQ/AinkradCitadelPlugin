@@ -73,76 +73,20 @@ struct SettingsTimeZoneMenu: View {
     }
 }
 
-/// The working-hours track (`sx-range`): both ends dragged on a 24 h bar, snapped to 30 minutes and at least an hour
-/// apart. The end nearest where a drag starts is the one it moves.
+/// The working-hours track (`sx-range`): the kit's 24 h bar over minutes-from-midnight bindings.
 struct SettingsWorkTrack: View {
     @Binding var start: Int32
     @Binding var end: Int32
-    /// The end the current drag moves: `true` for the start.
-    @State private var dragging: Bool?
     @Environment(\.ainkradSkin) private var skin
 
-    private static let day: Int32 = 1440
-    private static let step: Int32 = 30
-    private static let minimum: Int32 = 60
-
     var body: some View {
-        let width = skin.size.s380
-        VStack(spacing: skin.size.s4) {
-            ZStack(alignment: .leading) {
-                Capsule().fill(skin.color(.palette("background", 1)).opacity(skin.opacity.o25))
-                Capsule().fill(skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o35))
-                    .frame(width: position(end, width) - position(start, width), height: skin.size.s10)
-                    .offset(x: position(start, width))
-                handle(at: position(start, width))
-                handle(at: position(end, width))
-            }
-            .frame(width: width, height: skin.size.s18)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag(to: $0.location.x, from: $0.startLocation.x, width: width) }
-                    .onEnded { _ in dragging = nil }
-            )
-            HStack {
-                Text("\(Self.clock(start)) – \(Self.clock(end))")
-                    .citadelFont("t11", weight: "semibold", mono: true)
-                    .foregroundStyle(skin.color(skin.text.primary))
-                Spacer()
-            }
-            .frame(width: width)
-        }
-        .help("Drag the ends · 30 minute steps, at least an hour")
+        AinkradDayRangeTrack(start: Self.hours($start), end: Self.hours($end))
+            .frame(width: skin.size.s380)
+            .help("Drag the ends · 30 minute steps, at least an hour")
     }
 
-    private func handle(at x: CGFloat) -> some View {
-        Circle().fill(skin.color(skin.palette.accentPrimary))
-            .overlay(Circle().strokeBorder(skin.color(.palette("background", 1)), lineWidth: skin.size.s2))
-            .frame(width: skin.size.s18, height: skin.size.s18)
-            .offset(x: x - skin.size.s18 / 2)
-    }
-
-    private func position(_ minute: Int32, _ width: CGFloat) -> CGFloat {
-        CGFloat(minute) / CGFloat(Self.day) * width
-    }
-
-    private func drag(to x: CGFloat, from origin: CGFloat, width: CGFloat) {
-        let movesStart =
-            dragging
-            ?? (abs(origin - position(start, width)) <= abs(origin - position(end, width)))
-        dragging = movesStart
-        let raw = Int32((x / width * CGFloat(Self.day)).rounded())
-        let minute = (raw + Self.step / 2) / Self.step * Self.step
-        if movesStart {
-            start = min(max(minute, 0), end - Self.minimum)
-        } else {
-            end = max(min(minute, Self.day), start + Self.minimum)
-        }
-    }
-
-    /// `09:30` for 570 minutes.
-    static func clock(_ minutes: Int32) -> String {
-        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    private static func hours(_ minutes: Binding<Int32>) -> Binding<Double> {
+        Binding(get: { Double(minutes.wrappedValue) / 60 }, set: { minutes.wrappedValue = Int32(($0 * 60).rounded()) })
     }
 }
 
