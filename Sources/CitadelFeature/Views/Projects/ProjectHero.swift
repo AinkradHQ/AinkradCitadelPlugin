@@ -26,8 +26,10 @@ struct ProjectHero: View {
             left
             VStack(alignment: .leading, spacing: slim ? skin.size.s10 : skin.size.s16) {
                 HStack(alignment: .top, spacing: skin.size.s26) {
-                    identity.frame(maxWidth: .infinity, alignment: .leading)
-                    if !slim { stats.transition(.opacity) }
+                    identity
+                        .frame(
+                            maxWidth: .infinity, minHeight: slim ? skin.size.s64 : skin.size.s120, alignment: .leading)
+                    if !slim { stats.frame(width: skin.size.s300).transition(.opacity) }
                 }
                 dock
             }

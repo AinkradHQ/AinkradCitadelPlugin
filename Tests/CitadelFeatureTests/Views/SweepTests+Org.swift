@@ -11,6 +11,7 @@ extension SweepTests {
                 name,
                 stage(.org, nil) {
                     CompanyFixture.inboxPage($0)
+                    CompanyFixture.orgPeekRuns($0)
                     apply($0.orgPage)
                 }, size
             )

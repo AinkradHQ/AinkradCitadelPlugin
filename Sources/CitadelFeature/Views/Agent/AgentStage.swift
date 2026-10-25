@@ -260,6 +260,7 @@ private struct StageStat<Visual: View, Words: View>: View {
 }
 
 /// The dock (`.st-dock`): Chat, the state's actions, the drawer's sections, and the hard stops on the right.
+/// Labels always stay; the buttons wrap onto a second line when the stage is too narrow for one.
 private struct AgentDock: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -267,17 +268,9 @@ private struct AgentDock: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        // The full dock when it fits; otherwise the drawer buttons keep only their icons.
-        ViewThatFits(in: .horizontal) {
-            dock(labels: true).fixedSize(horizontal: true, vertical: false)
-            dock(labels: false)
-        }
-    }
-
-    @ViewBuilder private func dock(labels: Bool) -> some View {
         let page = model.orgPage
         let live = model.currentRun(of: agent.id).flatMap { $0.isLive ? $0 : nil }
-        HStack(spacing: skin.size.s6) {
+        AinkradFlowLayout(spacing: skin.size.s6) {
             AinkradDockButton("Chat", systemImage: "bubble.left") { store.chat(with: agent.id) }
             if agent.isHirePending, let approval = model.hireApproval(of: agent.id) {
                 AinkradDockButton("Approve hire", systemImage: "play", tone: .primary) {
@@ -302,19 +295,18 @@ private struct AgentDock: View {
                 }
             }
             AinkradDockSeparator()
-            AinkradDockButton(labels ? "Instructions" : "", systemImage: "doc.text") {
+            AinkradDockButton("Instructions", systemImage: "doc.text") {
                 page.drawer = .init(section: .instructions)
             }
-            AinkradDockButton(labels ? "Budget" : "", systemImage: "dollarsign.circle") {
+            AinkradDockButton("Budget", systemImage: "dollarsign.circle") {
                 page.drawer = .init(section: .settings, anchor: "budget")
             }
-            AinkradDockButton(labels ? "Model" : "", systemImage: "cpu") {
+            AinkradDockButton("Model", systemImage: "cpu") {
                 page.drawer = .init(section: .settings, anchor: "model")
             }
-            AinkradDockButton(labels ? "Look" : "", systemImage: "paintpalette") {
+            AinkradDockButton("Look", systemImage: "paintpalette") {
                 page.drawer = .init(section: .settings, anchor: "look")
             }
-            Spacer(minLength: 0)
             if let live {
                 AinkradDockButton("Stop run", systemImage: "stop", tone: .danger) { page.sheet = .stopRun(live.id) }
             }
@@ -324,6 +316,5 @@ private struct AgentDock: View {
                 }
             }
         }
-        .lineLimit(1)
     }
 }

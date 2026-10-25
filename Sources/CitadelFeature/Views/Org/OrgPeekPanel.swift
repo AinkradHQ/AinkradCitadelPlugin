@@ -284,18 +284,23 @@ struct OrgPeekPanel: View {
     private func footer(_ live: RunInfo?) -> some View {
         HStack(spacing: skin.size.s8) {
             if agent.isHirePending, let approval = model.hireApproval(of: agent.id) {
-                AinkradButton(title: "Approve hire") { store.decideHire(approval, approve: true) }
-                    .frame(maxWidth: .infinity)
-                AinkradButton(title: "Reject", style: .danger) { store.decideHire(approval, approve: false) }
-                    .frame(maxWidth: .infinity)
+                AinkradDockButton("Approve hire", tone: .primary, height: skin.size.s34, fillsWidth: true) {
+                    store.decideHire(approval, approve: true)
+                }
+                AinkradDockButton("Reject", tone: .danger, height: skin.size.s34, fillsWidth: true) {
+                    store.decideHire(approval, approve: false)
+                }
             } else {
                 if let live {
-                    AinkradButton(title: "Open run") { store.open(.run(live.id)) }.frame(maxWidth: .infinity)
+                    AinkradDockButton("Open run", tone: .primary, height: skin.size.s34, fillsWidth: true) {
+                        store.open(.run(live.id))
+                    }
                 } else {
-                    AinkradButton(title: "Profile") { store.open(.agent(agent.id)) }.frame(maxWidth: .infinity)
+                    AinkradDockButton("Profile", tone: .primary, height: skin.size.s34, fillsWidth: true) {
+                        store.open(.agent(agent.id))
+                    }
                 }
-                AinkradButton(title: "Chat", style: .secondary) { store.chat(with: agent.id) }.frame(
-                    maxWidth: .infinity)
+                AinkradDockButton("Chat", height: skin.size.s34, fillsWidth: true) { store.chat(with: agent.id) }
             }
         }
         .padding(.horizontal, skin.size.s18)
