@@ -12,6 +12,19 @@ extension Components.Responses.TooManyRequests: CarriesErrorBody {
     var errorBody: Schemas.ErrorBody? { try? body.json }
 }
 extension Components.Responses.InternalError: CarriesErrorBody { var errorBody: Schemas.ErrorBody? { try? body.json } }
+// Operations whose 409 documents its own reason (API minor 17) carry their own response type.
+extension Operations.UpdateAgent.Output.Conflict: CarriesErrorBody {
+    var errorBody: Schemas.ErrorBody? { try? body.json }
+}
+extension Operations.WakeAgent.Output.Conflict: CarriesErrorBody {
+    var errorBody: Schemas.ErrorBody? { try? body.json }
+}
+extension Operations.TerminateAgent.Output.Conflict: CarriesErrorBody {
+    var errorBody: Schemas.ErrorBody? { try? body.json }
+}
+extension Operations.DeleteAccount.Output.Conflict: CarriesErrorBody {
+    var errorBody: Schemas.ErrorBody? { try? body.json }
+}
 
 /// The run and agent controls of screens 02–07 (pause, resume, stop, message, allow for an issue) and the reads
 /// that came with them (open questions, an issue's diff). Each action returns `nil` when done, else the server's

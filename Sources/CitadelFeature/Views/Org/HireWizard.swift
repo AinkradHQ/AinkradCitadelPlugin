@@ -53,9 +53,12 @@ struct HireWizard: View {
                 Text("New agent").citadelFont("t16", weight: "semibold")
                 StepBar(steps: Self.steps, current: $current)
                 ScrollView {
-                    HireStepPane(model: model, draft: $draft, step: current, leads: leads)
-                        .padding(.top, skin.size.s4)
-                        .padding(.bottom, skin.size.s24)
+                    HireStepPane(
+                        model: model, draft: $draft, step: current, leads: leads,
+                        extended: store.serverSupports(minor: CitadelStore.structureMinor)
+                    )
+                    .padding(.top, skin.size.s4)
+                    .padding(.bottom, skin.size.s24)
                 }
                 .scrollIndicators(.never)
             }
@@ -185,8 +188,9 @@ struct HireWizard: View {
         if let close { close() } else { model.orgPage.sheet = nil }
     }
 
-    /// The proposal carries name, role, harness, model, reports-to and runner tags; the team rides in the
-    /// justification until `AgentProposal` has a seat (spec 03 §4.3).
+    /// The proposal carries name, role, harness, model, reports-to and runner tags. From API minor 17 it also seats
+    /// the hire and carries description, effort, sandbox, instructions, guidelines and palette; an older server
+    /// gets the team in the justification instead.
     private func propose() {
         var proposal = AgentDraft()
         proposal.name = draft.name.trimmingCharacters(in: .whitespaces)
@@ -196,7 +200,18 @@ struct HireWizard: View {
         proposal.reportsTo = draft.reportsTo ?? leads.first?.id
         proposal.runnerTags = draft.tags.sorted().joined(separator: " ")
         let why = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
-        proposal.justification = "\(why.isEmpty ? draft.role.purpose : why) · for \(teamName)"
+        if store.serverSupports(minor: CitadelStore.structureMinor) {
+            proposal.justification = why.isEmpty ? draft.role.purpose : why
+            proposal.description = why
+            proposal.effort = draft.effort
+            proposal.sandbox = draft.sandbox
+            proposal.instructions = draft.instructions
+            proposal.guidelines = draft.guidelines
+            proposal.teamID = draft.team
+            proposal.paletteID = draft.palette
+        } else {
+            proposal.justification = "\(why.isEmpty ? draft.role.purpose : why) · for \(teamName)"
+        }
         store.proposeHire(proposal, palette: draft.palette) { dismiss() }
     }
 }

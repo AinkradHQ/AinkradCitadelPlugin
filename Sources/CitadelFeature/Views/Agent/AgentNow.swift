@@ -185,8 +185,9 @@ struct IdleNow: View {
             Spacer(minLength: 0)
             if !agent.isHirePending {
                 HStack(spacing: skin.size.s8) {
-                    AinkradButton(title: "Wake now") {}.disabled(true).fixedSize()
-                        .help("Needs server: POST /agents/{id}/wake")
+                    AinkradButton(title: "Wake now") { store.wake(agent) }
+                        .disabled(!store.serverSupports(minor: CitadelStore.structureMinor)).fixedSize()
+                        .help(store.help(ready: "Run it on what is waiting for it"))
                     AinkradButton(title: "Assign an issue…", style: .secondary) {
                         store.screen = .projects
                         store.detail = nil

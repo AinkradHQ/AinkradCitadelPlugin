@@ -36,6 +36,8 @@ extension Schemas.QuestionState: OpenWord {}
 extension Schemas.RepairAction: OpenWord {}
 extension Schemas.RunnerStatus: OpenWord {}
 extension Schemas.WakeSource: OpenWord {}
+extension Schemas.Effort: OpenWord {}
+extension Schemas.Sandbox: OpenWord {}
 
 /// How an agent is drawn (decisions #61, #63): always the animated figure, never a letter.
 enum AgentLook {
@@ -76,7 +78,25 @@ extension AgentInfo {
             id: agent.id, name: agent.name, role: agent.role, orgRole: agent.orgRole.word, harness: agent.harness.word,
             model: agent.model, runnerTags: agent.runnerTags, status: agent.status.word,
             figure: AgentLook.figure(agent.figureState.word), paletteID: agent.appearance.paletteId,
-            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo, hiredAt: agent.hiredAt)
+            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo, hiredAt: agent.hiredAt,
+            about: agent.description, effort: agent.effort?.word, sandbox: agent.sandbox?.word,
+            instructions: agent.instructions, guidelines: agent.guidelines)
+    }
+
+    /// The fields an edit changes, from the agent as the server stored it; its figure stays as it is.
+    mutating func merge(_ saved: Schemas.Agent) {
+        let fresh = AgentInfo(saved)
+        role = fresh.role
+        harness = fresh.harness
+        model = fresh.model
+        runnerTags = fresh.runnerTags
+        reportsTo = fresh.reportsTo
+        about = fresh.about
+        effort = fresh.effort
+        sandbox = fresh.sandbox
+        instructions = fresh.instructions
+        guidelines = fresh.guidelines
+        status = fresh.status
     }
 }
 

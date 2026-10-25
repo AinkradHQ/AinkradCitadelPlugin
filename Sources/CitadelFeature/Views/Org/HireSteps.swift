@@ -7,6 +7,8 @@ struct HireStepPane: View {
     @Binding var draft: HireDraft
     let step: Int
     let leads: [AgentInfo]
+    /// The server takes the whole proposal (API minor 17): seat, instructions, effort and the rest.
+    var extended = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -83,10 +85,12 @@ struct HireStepPane: View {
                 }
             }
         }
-        NeedsServer(
-            text:
-                "A proposal can't carry a seat yet (AgentProposal has no team) — the team is written into its justification."
-        )
+        if !extended {
+            NeedsServer(
+                text:
+                    "This Citadel can't seat a hire yet (needs a server update) — the team is written into its justification."
+            )
+        }
     }
 
     private var teamPairs: [(department: DepartmentInfo, team: TeamInfo)] {
@@ -178,9 +182,9 @@ struct HireStepPane: View {
             }
         }
         NeedsServer(
-            text:
-                "Instructions, guidelines, skills, sandbox and effort aren't stored on an agent yet — the server needs fields for them."
-        )
+            text: extended
+                ? "Skills attach to the company, a department or a role — not to one agent."
+                : "Instructions, guidelines, sandbox and effort are dropped until the Citadel server is updated.")
     }
 
     private func toggle(_ skill: String) {

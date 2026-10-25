@@ -141,8 +141,14 @@ private struct AgentIdentity: View {
                     HarnessTag(harness: agent.harness, size: skin.size.s20)
                     Text(agent.model)
                 }
+                if let effort = agent.effort { chip { Text("\(effort) effort") } }
+                if let sandbox = agent.sandbox { chip { Text(sandbox) } }
             }
             .padding(.top, skin.size.s10)
+            if let about = agent.about, !about.isEmpty {
+                Text(about).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).lineLimit(3)
+                    .padding(.top, skin.size.s8)
+            }
         }
     }
 
@@ -290,8 +296,11 @@ private struct AgentDock: View {
                         store.open(.run(live.id))
                     }
                 } else {
-                    AinkradDockButton("Wake now", systemImage: "bolt", tone: .primary, isEnabled: false) {}
-                        .help("Needs server: POST /agents/{id}/wake")
+                    AinkradDockButton(
+                        "Wake now", systemImage: "bolt", tone: .primary,
+                        isEnabled: store.serverSupports(minor: CitadelStore.structureMinor)
+                    ) { store.wake(agent) }
+                    .help(store.help(ready: "Run it on what is waiting for it"))
                 }
             }
             AinkradDockSeparator()

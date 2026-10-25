@@ -2,7 +2,8 @@ import AinkradAppKit
 import SwiftUI
 
 /// Settings (prototype `agent.js` agentSettings): Model, Fallback chain, Budget, Access, Look, Danger. What the
-/// API backs applies at once with a toast (Look, Budget); the rest is drawn and marked "needs server".
+/// API backs applies at once with a toast (Look, Budget). Model, Access and About save with PATCH /agents/{id}
+/// (API minor 17); an older server keeps their Save off with a "needs a server update" line.
 struct DrawerSettings: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -15,7 +16,37 @@ struct DrawerSettings: View {
     @State private var budget = ""
     @State private var warn = "80"
     @State private var cap = ""
+    @State private var about = ""
+    @State private var boss: Int64?
     @Environment(\.ainkradSkin) private var skin
+
+    private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
+    private var modelChanged: Bool {
+        harness != agent.harness || wire != agent.model || effort != (agent.effort ?? "medium")
+    }
+    private var accessChanged: Bool {
+        sandbox != (agent.sandbox ?? "workspace-write") || tags != Set(agent.runnerTags) || boss != agent.reportsTo
+    }
+
+    /// Who it may report to: anyone seated and active who is not under it (that would be a loop).
+    private var bosses: [AgentInfo] {
+        var below = Set<Int64>([agent.id])
+        var queue = [agent.id]
+        while let next = queue.popLast() {
+            for report in model.reports(of: next) where below.insert(report.id).inserted { queue.append(report.id) }
+        }
+        return model.agents.values.filter { !below.contains($0.id) && $0.status == "active" }.sorted { $0.id < $1.id }
+    }
+
+    private func saveRow(_ title: String, changed: Bool, save: @escaping () -> Void) -> some View {
+        HStack {
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
+            Spacer()
+            AinkradButton(title: title, action: save).compact().fixedSize()
+                .disabled(!supported || !changed)
+                .help(store.help(ready: "Saves with PATCH /agents/{id}"))
+        }
+    }
 
     var body: some View {
         let page = model.orgPage
@@ -23,7 +54,11 @@ struct DrawerSettings: View {
             HarnessCards(model: model, selection: $harness)
             ModelCards(harness: harness, selection: $wire)
             EffortCards(selection: $effort)
-            NeedsServer(text: "Changing harness, model or effort needs PATCH /agents/{id}; the cards show its setup.")
+            saveRow("Save model", changed: modelChanged) {
+                store.edit(
+                    agent, AgentPatch(harness: harness, model: wire, effort: effort), title: "Model updated",
+                    body: "Applies from the next run.")
+            }
         }
         .id("model")
         DrawerTile(
@@ -79,9 +114,32 @@ struct DrawerSettings: View {
         DrawerTile(title: "Access") {
             SandboxCards(selection: $sandbox)
             RunnerTagCards(model: model, selection: $tags)
-            NeedsServer(text: "Sandbox and runner tags change with PATCH /agents/{id}.")
+            Text("Reports to").citadelFont("t11", weight: "medium").foregroundStyle(skin.color(skin.text.muted))
+            CardGrid(columns: 4) {
+                ForEach(bosses) { person in
+                    PersonCard(model: model, agent: person, line: model.title(of: person), isOn: boss == person.id) {
+                        boss = person.id
+                    }
+                }
+            }
+            saveRow("Save access", changed: accessChanged) {
+                store.edit(
+                    agent,
+                    AgentPatch(
+                        sandbox: sandbox, runnerTags: tags.sorted(),
+                        reportsTo: boss != agent.reportsTo ? boss : nil), title: "Access updated",
+                    body: "Applies from the next run.")
+            }
         }
         .id("access")
+        DrawerTile(title: "About") {
+            AinkradTextArea(
+                text: $about, placeholder: "What this agent is for — shown on its profile", minHeight: skin.size.s60)
+            saveRow("Save description", changed: about != (agent.about ?? "")) {
+                store.edit(agent, AgentPatch(about: about), title: "Description saved")
+            }
+        }
+        .id("about")
         DrawerTile(title: "Look") {
             PaletteGrid(
                 selection: Binding(
@@ -104,6 +162,10 @@ struct DrawerSettings: View {
             harness = agent.harness
             wire = agent.model
             tags = Set(agent.runnerTags)
+            effort = agent.effort ?? "medium"
+            sandbox = agent.sandbox ?? "workspace-write"
+            about = agent.about ?? ""
+            boss = agent.reportsTo
             let month = model.monthBudget(of: agent.id)
             budget = month.map { Fmt.tokens($0.cap) } ?? ""
             warn = "\(month?.warnPercent ?? Int(model.warnFraction * 100))"

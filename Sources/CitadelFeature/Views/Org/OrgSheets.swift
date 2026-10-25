@@ -85,12 +85,14 @@ private struct OrgSheets: ViewModifier {
         case .role(let name): RoleSheet(model: model, role: name)
         case .editBudget(let id):
             if let agent = model.agents[id] { EditBudgetSheet(store: store, model: model, agent: agent) }
-        case .changeModel(let id): if let agent = model.agents[id] { ChangeModelSheet(model: model, agent: agent) }
+        case .changeModel(let id):
+            if let agent = model.agents[id] { ChangeModelSheet(store: store, model: model, agent: agent) }
         case .appearance(let id):
             if let agent = model.agents[id] { AppearanceSheet(store: store, model: model, agent: agent) }
         case .reassign(let id):
             if let agent = model.agents[id] { ReassignSheet(store: store, model: model, agent: agent) }
-        case .terminate(let id): if let agent = model.agents[id] { TerminateSheet(model: model, agent: agent) }
+        case .terminate(let id):
+            if let agent = model.agents[id] { TerminateSheet(store: store, model: model, agent: agent) }
         case .pause, .stopRun, nil: EmptyView()
         }
     }

@@ -31,6 +31,15 @@ struct AgentDraft: Equatable, Sendable {
     var reportsTo: Int64?
     /// Space-separated (`macos xcode-27`).
     var runnerTags = ""
+    /// What API minor 17 lets a proposal carry; the wizard fills them only for a server that has it.
+    var description: String?
+    var effort: String?
+    var sandbox: String?
+    var instructions: String?
+    var guidelines: [String]?
+    var teamID: Int64?
+    var teamRole: String?
+    var paletteID: String?
 
     static let harnesses = ["claude", "codex", "opencode", "agy"]
 
@@ -44,13 +53,28 @@ struct AgentDraft: Equatable, Sendable {
         return nil
     }
 
+    /// At most 50 rules of 1-500 characters, as the server takes them.
+    static func cleanGuidelines(_ rules: [String]) -> [String] {
+        Array(rules.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.prefix(50))
+            .map { String($0.prefix(500)) }
+    }
+
     var body: Schemas.AgentProposal {
         let tags = runnerTags.split(whereSeparator: \.isWhitespace).map(String.init)
-        return Schemas.AgentProposal(
+        var proposal = Schemas.AgentProposal(
             harness: .init(value1: .init(rawValue: harness), value2: harness),
             justification: justification.trimmingCharacters(in: .whitespacesAndNewlines),
             model: model.trimmingCharacters(in: .whitespaces), name: name.trimmingCharacters(in: .whitespaces),
             reportsTo: reportsTo, role: role.trimmingCharacters(in: .whitespaces),
             runnerTags: tags.isEmpty ? nil : tags)
+        proposal.description = description.flatMap { $0.isEmpty ? nil : String($0.prefix(4000)) }
+        proposal.effort = effort.map { Schemas.Effort(value1: .init(rawValue: $0), value2: $0) }
+        proposal.sandbox = sandbox.map { Schemas.Sandbox(value1: .init(rawValue: $0), value2: $0) }
+        proposal.instructions = instructions.flatMap { $0.isEmpty ? nil : String($0.prefix(20_000)) }
+        proposal.guidelines = guidelines.map { Self.cleanGuidelines($0) }
+        proposal.teamId = teamID
+        proposal.teamRole = teamRole.map { Schemas.TeamRole(value1: .init(rawValue: $0), value2: $0) }
+        proposal.paletteId = paletteID
+        return proposal
     }
 }

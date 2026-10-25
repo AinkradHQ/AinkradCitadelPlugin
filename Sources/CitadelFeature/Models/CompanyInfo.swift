@@ -22,6 +22,13 @@ struct AgentInfo: Identifiable, Equatable, Sendable {
     var reportsTo: Int64?
     /// When it was proposed (`hired_at`; the approval seats it).
     var hiredAt: Date? = nil
+    /// What the admin wrote, its effort, sandbox, standing instructions and rules (API minor 17); nil from an
+    /// older server, which does not store them.
+    var about: String? = nil
+    var effort: String? = nil
+    var sandbox: String? = nil
+    var instructions: String? = nil
+    var guidelines: [String]? = nil
 
     var isPaused: Bool { status == "paused" }
     var isHirePending: Bool { status == "pending_approval" }

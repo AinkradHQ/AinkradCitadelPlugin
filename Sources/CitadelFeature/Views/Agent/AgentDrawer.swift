@@ -42,7 +42,7 @@ struct AgentDrawer: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: skin.size.s14) {
                                 switch drawer.section {
-                                case .instructions: DrawerInstructions(agent: agent)
+                                case .instructions: DrawerInstructions(store: store, agent: agent)
                                 case .skills: DrawerSkills(model: model, agent: agent)
                                 case .settings: DrawerSettings(store: store, model: model, agent: agent)
                                 }
@@ -120,34 +120,55 @@ struct DrawerTile<Content: View>: View {
     }
 }
 
-/// Instructions: the system prompt editor (from the role's template) and the guideline switches. The server keeps
-/// neither on an agent yet.
+/// Instructions: the system prompt editor (from the role's template until the agent has its own) and the guideline
+/// switches, saved with `PATCH /agents/{id}` (API minor 17). An older server keeps both Saves off.
 private struct DrawerInstructions: View {
+    let store: CitadelStore
     let agent: AgentInfo
     @State private var text = ""
     @State private var on: [String] = HireCatalog.guidelines.prefix(5).map(\.text)
     @State private var all: [String] = HireCatalog.guidelines.map(\.text)
     @Environment(\.ainkradSkin) private var skin
 
+    private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
+    private var template: String { HireCatalog.role(agent.role)?.instructions ?? "" }
+
     var body: some View {
-        let template = HireCatalog.role(agent.role)?.instructions ?? ""
         DrawerTile(title: "") {
             InstructionsEditor(
-                title: "System instructions", pill: "\(agent.role) template", text: $text, template: template,
-                minHeight: skin.size.s140)
+                title: "System instructions", pill: agent.instructions == nil ? "\(agent.role) template" : nil,
+                text: $text, template: template, minHeight: skin.size.s140)
             HStack {
                 Text("Sent at the start of every run · changes apply from the next run").citadelFont("t11")
                     .foregroundStyle(skin.color(skin.text.faint))
                 Spacer()
-                AinkradButton(title: "Save instructions") {}.compact().disabled(true).fixedSize()
+                AinkradButton(title: "Save instructions") {
+                    store.edit(agent, AgentPatch(instructions: text), title: "Instructions saved")
+                }
+                .compact().fixedSize().disabled(!supported || text == (agent.instructions ?? template))
+                .help(store.help(ready: "Saves with PATCH /agents/{id}"))
             }
-            NeedsServer(text: "Per-agent instructions need an `instructions` field on the agent (PATCH /agents/{id}).")
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
         }
         DrawerTile(title: "Guidelines · \(on.count) on") {
             GuidelineCards(on: $on, all: $all)
-            NeedsServer(text: "Guidelines aren't stored on an agent yet.")
+            HStack {
+                if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
+                Spacer()
+                AinkradButton(title: "Save guidelines") {
+                    store.edit(agent, AgentPatch(guidelines: on), title: "Guidelines saved")
+                }
+                .compact().fixedSize().disabled(!supported || on == (agent.guidelines ?? []))
+                .help(store.help(ready: "Saves with PATCH /agents/{id}"))
+            }
         }
-        .onAppear { text = template }
+        .onAppear {
+            text = agent.instructions ?? template
+            if let rules = agent.guidelines {
+                on = rules
+                all = rules + HireCatalog.guidelines.map(\.text).filter { !rules.contains($0) }
+            }
+        }
     }
 }
 

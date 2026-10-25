@@ -170,9 +170,11 @@ extension CitadelStore {
             case .success(let approvalID):
                 actionFailure = nil
                 done()
-                let pending = await server.approvals(company: model.companyID)
-                if let agent = pending?.first(where: { $0.id == approvalID })?.agentID {
-                    _ = await server.setPalette(agent: agent, palette)
+                if draft.paletteID == nil {
+                    let pending = await server.approvals(company: model.companyID)
+                    if let agent = pending?.first(where: { $0.id == approvalID })?.agentID {
+                        _ = await server.setPalette(agent: agent, palette)
+                    }
                 }
                 schedule([.org, .approvals])
                 selectedApproval = approvalID

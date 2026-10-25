@@ -93,9 +93,10 @@ struct EditBudgetSheet: View {
     }
 }
 
-/// "Change model…" (520): harness, model, effort. The server cannot change an agent yet (no `PATCH /agents`), so
-/// Save stays off and says so.
+/// "Change model…" (520): harness, model, effort, saved with `PATCH /agents/{id}` (API minor 17); an older server
+/// keeps Save off and says so.
 struct ChangeModelSheet: View {
+    let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
     @State private var harness = ""
@@ -121,9 +122,14 @@ struct ChangeModelSheet: View {
             AinkradFormRow(title: "Effort") {
                 AinkradSegmentedPicker(items: HireCatalog.efforts.map(\.id), selection: $effort) { $0 }.fixedSize()
             }
-            NeedsServer(text: "Changing an agent's harness, model or effort needs PATCH /agents/{id} on the server.")
-            SheetButtons(confirm: "Save", enabled: false) {
-                false
+            if !store.serverSupports(minor: CitadelStore.structureMinor) {
+                NeedsServer(text: CitadelStore.needsServerUpdate)
+            }
+            SheetButtons(confirm: "Save", enabled: store.serverSupports(minor: CitadelStore.structureMinor)) {
+                store.edit(
+                    agent, AgentPatch(harness: harness, model: wire, effort: effort), title: "Model updated",
+                    body: "Applies from the next run.")
+                return true
             } cancel: {
                 model.orgPage.sheet = nil
             }
@@ -131,6 +137,7 @@ struct ChangeModelSheet: View {
         .onAppear {
             harness = agent.harness
             wire = agent.model
+            effort = agent.effort ?? "medium"
         }
         .onChange(of: harness) { _, new in
             if new != agent.harness { wire = HireCatalog.models[new]?.first?.wire ?? "" }
@@ -240,8 +247,10 @@ struct ReassignSheet: View {
     }
 }
 
-/// Terminate (prototype confirm with an optional reason). No terminate endpoint yet: shown honestly, off.
+/// Terminate (prototype confirm with an optional reason), `POST /agents/{id}/terminate` (API minor 17); an older
+/// server keeps it off.
 struct TerminateSheet: View {
+    let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
     @State private var reason = ""
@@ -256,9 +265,15 @@ struct TerminateSheet: View {
             .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).fixedSize(
                 horizontal: false, vertical: true)
             AinkradTextArea(text: $reason, placeholder: "Reason for the audit log (optional)", minHeight: skin.size.s60)
-            NeedsServer(text: "Terminating needs POST /agents/{id}/terminate on the server.")
-            SheetButtons(confirm: "Terminate", destructive: true, enabled: false) {
-                false
+            if !store.serverSupports(minor: CitadelStore.structureMinor) {
+                NeedsServer(text: CitadelStore.needsServerUpdate)
+            }
+            SheetButtons(
+                confirm: "Terminate", destructive: true,
+                enabled: store.serverSupports(minor: CitadelStore.structureMinor)
+            ) {
+                store.terminate(agent, reason: reason)
+                return true
             } cancel: {
                 model.orgPage.sheet = nil
             }
