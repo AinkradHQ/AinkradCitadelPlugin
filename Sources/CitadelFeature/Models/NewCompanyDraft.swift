@@ -46,6 +46,8 @@ struct NewCompanyDraft: Equatable {
     var harness = "claude"
     var model = HireCatalog.models["claude"]?.first?.wire ?? ""
     var effort = "high"
+    /// A chain preset of the company the wizard was opened in, copied into the new one for its CEO (API minor 18).
+    var chainTemplate: Int64?
     var ceoBudget = Fmt.tokens(40_000_000)
     var warn = "80"
     var cap = "200k"

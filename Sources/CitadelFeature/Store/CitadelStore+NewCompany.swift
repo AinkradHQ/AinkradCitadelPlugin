@@ -10,6 +10,7 @@ extension CitadelStore {
         isSwitchingCompany = false
         isCreatingCompany = true
         loadNewCompanyChoices()
+        loadChainPresets()
     }
 
     /// The whole pool (accounts to assign) and every runner (tag counts); a failed read leaves the lists empty.
@@ -94,8 +95,21 @@ extension CitadelStore {
         {
             missed.append("its \(Fmt.tokens(draft.budgetTokens)) token budget")
         }
-        if case .failure = await scoped.proposeAgent(company: company.id, draft.proposal(extended: extended)) {
-            missed.append("the CEO \(draft.ceoName)")
+        switch await scoped.proposeAgent(company: company.id, draft.proposal(extended: extended)) {
+        case .failure: missed.append("the CEO \(draft.ceoName)")
+        case .success(let proposed):
+            // The fallback preset picked from the company it was opened in: copied into the new one (its account
+            // pins belong to that company's pool) as its default, and the CEO is put on it.
+            if let preset = chainPresetsOn ? model?.chainPreset(draft.chainTemplate) ?? model?.defaultChainPreset : nil
+            {
+                var copy = preset
+                copy.isDefault = true
+                copy.entries = preset.entries.map { FallbackEntry(harness: $0.harness, model: $0.model) }
+                switch await scoped.createChainPreset(company: company.id, copy) {
+                case .success(let made): _ = await scoped.setAgentChain(agent: proposed.agentID, preset: made.id)
+                case .failure: missed.append("its \(preset.name) fallback chain")
+                }
+            }
         }
         return missed
     }

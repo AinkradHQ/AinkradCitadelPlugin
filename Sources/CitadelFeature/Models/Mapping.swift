@@ -80,7 +80,8 @@ extension AgentInfo {
             figure: AgentLook.figure(agent.figureState.word), paletteID: agent.appearance.paletteId,
             avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo, hiredAt: agent.hiredAt,
             about: agent.description, effort: agent.effort?.word, sandbox: agent.sandbox?.word,
-            instructions: agent.instructions, guidelines: agent.guidelines)
+            instructions: agent.instructions, guidelines: agent.guidelines, chainPresetID: agent.chainPresetId,
+            queuedWakes: agent.queuedWakes)
     }
 
     /// The fields an edit changes, from the agent as the server stored it; its figure stays as it is.
@@ -97,6 +98,8 @@ extension AgentInfo {
         instructions = fresh.instructions
         guidelines = fresh.guidelines
         status = fresh.status
+        chainPresetID = fresh.chainPresetID
+        queuedWakes = fresh.queuedWakes
     }
 }
 

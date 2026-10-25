@@ -12,13 +12,20 @@ extension CitadelServer {
         }
     }
 
-    /// Proposes one agent; its hire approval's id.
-    func proposeAgent(company: Int64, _ draft: AgentDraft) async -> Result<Int64, ServerAnswer> {
+    /// Proposes one agent; its hire approval's id and the pending agent's.
+    func proposeAgent(company: Int64, _ draft: AgentDraft) async -> Result<ProposedHire, ServerAnswer> {
         await attempt({ try await client.proposeAgent(path: .init(id: company), body: .json(draft.body)) }) {
             guard case .ok(let ok) = $0 else { return nil }
-            return try ok.body.json.hireApprovalId
+            let proposed = try ok.body.json
+            return ProposedHire(approvalID: proposed.hireApprovalId, agentID: proposed.agent.id)
         }
     }
+}
+
+/// A proposal as the server took it: the hire approval to decide and the agent that waits on it.
+struct ProposedHire: Equatable, Sendable {
+    var approvalID: Int64
+    var agentID: Int64
 }
 
 /// "Propose an agent…" as typed.
@@ -42,6 +49,8 @@ struct AgentDraft: Equatable, Sendable {
     var paletteID: String?
     /// `ceo` seats the company's CEO (the New company wizard); absent for every other hire.
     var orgRole: String?
+    /// The chain preset the pending agent is given once it exists (API minor 18); not part of the proposal.
+    var chainPresetID: Int64?
 
     static let harnesses = ["claude", "codex", "opencode", "agy"]
 

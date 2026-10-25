@@ -220,8 +220,16 @@ struct NewCompanyStepPane: View {
         field("Model") { ModelCards(harness: draft.harness, selection: $draft.model) }
         field("Effort") { EffortCards(selection: $draft.effort) }
         field("Fallback chain") {
-            Text("Its own model first, then the company's default chain — pick another in Accounts once it is hired.")
+            if store.chainPresetsOn, let presets = store.model?.chainPresets, !presets.isEmpty {
+                ChainPresetPicker(presets: presets, selection: $draft.chainTemplate)
+                Text("The chain is copied into the new company as its default.").citadelFont("t11")
+                    .foregroundStyle(skin.color(skin.text.faint))
+            } else {
+                Text(
+                    "Its own model first, then the company's default chain — pick another in Accounts once it is hired."
+                )
                 .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+            }
         }
         VStack(alignment: .leading, spacing: skin.size.s8) {
             HStack {

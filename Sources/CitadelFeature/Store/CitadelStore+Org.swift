@@ -170,9 +170,13 @@ extension CitadelStore {
         guard draft.problem == nil, let server, let model else { return }
         Task {
             switch await server.proposeAgent(company: model.companyID, draft) {
-            case .success(let approvalID):
+            case .success(let proposed):
+                let approvalID = proposed.approvalID
                 actionFailure = nil
                 done()
+                if let preset = draft.chainPresetID, chainPresetsOn {
+                    _ = await server.setAgentChain(agent: proposed.agentID, preset: preset)
+                }
                 if draft.paletteID == nil {
                     let pending = await server.approvals(company: model.companyID)
                     if let agent = pending?.first(where: { $0.id == approvalID })?.agentID {

@@ -3,7 +3,8 @@ import SwiftUI
 
 /// "Fallback chains" (`chainPanel`): Presets — the chains several agents share, each editable for all of them — and
 /// Agents — one agent's chain, drag to reorder, ✕ to remove, + Add fallback; then the company's "Fall back when"
-/// triggers. Named presets (name, colour, assign, new) need the server's chain-presets entity.
+/// triggers. From API minor 18 the presets are the server's (name, colour, assign, new, default); an older server
+/// keeps the chains agents happen to share.
 struct FallbackChainsCard: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -11,6 +12,8 @@ struct FallbackChainsCard: View {
     @Environment(\.ainkradSkin) private var skin
 
     private var tab: String { page.chainsTab }
+    /// The server stores named presets (API minor 18).
+    private var named: Bool { store.chainPresetsOn }
 
     private var page: AccountsPage { model.accountsPage }
     private var agents: [AgentInfo] { model.agents.values.filter { !$0.isHirePending }.sorted { $0.name < $1.name } }
@@ -23,11 +26,16 @@ struct FallbackChainsCard: View {
                     skin.color(skin.text.primary))
                 AinkradGlideTabs(
                     [
-                        AinkradGlideTab("presets", title: "Presets", count: "\(shared.count)"),
+                        AinkradGlideTab(
+                            "presets", title: "Presets", count: "\(named ? model.chainPresets.count : shared.count)"),
                         AinkradGlideTab("agents", title: "Agents", count: "\(agents.count)"),
                     ], selection: Binding(get: { tab }, set: { page.chainsTab = $0 }), height: skin.size.s32)
                 Group {
-                    if tab == "presets" { presets(shared) } else { agentChain(shared) }
+                    if tab == "presets" {
+                        if named { namedPresets } else { presets(shared) }
+                    } else {
+                        agentChain(shared)
+                    }
                 }
                 .transition(.opacity)
                 Text("Fall back when").citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
@@ -45,6 +53,21 @@ struct FallbackChainsCard: View {
                     }
                 }
             }
+        }
+    }
+
+    /// The server's presets: a card each, then "＋ New preset".
+    @ViewBuilder private var namedPresets: some View {
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            if model.chainPresets.isEmpty {
+                AinkradDrawerHint("No presets yet — create one to share a chain between agents.")
+            }
+            ForEach(model.chainPresets) { preset in
+                ChainPresetCard(
+                    model: model, preset: preset, assign: { page.drawer = .assign(preset.id) },
+                    edit: { page.drawer = .preset(preset.id) })
+            }
+            ChainPresetNewTile { page.drawer = .preset(nil) }
         }
     }
 
@@ -80,18 +103,66 @@ struct FallbackChainsCard: View {
                         Spacer(minLength: 0)
                     }
                 }
-                UsesRow(chain: mine)
-                AinkradChainEditor(
-                    links: links(agent), editable: true,
-                    reorder: { store.saveChain(entries($0)) },
-                    remove: { link in store.saveChain(page.chain.filter { $0.id != link.id }) },
-                    leading: { HarnessTag(harness: $0, size: skin.size.s20) })
-                addFallback
-                if let mine {
+                if named { namedAgentChain(agent) } else { UsesRow(chain: mine) }
+                if !named || usedPreset(agent) == nil {
+                    AinkradChainEditor(
+                        links: links(agent), editable: true,
+                        reorder: { store.saveChain(entries($0)) },
+                        remove: { link in store.saveChain(page.chain.filter { $0.id != link.id }) },
+                        leading: { HarnessTag(harness: $0, size: skin.size.s20) })
+                    addFallback
+                    if named {
+                        AinkradDockButton("Save as preset", systemImage: "square.and.arrow.down") {
+                            store.savePresetFromChain(of: agent, entries: page.chain)
+                        }
+                        .fixedSize()
+                    }
+                }
+                if !named, let mine {
                     AinkradDrawerHint(
                         "Same chain as \(Wording.count(mine.agents.count - 1, "other agent")) — edit \(mine.name) on Presets to change it for all of them."
                     )
                 }
+            }
+        }
+    }
+
+    /// The preset the picked agent runs on (its own, else the default while it has no chain), from API minor 18.
+    private func usedPreset(_ agent: AgentInfo) -> ChainPresetInfo? {
+        model.chainPreset(of: agent, fallbacks: page.agentFallbacks[agent.id])
+    }
+
+    /// "Uses" with its menu; on a preset the read-only chain, who shares it, Edit preset and Customize.
+    @ViewBuilder private func namedAgentChain(_ agent: AgentInfo) -> some View {
+        let preset = usedPreset(agent)
+        ChainPresetUses(
+            store: store, model: model, agent: agent, preset: preset,
+            inherited: preset != nil && agent.chainPresetID == nil,
+            current: preset?.entries ?? page.chain)
+        if let preset {
+            AinkradChainEditor(
+                links: [
+                    AinkradChainLink(
+                        id: "own", kind: agent.harness, title: agent.model, detail: "the agent's own harness and model",
+                        chip: "first", isCurrent: true, isFixed: true)
+                ]
+                    + preset.entries.map {
+                        AinkradChainLink(
+                            id: $0.id, kind: $0.harness, title: $0.model,
+                            detail: $0.accountID.flatMap { model.accounts[$0]?.label }.map { "account: \($0)" }
+                                ?? "account: any in the pool")
+                    }, editable: false, leading: { HarnessTag(harness: $0, size: skin.size.s20) })
+            let others = model.agents(on: preset).filter { $0.id != agent.id }.count
+            AinkradDrawerHint(
+                others > 0
+                    ? "Shared with \(Wording.count(others, "other agent")) — editing the preset changes it for all of them."
+                    : "Editing the preset changes it for every agent on it.")
+            HStack(spacing: skin.size.s8) {
+                AinkradDockButton("Edit preset", systemImage: "pencil") { page.drawer = .preset(preset.id) }.fixedSize()
+                AinkradDockButton("Customize for \(agent.name)", systemImage: "slider.horizontal.3") {
+                    store.customizeChain(of: agent, entries: preset.entries)
+                }
+                .fixedSize()
             }
         }
     }

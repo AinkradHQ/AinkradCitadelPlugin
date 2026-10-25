@@ -215,6 +215,8 @@ struct FallbackEntry: Identifiable, Equatable, Sendable {
     var model: String
     /// The agent's own entry: always first, never moved or removed.
     var isOwn = false
+    /// A preset entry pinned to one account of the pool (API minor 18); `nil`: any.
+    var accountID: Int64? = nil
 }
 
 extension FallbackEntry {

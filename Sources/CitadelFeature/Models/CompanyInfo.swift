@@ -29,6 +29,9 @@ struct AgentInfo: Identifiable, Equatable, Sendable {
     var sandbox: String? = nil
     var instructions: String? = nil
     var guidelines: [String]? = nil
+    /// The chain preset it uses in place of its own fallbacks, and the wakes waiting for it (API minor 18).
+    var chainPresetID: Int64? = nil
+    var queuedWakes: Int64? = nil
 
     var isPaused: Bool { status == "paused" }
     var isHirePending: Bool { status == "pending_approval" }

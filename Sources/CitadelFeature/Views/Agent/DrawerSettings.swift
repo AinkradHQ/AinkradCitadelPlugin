@@ -77,7 +77,14 @@ struct DrawerSettings: View {
                 "When \(agent.name)'s model or account can't take the run (rate limit, quota, outage), it moves down this list."
             )
             .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-            let chain = page.chains[agent.id] ?? []
+            let stored = page.chains[agent.id] ?? []
+            let preset = store.chainPresetsOn ? model.chainPreset(of: agent, fallbacks: stored) : nil
+            let chain = preset?.entries ?? stored
+            if store.chainPresetsOn {
+                ChainPresetUses(
+                    store: store, model: model, agent: agent, preset: preset,
+                    inherited: preset != nil && agent.chainPresetID == nil, current: chain)
+            }
             if chain.isEmpty {
                 Text("Its own model only.").citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
             }
@@ -96,6 +103,7 @@ struct DrawerSettings: View {
                     in: RoundedRectangle(cornerRadius: skin.size.s8))
             }
         }
+        .task { store.loadChainPresets() }
         .id("chain")
         DrawerTile(title: "Budget") {
             if store.serverSupports(minor: CitadelStore.trancheBMinor) {

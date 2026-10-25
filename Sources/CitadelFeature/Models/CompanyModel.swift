@@ -35,6 +35,10 @@ enum Reload: Hashable, Sendable {
     case settings
     /// Runners and their disk (screen 10).
     case runners
+    /// The chain presets (API minor 18).
+    case presets
+    /// The roles (API minor 18).
+    case roles
 }
 
 /// The selected company as the screens read it, kept current by the event stream.
@@ -66,6 +70,10 @@ final class CompanyModel {
     var costDays: [DaySpend] = []
     /// The models with no price, most tokens first (API minor 18; empty on an older server).
     var unpriced: [UnpricedModelInfo] = []
+    /// The company's named fallback chains by name (API minor 18; empty on an older server).
+    var chainPresets: [ChainPresetInfo] = []
+    /// The company's roles for the hire wizard and the Roles tab (API minor 18; empty on an older server).
+    var roles: [RoleInfo] = []
     var accountUse: [AccountUseInfo] = []
     /// The period the cost data is for; `nil` until the Cost screen first loads.
     var costPeriod: CostPeriod?
@@ -228,6 +236,8 @@ final class CompanyModel {
         case "approval": return [.approvals]
         case "question": return [.questions]
         case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
+        case "chain_preset": return [.presets, .org]
+        case "role": return [.roles]
         case "budget": return [.costs]
         case "requirement":
             var reloads: Set<Reload> = [.requirements, .questions]

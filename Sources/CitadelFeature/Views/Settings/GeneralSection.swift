@@ -4,8 +4,9 @@ import SwiftUI
 
 /// Company settings › General (`settings.js` General): identity (logo, name, kind, colour, the CEO), time, defaults
 /// for new agents, this Mac's connection, and the danger zone. From API minor 17 the profile is stored (colour, time
-/// zone, working hours and days, logo); on an older server those stay "not stored yet". Sprint approval, sandbox,
-/// fallback chain and the budget default have no server field yet.
+/// zone, working hours and days, logo); on an older server those stay "not stored yet". From API minor 18 the
+/// fallback chain default is the chain preset marked default. Sprint approval, sandbox and the budget default have
+/// no server field yet.
 struct GeneralSection: View {
     let store: CitadelStore
     @State private var name = ""
@@ -62,6 +63,7 @@ struct GeneralSection: View {
             }
         }
         .onAppear(perform: reset)
+        .task { store.loadChainPresets() }
         .onChange(of: company?.name) { _, _ in if saving == nil { reset() } }
     }
 
@@ -223,8 +225,28 @@ struct GeneralSection: View {
                 disabledSegment(["workspace-write", "read-only", "full"])
             }
             SettingsRow(label: "Fallback chain", hint: "preset a new hire starts with") {
-                ServerSoonChip()
-                AinkradDockButton("Claude first", systemImage: "chevron.down", isEnabled: false) {}
+                if store.chainPresetsOn, let model = store.model {
+                    AinkradMenuButton(
+                        items: model.chainPresets.map { preset in
+                            AinkradMenuItem(title: preset.name, systemName: preset.isDefault ? "checkmark" : nil) {
+                                if !preset.isDefault { store.makeDefaultChainPreset(preset) }
+                            }
+                        }
+                    ) {
+                        HStack(spacing: skin.size.s6) {
+                            Text(model.defaultChainPreset?.name ?? "None").citadelFont("t12")
+                            Image(systemName: "chevron.down")
+                        }
+                        .foregroundStyle(skin.color(skin.text.primary))
+                        .padding(.horizontal, skin.size.s10).padding(.vertical, skin.size.s6)
+                        .background(skin.color(.palette("foreground", skin.opacity.o05)), in: Capsule())
+                    }
+                    .disabled(model.chainPresets.isEmpty)
+                    .fixedSize()
+                } else {
+                    ServerSoonChip()
+                    AinkradDockButton("Claude first", systemImage: "chevron.down", isEnabled: false) {}
+                }
             }
             SettingsRow(label: "Agent figures have eyes", hint: "decision 63 · always on in this build") {
                 AinkradToggle(isOn: .constant(true)).disabled(true)

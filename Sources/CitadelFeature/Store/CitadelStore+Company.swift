@@ -243,6 +243,8 @@ extension CitadelStore {
         case .projectWork(let project): await reloadWork(project, model: model, server: server)
         case .settings: await reloadSettings(model, server: server)
         case .runners: await reloadRunners(model, server: server)
+        case .presets: await reloadChainPresets(model, server: server)
+        case .roles: await reloadRoles(model, server: server)
         }
     }
 

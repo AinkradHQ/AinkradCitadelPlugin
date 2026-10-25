@@ -8,6 +8,9 @@ enum AccountDrawer: Equatable {
     case relogin(Int64)
     case add
     case chain(String)
+    /// A chain preset's editor (`nil`: a new one) and its Assign drawer (API minor 18).
+    case preset(Int64?)
+    case assign(Int64)
 }
 
 /// Screen 15 (prototype `accounts.js`): the pool overview (health donut, headroom per harness, who is on the pool),
@@ -58,13 +61,16 @@ struct AccountsView: View {
         ) {
             drawerPanel
         }
-        .task { store.loadAccountsPage() }
+        .task {
+            store.loadAccountsPage()
+            store.loadChainPresets()
+        }
         // An account event reloads `model.accounts`; the page follows it (pushed, never polled).
         .onChange(of: model.accounts) { _, _ in if page.isLoaded { store.loadAccountsPage() } }
     }
 
     @ViewBuilder private var drawerPanel: some View {
-        let close = { page.drawer = nil }
+        let close: @MainActor @Sendable () -> Void = { page.drawer = nil }
         switch page.drawer {
         case .limits(let id):
             if let account = page.accounts.first(where: { $0.id == id }) {
@@ -78,6 +84,14 @@ struct AccountsView: View {
         case .chain(let id):
             if let chain = page.sharedChains(Array(model.agents.values)).first(where: { $0.id == id }) {
                 SharedChainDrawer(store: store, model: model, chain: chain, close: close)
+            }
+        case .preset(let id):
+            ChainPresetEditDrawer(
+                store: store, model: model, preset: model.chainPreset(id),
+                assign: { if let id { page.drawer = .assign(id) } }, close: close)
+        case .assign(let id):
+            if let preset = model.chainPreset(id) {
+                ChainPresetAssignDrawer(store: store, model: model, preset: preset, close: close)
             }
         case nil: EmptyView()
         }

@@ -21,6 +21,8 @@ struct HireDraft: Equatable {
     var warn = "80"
     var cap = "200k"
     var palette = AinkradFigurePalette.all[0].id
+    /// The chain preset it is given once it is proposed (API minor 18); `nil` is the company default.
+    var chainPresetID: Int64?
 
     /// A role fills in sensible defaults for every later step.
     mutating func pick(_ role: HireCatalog.Role) {
@@ -55,7 +57,10 @@ struct HireWizard: View {
                 ScrollView {
                     HireStepPane(
                         model: model, draft: $draft, step: current, leads: leads,
-                        extended: store.serverSupports(minor: CitadelStore.structureMinor)
+                        extended: store.serverSupports(minor: CitadelStore.structureMinor),
+                        roles: store.rolesOn && !model.roles.isEmpty
+                            ? model.roles.map(\.catalogRole) : HireCatalog.roles,
+                        presetsOn: store.chainPresetsOn
                     )
                     .padding(.top, skin.size.s4)
                     .padding(.bottom, skin.size.s24)
@@ -78,6 +83,14 @@ struct HireWizard: View {
             draft.name = HireCatalog.names[model.agents.count % HireCatalog.names.count]
             draft.palette = AinkradFigurePalette.all[(model.agents.count * 5) % AinkradFigurePalette.all.count].id
             if store.model?.orgPage.pool.isEmpty == true { store.loadOrgExtras() }
+            store.loadChainPresets()
+            store.loadRoles()
+        }
+        .onChange(of: model.roles) { _, roles in
+            // The company's roles replace the built-in grid: start on its first, unless a role was already picked.
+            if store.rolesOn, let first = roles.first, draft.role == HireCatalog.roles[0] {
+                draft.pick(first.catalogRole)
+            }
         }
         .onChange(of: draft) { old, new in
             guard old.name == new.name, old.description == new.description, old.instructions == new.instructions
@@ -209,6 +222,7 @@ struct HireWizard: View {
             proposal.guidelines = draft.guidelines
             proposal.teamID = draft.team
             proposal.paletteID = draft.palette
+            proposal.chainPresetID = draft.chainPresetID
         } else {
             proposal.justification = "\(why.isEmpty ? draft.role.purpose : why) · for \(teamName)"
         }

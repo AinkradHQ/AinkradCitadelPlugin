@@ -9,6 +9,10 @@ struct HireStepPane: View {
     let leads: [AgentInfo]
     /// The server takes the whole proposal (API minor 17): seat, instructions, effort and the rest.
     var extended = false
+    /// The roles the grid offers: the company's own from API minor 18, else the built-in list.
+    var roles = HireCatalog.roles
+    /// The server stores chain presets (API minor 18): the fallback chain picker lists them.
+    var presetsOn = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -39,7 +43,7 @@ struct HireStepPane: View {
             "What the agent does and where it works. A role fills in sensible defaults for every later step.")
         field("Role") {
             AinkradCardGrid(columns: 3) {
-                ForEach(HireCatalog.roles) { role in
+                ForEach(roles) { role in
                     let on = role == draft.role
                     AinkradChoiceCard(isOn: on, height: skin.size.s52, action: { draft.pick(role) }) {
                         AinkradChoiceGlyph(role.symbol, isOn: on)
@@ -199,10 +203,14 @@ struct HireStepPane: View {
         field("Model") { ModelCards(harness: draft.harness, selection: $draft.model) }
         field("Effort") { EffortCards(selection: $draft.effort) }
         field("Fallback chain") {
-            Text(
-                "Its own model first, then the company's default chain — pick another in Accounts once it is hired."
-            )
-            .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+            if presetsOn && !model.chainPresets.isEmpty {
+                ChainPresetPicker(presets: model.chainPresets, selection: $draft.chainPresetID)
+            } else {
+                Text(
+                    "Its own model first, then the company's default chain — pick another in Accounts once it is hired."
+                )
+                .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+            }
         }
         VStack(alignment: .leading, spacing: skin.size.s8) {
             HStack {
