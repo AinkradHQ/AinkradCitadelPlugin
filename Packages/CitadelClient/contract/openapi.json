@@ -327,9 +327,24 @@
             "format": "int64",
             "type": "integer"
           },
+          "description": {
+            "description": "What the admin wrote about it (API minor 17).",
+            "type": "string"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/Effort",
+            "description": "Absent: the harness default. Stored and shown; not yet applied by dispatch."
+          },
           "figure_state": {
             "$ref": "#/components/schemas/FigureState",
             "description": "What its figure shows now."
+          },
+          "guidelines": {
+            "description": "Short rules, in order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "harness": {
             "$ref": "#/components/schemas/Harness"
@@ -341,6 +356,10 @@
           "id": {
             "format": "int64",
             "type": "integer"
+          },
+          "instructions": {
+            "description": "Its standing instructions.",
+            "type": "string"
           },
           "issue_token_cap": {
             "format": "int64",
@@ -380,6 +399,10 @@
             },
             "type": "array"
           },
+          "sandbox": {
+            "$ref": "#/components/schemas/Sandbox",
+            "description": "Absent: the harness default. Stored and shown; not yet applied by dispatch."
+          },
           "status": {
             "$ref": "#/components/schemas/AgentStatus"
           }
@@ -394,6 +417,9 @@
           "model",
           "runner_tags",
           "status",
+          "description",
+          "instructions",
+          "guidelines",
           "appearance",
           "figure_state",
           "hired_at",
@@ -405,8 +431,24 @@
       "AgentProposal": {
         "description": "An agent the admin proposes; it is hired only once its approval is approved.",
         "properties": {
+          "description": {
+            "description": "What it is (API minor 17); like the fields below, applied when the hire is approved.",
+            "type": "string"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/Effort"
+          },
+          "guidelines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "harness": {
             "$ref": "#/components/schemas/Harness"
+          },
+          "instructions": {
+            "type": "string"
           },
           "justification": {
             "description": "Why the company needs it: shown on the hire approval.",
@@ -422,6 +464,13 @@
           "org_role": {
             "$ref": "#/components/schemas/OrgRole",
             "description": "Absent: none (`ceo` and `cto` at most once per company)."
+          },
+          "palette_id": {
+            "description": "One of `listPalettes`; absent: the company's least used.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reports_to": {
             "description": "An agent of the company it reports to.",
@@ -441,6 +490,20 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "sandbox": {
+            "$ref": "#/components/schemas/Sandbox"
+          },
+          "team_id": {
+            "description": "A team of the company to seat it on (with `team_role`, default `member`); a product\nowner or lead seat the team has filled is a 409.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "team_role": {
+            "$ref": "#/components/schemas/TeamRole"
           }
         },
         "required": [
@@ -531,6 +594,77 @@
           }
         ]
       },
+      "AgentUpdate": {
+        "description": "What to change about an agent; absent fields stay, `null` clears `effort`, `sandbox` and\n`reports_to`. At least one field is needed.",
+        "properties": {
+          "description": {
+            "description": "At most 4000 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effort": {
+            "$ref": "#/components/schemas/Effort"
+          },
+          "guidelines": {
+            "description": "At most 50, each 1-500 characters; replaces the list.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "harness": {
+            "$ref": "#/components/schemas/Harness"
+          },
+          "instructions": {
+            "description": "At most 20000 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "description": "1-200 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reports_to": {
+            "description": "An agent of the company that does not report to this one; `null`: nobody.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "role": {
+            "description": "Free-text job title, 1-100 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runner_tags": {
+            "description": "At most 20 tags, each 1-64 characters without spaces.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sandbox": {
+            "$ref": "#/components/schemas/Sandbox"
+          }
+        },
+        "type": "object"
+      },
       "AllowBody": {
         "properties": {
           "reply": {
@@ -617,6 +751,14 @@
             "format": "int64",
             "type": "integer"
           },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When it was asked (API minor 17)."
+          },
+          "decided_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When it was approved, rejected or expired; absent while pending."
+          },
           "decided_by": {
             "format": "int64",
             "type": [
@@ -672,7 +814,8 @@
           "kind",
           "requested_by",
           "status",
-          "payload"
+          "payload",
+          "created_at"
         ],
         "type": "object"
       },
@@ -1271,22 +1414,87 @@
             },
             "type": "array"
           },
+          "color": {
+            "description": "Its colour, `#rrggbb` (API minor 17); absent when unset, as every optional field here.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "description": "What it does, for its agents (empty when unset).",
+            "type": "string"
+          },
           "id": {
             "format": "int64",
             "type": "integer"
           },
+          "industries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "kind": {
             "$ref": "#/components/schemas/CompanyKind"
           },
+          "logo_url": {
+            "description": "Its uploaded logo (`getCompanyLogo`); absent when it has none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "name": {
             "type": "string"
+          },
+          "timezone": {
+            "description": "An IANA time zone, e.g. `Europe/Berlin`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "work_days": {
+            "description": "Working days as a bitmask: bit 0 Monday … bit 6 Sunday (31 = Monday to Friday).",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_end": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_start": {
+            "description": "Working hours: minutes from midnight, 0–1440.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
           "id",
           "name",
           "kind",
-          "account_ids"
+          "account_ids",
+          "description",
+          "industries"
         ],
         "type": "object"
       },
@@ -1323,14 +1531,71 @@
         "type": "object"
       },
       "CompanyChange": {
-        "description": "What to change; absent fields stay.",
+        "description": "What to change; absent fields stay, `null` clears an optional one.",
         "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industries": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "kind": {
             "$ref": "#/components/schemas/CompanyKind"
           },
           "name": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "timezone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "work_days": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_end": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_start": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
               "null"
             ]
           }
@@ -1484,6 +1749,18 @@
       },
       "Department": {
         "properties": {
+          "about": {
+            "description": "What it does (API minor 17).",
+            "type": "string"
+          },
+          "head_agent_id": {
+            "description": "The agent that heads it; absent when it has none.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -1522,6 +1799,31 @@
         "required": [
           "spend"
         ],
+        "type": "object"
+      },
+      "DepartmentUpdate": {
+        "description": "What to change about a department; absent fields stay, `null` clears the head.",
+        "properties": {
+          "about": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_agent_id": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "Deploy": {
@@ -1567,6 +1869,22 @@
           "created_at"
         ],
         "type": "object"
+      },
+      "Effort": {
+        "anyOf": [
+          {
+            "description": "How hard an agent thinks (API minor 17).",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
       },
       "Environment": {
         "additionalProperties": false,
@@ -2883,17 +3201,94 @@
         "type": "object"
       },
       "NewCompany": {
+        "description": "A new company. The profile fields (API minor 17) are optional; see `Company` for their\nshapes. A field out of shape is a 400.",
         "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "industries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "kind": {
             "$ref": "#/components/schemas/CompanyKind"
           },
           "name": {
             "type": "string"
+          },
+          "timezone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "work_days": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_end": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_start": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
           "name",
           "kind"
+        ],
+        "type": "object"
+      },
+      "NewDepartment": {
+        "description": "A department to add.",
+        "properties": {
+          "about": {
+            "description": "At most 2000 characters.",
+            "type": "string"
+          },
+          "head_agent_id": {
+            "description": "An agent of the company.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "1-100 characters, unique within the company.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },
@@ -3167,6 +3562,19 @@
           "name",
           "starts_on",
           "ends_on"
+        ],
+        "type": "object"
+      },
+      "NewTeam": {
+        "description": "A team to add.",
+        "properties": {
+          "name": {
+            "description": "1-100 characters.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },
@@ -4256,6 +4664,32 @@
         ],
         "type": "object"
       },
+      "Removed": {
+        "description": "What a delete removed.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "RemovedAccount": {
+        "description": "What a delete removed.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "RemovedRunner": {
         "description": "A runner that was removed.",
         "properties": {
@@ -4974,6 +5408,13 @@
       },
       "Runner": {
         "properties": {
+          "arch": {
+            "description": "Its CPU architecture, as Rust names it: `aarch64`, `x86_64`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "asleep": {
             "description": "An offline Mac: most likely asleep (the \"Wake my Mac\" case).",
             "type": "boolean"
@@ -5030,6 +5471,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "os": {
+            "description": "Its operating system as it said in its hello (runner protocol 1.25; API minor 17), as\nRust names it: `macos`, `linux`, `windows`. Absent until it says (an older runner never\ndoes).",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "power_nap": {
             "description": "The admin's Power Nap preference for it; absent, none set.",
@@ -5294,6 +5742,22 @@
           }
         ]
       },
+      "Sandbox": {
+        "anyOf": [
+          {
+            "description": "What an agent's harness may touch (API minor 17): `read-only`, `workspace-write` or\n`full-access`.",
+            "enum": [
+              "read-only",
+              "workspace-write",
+              "full-access"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
       "Seat": {
         "description": "A seat on a team.",
         "properties": {
@@ -5316,6 +5780,27 @@
         },
         "required": [
           "agent_id",
+          "team_role"
+        ],
+        "type": "object"
+      },
+      "SeatRequest": {
+        "description": "A seat on a team.",
+        "properties": {
+          "capacity": {
+            "description": "Points per sprint.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "team_role": {
+            "$ref": "#/components/schemas/TeamRole"
+          }
+        },
+        "required": [
           "team_role"
         ],
         "type": "object"
@@ -6114,6 +6599,26 @@
           }
         ]
       },
+      "TeamUpdate": {
+        "description": "What to change about a team; absent fields stay.",
+        "properties": {
+          "department_id": {
+            "description": "Move it to another department of the same company.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "TemplateApplied": {
         "description": "What applying a template left in place.",
         "properties": {
@@ -6151,6 +6656,19 @@
           "agents",
           "hire_approval_ids",
           "skills_published"
+        ],
+        "type": "object"
+      },
+      "Termination": {
+        "description": "Why an agent is let go.",
+        "properties": {
+          "reason": {
+            "description": "Kept in the audit trail; required.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
         ],
         "type": "object"
       },
@@ -6981,7 +7499,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.16.0"
+    "version": "1.17.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7109,6 +7627,66 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{id}": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "parameters": [
+          {
+            "description": "Account id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovedAccount"
+                }
+              }
+            },
+            "description": "The account is gone with its company assignments and limits (audited as `account.deleted`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Live runs use it, or it has run or been billed (the cost ledger keeps its name: disable it instead)"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -7547,6 +8125,74 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "patch": {
+        "operationId": "updateAgent",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "The agent as changed (audited as `agent.updated`, naming the `fields` changed); 400 for an invalid value or an empty change"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The agent is terminated, or the reporting line would loop or leave the company"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -8164,6 +8810,76 @@
         ]
       }
     },
+    "/api/v1/agents/{id}/terminate": {
+      "post": {
+        "operationId": "terminateAgent",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Termination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "The agent, `terminated` for good (audited as `agent.terminated`, listing what it undid): its live runs end `cancelled`, its pending wakes are dropped, every open issue waiting on it goes to the admin and its ownership is cleared; it is never woken again"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Already terminated"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
+        ]
+      }
+    },
     "/api/v1/agents/{id}/tiers": {
       "get": {
         "operationId": "listModelTiers",
@@ -8284,6 +9000,66 @@
         },
         "tags": [
           "org"
+        ]
+      }
+    },
+    "/api/v1/agents/{id}/wake": {
+      "post": {
+        "operationId": "wakeAgent",
+        "parameters": [
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "The active agent, woken now (audited as `agent.woken`): on each open issue waiting on it, else once to look at its inbox"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The agent is not active"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "controls"
         ]
       }
     },
@@ -8721,6 +9497,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Only rows done by this kind of actor: `user`, `agent`, `system` (or `runner`) (API\nminor 17); another value is a 400.",
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8732,7 +9517,7 @@
                 }
               }
             },
-            "description": "Audit rows, newest first; of the acting company only when `X-Citadel-Company` names one. A `target` id that is not a number is a 400"
+            "description": "Audit rows, newest first; of the acting company only when `X-Citadel-Company` names one. A `target` id that is not a number, or an unknown `actor`, is a 400"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -8925,7 +9710,7 @@
                 }
               }
             },
-            "description": "The new company, with no accounts yet"
+            "description": "The new company, with no accounts yet (audited as `company.created`)"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -8988,7 +9773,7 @@
                 }
               }
             },
-            "description": "The company as changed"
+            "description": "The company as changed (audited as `company.updated`, with its profile)"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -9616,6 +10401,253 @@
         },
         "tags": [
           "costs"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/departments": {
+      "post": {
+        "operationId": "createDepartment",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDepartment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Department"
+                }
+              }
+            },
+            "description": "The department, with no teams (audited as `department.added`); 409 for a name the company has"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
+    "/api/v1/companies/{id}/logo": {
+      "delete": {
+        "operationId": "resetCompanyLogo",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Company"
+                }
+              }
+            },
+            "description": "The company without a logo (audited as `company.logo_reset`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "get": {
+        "operationId": "getCompanyLogo",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {},
+              "image/png": {},
+              "image/webp": {}
+            },
+            "description": "Its uploaded logo; 404 when it has none"
+          },
+          "304": {
+            "description": "Not modified: the If-None-Match ETag is current"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "put": {
+        "operationId": "uploadCompanyLogo",
+        "parameters": [
+          {
+            "description": "Company id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/jpeg": {},
+            "image/png": {},
+            "image/webp": {}
+          },
+          "description": "The image itself: PNG, JPEG or WebP, at most the company's avatar.max_bytes (the agent avatar's rules)"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Company"
+                }
+              }
+            },
+            "description": "The company with its logo (audited as `company.logo_set`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Over avatar.max_bytes"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not a PNG, JPEG or WebP image"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
         ]
       }
     },
@@ -10407,6 +11439,183 @@
               }
             },
             "description": "The Engineering department, a CTO and a scrum team (product owner, lead, two developers, QA, DevOps) with their role skills; each new agent waits on its hire approval. Applying it again adds only what is missing"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
+    "/api/v1/departments/{id}": {
+      "delete": {
+        "operationId": "deleteDepartment",
+        "parameters": [
+          {
+            "description": "Department id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Removed"
+                }
+              }
+            },
+            "description": "Deleted (audited as `department.deleted`); 409 while it has teams"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "patch": {
+        "operationId": "updateDepartment",
+        "parameters": [
+          {
+            "description": "Department id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Department"
+                }
+              }
+            },
+            "description": "The department as changed (audited as `department.updated`); 409 for a name the company has"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
+    "/api/v1/departments/{id}/teams": {
+      "post": {
+        "operationId": "createTeam",
+        "parameters": [
+          {
+            "description": "Department id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTeam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "The team, with no members (audited as `team.added`)"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -15689,6 +16898,86 @@
         ]
       }
     },
+    "/api/v1/runners/{id}/probe": {
+      "post": {
+        "operationId": "probeRunner",
+        "parameters": [
+          {
+            "description": "Runner id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            },
+            "description": "The runner after it looked at itself now (API minor 17): its harness versions and how they stand, its logins and its platform are fresh"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "It is offline, or its protocol is older than 1.25 (\"runner too old\")"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "It could not look"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "It did not answer within `runner.log_tail_timeout_secs`"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
     "/api/v1/runners/{id}/wake": {
       "post": {
         "operationId": "wakeRunner",
@@ -16762,6 +18051,254 @@
               }
             },
             "description": "Every stuck issue or wake, why, and what would unstick it"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}": {
+      "delete": {
+        "operationId": "deleteTeam",
+        "parameters": [
+          {
+            "description": "Team id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Removed"
+                }
+              }
+            },
+            "description": "Deleted with its seats (audited as `team.deleted`, naming the agents unseated); the projects it owned have no team"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "patch": {
+        "operationId": "updateTeam",
+        "parameters": [
+          {
+            "description": "Team id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "The team as changed (audited as `team.updated`)"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}/members/{agent_id}": {
+      "delete": {
+        "operationId": "unseatAgent",
+        "parameters": [
+          {
+            "description": "Team id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "The team without the agent (audited as `team.member_unseated`); 404 when it had no seat there"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "tags": [
+          "org"
+        ]
+      },
+      "put": {
+        "operationId": "seatAgent",
+        "parameters": [
+          {
+            "description": "Team id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Agent id",
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "The team with the agent seated (or its seat changed; audited as `team.member_seated`); 409 when another agent is the team's product owner or lead; 404 for an agent of another company"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"

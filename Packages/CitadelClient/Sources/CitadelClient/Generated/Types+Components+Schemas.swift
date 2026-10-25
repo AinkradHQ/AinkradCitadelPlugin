@@ -383,10 +383,22 @@ extension Components {
             public var avatarUrl: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Agent/company_id`.
             public var companyId: Swift.Int64
+            /// What the admin wrote about it (API minor 17).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Agent/description`.
+            public var description: Swift.String
+            /// Absent: the harness default. Stored and shown; not yet applied by dispatch.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Agent/effort`.
+            public var effort: Components.Schemas.Effort?
             /// What its figure shows now.
             ///
             /// - Remark: Generated from `#/components/schemas/Agent/figure_state`.
             public var figureState: Components.Schemas.FigureState
+            /// Short rules, in order.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Agent/guidelines`.
+            public var guidelines: [Swift.String]
             /// - Remark: Generated from `#/components/schemas/Agent/harness`.
             public var harness: Components.Schemas.Harness
             /// When it was hired.
@@ -395,6 +407,10 @@ extension Components {
             public var hiredAt: Components.Schemas.Timestamp
             /// - Remark: Generated from `#/components/schemas/Agent/id`.
             public var id: Swift.Int64
+            /// Its standing instructions.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Agent/instructions`.
+            public var instructions: Swift.String
             /// - Remark: Generated from `#/components/schemas/Agent/issue_token_cap`.
             public var issueTokenCap: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Agent/model`.
@@ -418,6 +434,10 @@ extension Components {
             public var runTokenCap: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Agent/runner_tags`.
             public var runnerTags: [Swift.String]
+            /// Absent: the harness default. Stored and shown; not yet applied by dispatch.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Agent/sandbox`.
+            public var sandbox: Components.Schemas.Sandbox?
             /// - Remark: Generated from `#/components/schemas/Agent/status`.
             public var status: Components.Schemas.AgentStatus
             /// Creates a new `Agent`.
@@ -426,10 +446,14 @@ extension Components {
             ///   - appearance: How the client draws its figure (decision #61).
             ///   - avatarUrl: Its uploaded image, shown instead of the figure; absent when it has none.
             ///   - companyId:
+            ///   - description: What the admin wrote about it (API minor 17).
+            ///   - effort: Absent: the harness default. Stored and shown; not yet applied by dispatch.
             ///   - figureState: What its figure shows now.
+            ///   - guidelines: Short rules, in order.
             ///   - harness:
             ///   - hiredAt: When it was hired.
             ///   - id:
+            ///   - instructions: Its standing instructions.
             ///   - issueTokenCap:
             ///   - model:
             ///   - name:
@@ -439,15 +463,20 @@ extension Components {
             ///   - role:
             ///   - runTokenCap: Its company's effective `run.token_cap` and `issue.token_cap` (0: none); a project
             ///   - runnerTags:
+            ///   - sandbox: Absent: the harness default. Stored and shown; not yet applied by dispatch.
             ///   - status:
             public init(
                 appearance: Components.Schemas.Appearance,
                 avatarUrl: Swift.String? = nil,
                 companyId: Swift.Int64,
+                description: Swift.String,
+                effort: Components.Schemas.Effort? = nil,
                 figureState: Components.Schemas.FigureState,
+                guidelines: [Swift.String],
                 harness: Components.Schemas.Harness,
                 hiredAt: Components.Schemas.Timestamp,
                 id: Swift.Int64,
+                instructions: Swift.String,
                 issueTokenCap: Swift.Int64,
                 model: Swift.String,
                 name: Swift.String,
@@ -457,15 +486,20 @@ extension Components {
                 role: Swift.String,
                 runTokenCap: Swift.Int64,
                 runnerTags: [Swift.String],
+                sandbox: Components.Schemas.Sandbox? = nil,
                 status: Components.Schemas.AgentStatus
             ) {
                 self.appearance = appearance
                 self.avatarUrl = avatarUrl
                 self.companyId = companyId
+                self.description = description
+                self.effort = effort
                 self.figureState = figureState
+                self.guidelines = guidelines
                 self.harness = harness
                 self.hiredAt = hiredAt
                 self.id = id
+                self.instructions = instructions
                 self.issueTokenCap = issueTokenCap
                 self.model = model
                 self.name = name
@@ -475,16 +509,21 @@ extension Components {
                 self.role = role
                 self.runTokenCap = runTokenCap
                 self.runnerTags = runnerTags
+                self.sandbox = sandbox
                 self.status = status
             }
             public enum CodingKeys: String, CodingKey {
                 case appearance
                 case avatarUrl = "avatar_url"
                 case companyId = "company_id"
+                case description
+                case effort
                 case figureState = "figure_state"
+                case guidelines
                 case harness
                 case hiredAt = "hired_at"
                 case id
+                case instructions
                 case issueTokenCap = "issue_token_cap"
                 case model
                 case name
@@ -494,6 +533,7 @@ extension Components {
                 case role
                 case runTokenCap = "run_token_cap"
                 case runnerTags = "runner_tags"
+                case sandbox
                 case status
             }
         }
@@ -501,8 +541,18 @@ extension Components {
         ///
         /// - Remark: Generated from `#/components/schemas/AgentProposal`.
         public struct AgentProposal: Codable, Hashable, Sendable {
+            /// What it is (API minor 17); like the fields below, applied when the hire is approved.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/description`.
+            public var description: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/effort`.
+            public var effort: Components.Schemas.Effort?
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/guidelines`.
+            public var guidelines: [Swift.String]?
             /// - Remark: Generated from `#/components/schemas/AgentProposal/harness`.
             public var harness: Components.Schemas.Harness
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/instructions`.
+            public var instructions: Swift.String?
             /// Why the company needs it: shown on the hire approval.
             ///
             /// - Remark: Generated from `#/components/schemas/AgentProposal/justification`.
@@ -517,6 +567,10 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/AgentProposal/org_role`.
             public var orgRole: Components.Schemas.OrgRole?
+            /// One of `listPalettes`; absent: the company's least used.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/palette_id`.
+            public var paletteId: Swift.String?
             /// An agent of the company it reports to.
             ///
             /// - Remark: Generated from `#/components/schemas/AgentProposal/reports_to`.
@@ -529,45 +583,86 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/AgentProposal/runner_tags`.
             public var runnerTags: [Swift.String]?
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/sandbox`.
+            public var sandbox: Components.Schemas.Sandbox?
+            /// A team of the company to seat it on (with `team_role`, default `member`); a product
+            /// owner or lead seat the team has filled is a 409.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/team_id`.
+            public var teamId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/AgentProposal/team_role`.
+            public var teamRole: Components.Schemas.TeamRole?
             /// Creates a new `AgentProposal`.
             ///
             /// - Parameters:
+            ///   - description: What it is (API minor 17); like the fields below, applied when the hire is approved.
+            ///   - effort:
+            ///   - guidelines:
             ///   - harness:
+            ///   - instructions:
             ///   - justification: Why the company needs it: shown on the hire approval.
             ///   - model:
             ///   - name: Unique within the company.
             ///   - orgRole: Absent: none (`ceo` and `cto` at most once per company).
+            ///   - paletteId: One of `listPalettes`; absent: the company's least used.
             ///   - reportsTo: An agent of the company it reports to.
             ///   - role: Free-text job title ("QA", "Designer"…).
             ///   - runnerTags: Capabilities a runner must offer, e.g. `macos`.
+            ///   - sandbox:
+            ///   - teamId: A team of the company to seat it on (with `team_role`, default `member`); a product
+            ///   - teamRole:
             public init(
+                description: Swift.String? = nil,
+                effort: Components.Schemas.Effort? = nil,
+                guidelines: [Swift.String]? = nil,
                 harness: Components.Schemas.Harness,
+                instructions: Swift.String? = nil,
                 justification: Swift.String,
                 model: Swift.String,
                 name: Swift.String,
                 orgRole: Components.Schemas.OrgRole? = nil,
+                paletteId: Swift.String? = nil,
                 reportsTo: Swift.Int64? = nil,
                 role: Swift.String,
-                runnerTags: [Swift.String]? = nil
+                runnerTags: [Swift.String]? = nil,
+                sandbox: Components.Schemas.Sandbox? = nil,
+                teamId: Swift.Int64? = nil,
+                teamRole: Components.Schemas.TeamRole? = nil
             ) {
+                self.description = description
+                self.effort = effort
+                self.guidelines = guidelines
                 self.harness = harness
+                self.instructions = instructions
                 self.justification = justification
                 self.model = model
                 self.name = name
                 self.orgRole = orgRole
+                self.paletteId = paletteId
                 self.reportsTo = reportsTo
                 self.role = role
                 self.runnerTags = runnerTags
+                self.sandbox = sandbox
+                self.teamId = teamId
+                self.teamRole = teamRole
             }
             public enum CodingKeys: String, CodingKey {
+                case description
+                case effort
+                case guidelines
                 case harness
+                case instructions
                 case justification
                 case model
                 case name
                 case orgRole = "org_role"
+                case paletteId = "palette_id"
                 case reportsTo = "reports_to"
                 case role
                 case runnerTags = "runner_tags"
+                case sandbox
+                case teamId = "team_id"
+                case teamRole = "team_role"
             }
         }
         /// A skill an agent's runs are given (E4.3): its latest version, and what it is attached to.
@@ -708,6 +803,94 @@ extension Components {
                 ])
             }
         }
+        /// What to change about an agent; absent fields stay, `null` clears `effort`, `sandbox` and
+        /// `reports_to`. At least one field is needed.
+        ///
+        /// - Remark: Generated from `#/components/schemas/AgentUpdate`.
+        public struct AgentUpdate: Codable, Hashable, Sendable {
+            /// At most 4000 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/description`.
+            public var description: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/effort`.
+            public var effort: Components.Schemas.Effort?
+            /// At most 50, each 1-500 characters; replaces the list.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/guidelines`.
+            public var guidelines: [Swift.String]?
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/harness`.
+            public var harness: Components.Schemas.Harness?
+            /// At most 20000 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/instructions`.
+            public var instructions: Swift.String?
+            /// 1-200 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/model`.
+            public var model: Swift.String?
+            /// An agent of the company that does not report to this one; `null`: nobody.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/reports_to`.
+            public var reportsTo: Swift.Int64?
+            /// Free-text job title, 1-100 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/role`.
+            public var role: Swift.String?
+            /// At most 20 tags, each 1-64 characters without spaces.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/runner_tags`.
+            public var runnerTags: [Swift.String]?
+            /// - Remark: Generated from `#/components/schemas/AgentUpdate/sandbox`.
+            public var sandbox: Components.Schemas.Sandbox?
+            /// Creates a new `AgentUpdate`.
+            ///
+            /// - Parameters:
+            ///   - description: At most 4000 characters.
+            ///   - effort:
+            ///   - guidelines: At most 50, each 1-500 characters; replaces the list.
+            ///   - harness:
+            ///   - instructions: At most 20000 characters.
+            ///   - model: 1-200 characters.
+            ///   - reportsTo: An agent of the company that does not report to this one; `null`: nobody.
+            ///   - role: Free-text job title, 1-100 characters.
+            ///   - runnerTags: At most 20 tags, each 1-64 characters without spaces.
+            ///   - sandbox:
+            public init(
+                description: Swift.String? = nil,
+                effort: Components.Schemas.Effort? = nil,
+                guidelines: [Swift.String]? = nil,
+                harness: Components.Schemas.Harness? = nil,
+                instructions: Swift.String? = nil,
+                model: Swift.String? = nil,
+                reportsTo: Swift.Int64? = nil,
+                role: Swift.String? = nil,
+                runnerTags: [Swift.String]? = nil,
+                sandbox: Components.Schemas.Sandbox? = nil
+            ) {
+                self.description = description
+                self.effort = effort
+                self.guidelines = guidelines
+                self.harness = harness
+                self.instructions = instructions
+                self.model = model
+                self.reportsTo = reportsTo
+                self.role = role
+                self.runnerTags = runnerTags
+                self.sandbox = sandbox
+            }
+            public enum CodingKeys: String, CodingKey {
+                case description
+                case effort
+                case guidelines
+                case harness
+                case instructions
+                case model
+                case reportsTo = "reports_to"
+                case role
+                case runnerTags = "runner_tags"
+                case sandbox
+            }
+        }
         /// - Remark: Generated from `#/components/schemas/AllowBody`.
         public struct AllowBody: Codable, Hashable, Sendable {
             /// Goes back to the agent, as with any approval.
@@ -821,6 +1004,14 @@ extension Components {
             public var agentId: Swift.Int64?
             /// - Remark: Generated from `#/components/schemas/Approval/company_id`.
             public var companyId: Swift.Int64
+            /// When it was asked (API minor 17).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Approval/created_at`.
+            public var createdAt: Components.Schemas.Timestamp
+            /// When it was approved, rejected or expired; absent while pending.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Approval/decided_at`.
+            public var decidedAt: Components.Schemas.Timestamp?
             /// - Remark: Generated from `#/components/schemas/Approval/decided_by`.
             public var decidedBy: Swift.Int64?
             /// - Remark: Generated from `#/components/schemas/Approval/expires_at`.
@@ -848,6 +1039,8 @@ extension Components {
             /// - Parameters:
             ///   - agentId:
             ///   - companyId:
+            ///   - createdAt: When it was asked (API minor 17).
+            ///   - decidedAt: When it was approved, rejected or expired; absent while pending.
             ///   - decidedBy:
             ///   - expiresAt:
             ///   - id:
@@ -861,6 +1054,8 @@ extension Components {
             public init(
                 agentId: Swift.Int64? = nil,
                 companyId: Swift.Int64,
+                createdAt: Components.Schemas.Timestamp,
+                decidedAt: Components.Schemas.Timestamp? = nil,
                 decidedBy: Swift.Int64? = nil,
                 expiresAt: Components.Schemas.Timestamp? = nil,
                 id: Swift.Int64,
@@ -874,6 +1069,8 @@ extension Components {
             ) {
                 self.agentId = agentId
                 self.companyId = companyId
+                self.createdAt = createdAt
+                self.decidedAt = decidedAt
                 self.decidedBy = decidedBy
                 self.expiresAt = expiresAt
                 self.id = id
@@ -888,6 +1085,8 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case agentId = "agent_id"
                 case companyId = "company_id"
+                case createdAt = "created_at"
+                case decidedAt = "decided_at"
                 case decidedBy = "decided_by"
                 case expiresAt = "expires_at"
                 case id
@@ -1849,35 +2048,101 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Company/account_ids`.
             public var accountIds: [Swift.Int64]
+            /// Its colour, `#rrggbb` (API minor 17); absent when unset, as every optional field here.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/color`.
+            public var color: Swift.String?
+            /// What it does, for its agents (empty when unset).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/description`.
+            public var description: Swift.String
             /// - Remark: Generated from `#/components/schemas/Company/id`.
             public var id: Swift.Int64
+            /// - Remark: Generated from `#/components/schemas/Company/industries`.
+            public var industries: [Swift.String]
             /// - Remark: Generated from `#/components/schemas/Company/kind`.
             public var kind: Components.Schemas.CompanyKind
+            /// Its uploaded logo (`getCompanyLogo`); absent when it has none.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/logo_url`.
+            public var logoUrl: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Company/name`.
             public var name: Swift.String
+            /// An IANA time zone, e.g. `Europe/Berlin`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/timezone`.
+            public var timezone: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/Company/website`.
+            public var website: Swift.String?
+            /// Working days as a bitmask: bit 0 Monday … bit 6 Sunday (31 = Monday to Friday).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/work_days`.
+            public var workDays: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/Company/work_end`.
+            public var workEnd: Swift.Int32?
+            /// Working hours: minutes from midnight, 0–1440.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Company/work_start`.
+            public var workStart: Swift.Int32?
             /// Creates a new `Company`.
             ///
             /// - Parameters:
             ///   - accountIds: The pool accounts its runs may use (E15.1).
+            ///   - color: Its colour, `#rrggbb` (API minor 17); absent when unset, as every optional field here.
+            ///   - description: What it does, for its agents (empty when unset).
             ///   - id:
+            ///   - industries:
             ///   - kind:
+            ///   - logoUrl: Its uploaded logo (`getCompanyLogo`); absent when it has none.
             ///   - name:
+            ///   - timezone: An IANA time zone, e.g. `Europe/Berlin`.
+            ///   - website:
+            ///   - workDays: Working days as a bitmask: bit 0 Monday … bit 6 Sunday (31 = Monday to Friday).
+            ///   - workEnd:
+            ///   - workStart: Working hours: minutes from midnight, 0–1440.
             public init(
                 accountIds: [Swift.Int64],
+                color: Swift.String? = nil,
+                description: Swift.String,
                 id: Swift.Int64,
+                industries: [Swift.String],
                 kind: Components.Schemas.CompanyKind,
-                name: Swift.String
+                logoUrl: Swift.String? = nil,
+                name: Swift.String,
+                timezone: Swift.String? = nil,
+                website: Swift.String? = nil,
+                workDays: Swift.Int32? = nil,
+                workEnd: Swift.Int32? = nil,
+                workStart: Swift.Int32? = nil
             ) {
                 self.accountIds = accountIds
+                self.color = color
+                self.description = description
                 self.id = id
+                self.industries = industries
                 self.kind = kind
+                self.logoUrl = logoUrl
                 self.name = name
+                self.timezone = timezone
+                self.website = website
+                self.workDays = workDays
+                self.workEnd = workEnd
+                self.workStart = workStart
             }
             public enum CodingKeys: String, CodingKey {
                 case accountIds = "account_ids"
+                case color
+                case description
                 case id
+                case industries
                 case kind
+                case logoUrl = "logo_url"
                 case name
+                case timezone
+                case website
+                case workDays = "work_days"
+                case workEnd = "work_end"
+                case workStart = "work_start"
             }
         }
         /// What a company used of one account.
@@ -1923,29 +2188,77 @@ extension Components {
                 case tokens
             }
         }
-        /// What to change; absent fields stay.
+        /// What to change; absent fields stay, `null` clears an optional one.
         ///
         /// - Remark: Generated from `#/components/schemas/CompanyChange`.
         public struct CompanyChange: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/color`.
+            public var color: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/description`.
+            public var description: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/industries`.
+            public var industries: [Swift.String]?
             /// - Remark: Generated from `#/components/schemas/CompanyChange/kind`.
             public var kind: Components.Schemas.CompanyKind?
             /// - Remark: Generated from `#/components/schemas/CompanyChange/name`.
             public var name: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/timezone`.
+            public var timezone: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/website`.
+            public var website: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/work_days`.
+            public var workDays: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/work_end`.
+            public var workEnd: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/CompanyChange/work_start`.
+            public var workStart: Swift.Int32?
             /// Creates a new `CompanyChange`.
             ///
             /// - Parameters:
+            ///   - color:
+            ///   - description:
+            ///   - industries:
             ///   - kind:
             ///   - name:
+            ///   - timezone:
+            ///   - website:
+            ///   - workDays:
+            ///   - workEnd:
+            ///   - workStart:
             public init(
+                color: Swift.String? = nil,
+                description: Swift.String? = nil,
+                industries: [Swift.String]? = nil,
                 kind: Components.Schemas.CompanyKind? = nil,
-                name: Swift.String? = nil
+                name: Swift.String? = nil,
+                timezone: Swift.String? = nil,
+                website: Swift.String? = nil,
+                workDays: Swift.Int32? = nil,
+                workEnd: Swift.Int32? = nil,
+                workStart: Swift.Int32? = nil
             ) {
+                self.color = color
+                self.description = description
+                self.industries = industries
                 self.kind = kind
                 self.name = name
+                self.timezone = timezone
+                self.website = website
+                self.workDays = workDays
+                self.workEnd = workEnd
+                self.workStart = workStart
             }
             public enum CodingKeys: String, CodingKey {
+                case color
+                case description
+                case industries
                 case kind
                 case name
+                case timezone
+                case website
+                case workDays = "work_days"
+                case workEnd = "work_end"
+                case workStart = "work_start"
             }
         }
         /// - Remark: Generated from `#/components/schemas/CompanyCosts`.
@@ -2173,6 +2486,14 @@ extension Components {
         }
         /// - Remark: Generated from `#/components/schemas/Department`.
         public struct Department: Codable, Hashable, Sendable {
+            /// What it does (API minor 17).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Department/about`.
+            public var about: Swift.String?
+            /// The agent that heads it; absent when it has none.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Department/head_agent_id`.
+            public var headAgentId: Swift.Int64?
             /// - Remark: Generated from `#/components/schemas/Department/id`.
             public var id: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Department/name`.
@@ -2182,19 +2503,27 @@ extension Components {
             /// Creates a new `Department`.
             ///
             /// - Parameters:
+            ///   - about: What it does (API minor 17).
+            ///   - headAgentId: The agent that heads it; absent when it has none.
             ///   - id:
             ///   - name:
             ///   - teams:
             public init(
+                about: Swift.String? = nil,
+                headAgentId: Swift.Int64? = nil,
                 id: Swift.Int64,
                 name: Swift.String,
                 teams: [Components.Schemas.Team]
             ) {
+                self.about = about
+                self.headAgentId = headAgentId
                 self.id = id
                 self.name = name
                 self.teams = teams
             }
             public enum CodingKeys: String, CodingKey {
+                case about
+                case headAgentId = "head_agent_id"
                 case id
                 case name
                 case teams
@@ -2223,6 +2552,37 @@ extension Components {
             public enum CodingKeys: String, CodingKey {
                 case departmentId = "department_id"
                 case spend
+            }
+        }
+        /// What to change about a department; absent fields stay, `null` clears the head.
+        ///
+        /// - Remark: Generated from `#/components/schemas/DepartmentUpdate`.
+        public struct DepartmentUpdate: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/DepartmentUpdate/about`.
+            public var about: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/DepartmentUpdate/head_agent_id`.
+            public var headAgentId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/DepartmentUpdate/name`.
+            public var name: Swift.String?
+            /// Creates a new `DepartmentUpdate`.
+            ///
+            /// - Parameters:
+            ///   - about:
+            ///   - headAgentId:
+            ///   - name:
+            public init(
+                about: Swift.String? = nil,
+                headAgentId: Swift.Int64? = nil,
+                name: Swift.String? = nil
+            ) {
+                self.about = about
+                self.headAgentId = headAgentId
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case about
+                case headAgentId = "head_agent_id"
+                case name
             }
         }
         /// - Remark: Generated from `#/components/schemas/Deploy`.
@@ -2325,6 +2685,63 @@ extension Components {
                 case lastUsedAt = "last_used_at"
                 case name
                 case revokedAt = "revoked_at"
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/Effort`.
+        public struct Effort: Codable, Hashable, Sendable {
+            /// How hard an agent thinks (API minor 17).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Effort/value1`.
+            @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                case low = "low"
+                case medium = "medium"
+                case high = "high"
+            }
+            /// How hard an agent thinks (API minor 17).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Effort/value1`.
+            public var value1: Components.Schemas.Effort.Value1Payload?
+            /// - Remark: Generated from `#/components/schemas/Effort/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `Effort`.
+            ///
+            /// - Parameters:
+            ///   - value1: How hard an agent thinks (API minor 17).
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.Effort.Value1Payload? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
             }
         }
         /// - Remark: Generated from `#/components/schemas/Environment`.
@@ -4578,26 +4995,114 @@ extension Components {
                 case wakeAgentId = "wake_agent_id"
             }
         }
+        /// A new company. The profile fields (API minor 17) are optional; see `Company` for their
+        /// shapes. A field out of shape is a 400.
+        ///
         /// - Remark: Generated from `#/components/schemas/NewCompany`.
         public struct NewCompany: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/NewCompany/color`.
+            public var color: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/description`.
+            public var description: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/industries`.
+            public var industries: [Swift.String]?
             /// - Remark: Generated from `#/components/schemas/NewCompany/kind`.
             public var kind: Components.Schemas.CompanyKind
             /// - Remark: Generated from `#/components/schemas/NewCompany/name`.
             public var name: Swift.String
+            /// - Remark: Generated from `#/components/schemas/NewCompany/timezone`.
+            public var timezone: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/website`.
+            public var website: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/work_days`.
+            public var workDays: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/work_end`.
+            public var workEnd: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/NewCompany/work_start`.
+            public var workStart: Swift.Int32?
             /// Creates a new `NewCompany`.
             ///
             /// - Parameters:
+            ///   - color:
+            ///   - description:
+            ///   - industries:
             ///   - kind:
             ///   - name:
+            ///   - timezone:
+            ///   - website:
+            ///   - workDays:
+            ///   - workEnd:
+            ///   - workStart:
             public init(
+                color: Swift.String? = nil,
+                description: Swift.String? = nil,
+                industries: [Swift.String]? = nil,
                 kind: Components.Schemas.CompanyKind,
+                name: Swift.String,
+                timezone: Swift.String? = nil,
+                website: Swift.String? = nil,
+                workDays: Swift.Int32? = nil,
+                workEnd: Swift.Int32? = nil,
+                workStart: Swift.Int32? = nil
+            ) {
+                self.color = color
+                self.description = description
+                self.industries = industries
+                self.kind = kind
+                self.name = name
+                self.timezone = timezone
+                self.website = website
+                self.workDays = workDays
+                self.workEnd = workEnd
+                self.workStart = workStart
+            }
+            public enum CodingKeys: String, CodingKey {
+                case color
+                case description
+                case industries
+                case kind
+                case name
+                case timezone
+                case website
+                case workDays = "work_days"
+                case workEnd = "work_end"
+                case workStart = "work_start"
+            }
+        }
+        /// A department to add.
+        ///
+        /// - Remark: Generated from `#/components/schemas/NewDepartment`.
+        public struct NewDepartment: Codable, Hashable, Sendable {
+            /// At most 2000 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewDepartment/about`.
+            public var about: Swift.String?
+            /// An agent of the company.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewDepartment/head_agent_id`.
+            public var headAgentId: Swift.Int64?
+            /// 1-100 characters, unique within the company.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewDepartment/name`.
+            public var name: Swift.String
+            /// Creates a new `NewDepartment`.
+            ///
+            /// - Parameters:
+            ///   - about: At most 2000 characters.
+            ///   - headAgentId: An agent of the company.
+            ///   - name: 1-100 characters, unique within the company.
+            public init(
+                about: Swift.String? = nil,
+                headAgentId: Swift.Int64? = nil,
                 name: Swift.String
             ) {
-                self.kind = kind
+                self.about = about
+                self.headAgentId = headAgentId
                 self.name = name
             }
             public enum CodingKeys: String, CodingKey {
-                case kind
+                case about
+                case headAgentId = "head_agent_id"
                 case name
             }
         }
@@ -4987,6 +5492,25 @@ extension Components {
                 case goal
                 case name
                 case startsOn = "starts_on"
+            }
+        }
+        /// A team to add.
+        ///
+        /// - Remark: Generated from `#/components/schemas/NewTeam`.
+        public struct NewTeam: Codable, Hashable, Sendable {
+            /// 1-100 characters.
+            ///
+            /// - Remark: Generated from `#/components/schemas/NewTeam/name`.
+            public var name: Swift.String
+            /// Creates a new `NewTeam`.
+            ///
+            /// - Parameters:
+            ///   - name: 1-100 characters.
+            public init(name: Swift.String) {
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case name
             }
         }
         /// Who moves an issue next: an agent, a person, or a timer at `at`.
@@ -6748,6 +7272,40 @@ extension Components {
                 case runner
             }
         }
+        /// What a delete removed.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Removed`.
+        public struct Removed: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Removed/id`.
+            public var id: Swift.Int64
+            /// Creates a new `Removed`.
+            ///
+            /// - Parameters:
+            ///   - id:
+            public init(id: Swift.Int64) {
+                self.id = id
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+            }
+        }
+        /// What a delete removed.
+        ///
+        /// - Remark: Generated from `#/components/schemas/RemovedAccount`.
+        public struct RemovedAccount: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/RemovedAccount/id`.
+            public var id: Swift.Int64
+            /// Creates a new `RemovedAccount`.
+            ///
+            /// - Parameters:
+            ///   - id:
+            public init(id: Swift.Int64) {
+                self.id = id
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+            }
+        }
         /// A runner that was removed.
         ///
         /// - Remark: Generated from `#/components/schemas/RemovedRunner`.
@@ -7826,6 +8384,10 @@ extension Components {
         }
         /// - Remark: Generated from `#/components/schemas/Runner`.
         public struct Runner: Codable, Hashable, Sendable {
+            /// Its CPU architecture, as Rust names it: `aarch64`, `x86_64`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/arch`.
+            public var arch: Swift.String?
             /// An offline Mac: most likely asleep (the "Wake my Mac" case).
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/asleep`.
@@ -7879,6 +8441,12 @@ extension Components {
             public var logins: [Components.Schemas.RunnerLogin]
             /// - Remark: Generated from `#/components/schemas/Runner/name`.
             public var name: Swift.String
+            /// Its operating system as it said in its hello (runner protocol 1.25; API minor 17), as
+            /// Rust names it: `macos`, `linux`, `windows`. Absent until it says (an older runner never
+            /// does).
+            ///
+            /// - Remark: Generated from `#/components/schemas/Runner/os`.
+            public var os: Swift.String?
             /// The admin's Power Nap preference for it; absent, none set.
             ///
             /// - Remark: Generated from `#/components/schemas/Runner/power_nap`.
@@ -7914,6 +8482,7 @@ extension Components {
             /// Creates a new `Runner`.
             ///
             /// - Parameters:
+            ///   - arch: Its CPU architecture, as Rust names it: `aarch64`, `x86_64`.
             ///   - asleep: An offline Mac: most likely asleep (the "Wake my Mac" case).
             ///   - drainedAt: When the admin drained it: it takes no new run; its runs finish.
             ///   - harnessStatus: Every harness with how its reported version stands against the tested ones (API
@@ -7924,6 +8493,7 @@ extension Components {
             ///   - lastSleptSecs: How long its machine last slept, as it reported after waking.
             ///   - logins:
             ///   - name:
+            ///   - os: Its operating system as it said in its hello (runner protocol 1.25; API minor 17), as
             ///   - powerNap: The admin's Power Nap preference for it; absent, none set.
             ///   - powerNapApplied: The preference the runner says it holds.
             ///   - reportedAt: When it last reported its state (runner protocol 1.20).
@@ -7934,6 +8504,7 @@ extension Components {
             ///   - wakeMode: `now` or `when_back`, with `wake_requested_at`.
             ///   - wakeRequestedAt: When the admin asked to wake it (`wakeRunner`); absent once it connects.
             public init(
+                arch: Swift.String? = nil,
                 asleep: Swift.Bool,
                 drainedAt: Components.Schemas.Timestamp? = nil,
                 harnessStatus: [Components.Schemas.RunnerHarness],
@@ -7944,6 +8515,7 @@ extension Components {
                 lastSleptSecs: Swift.Int64? = nil,
                 logins: [Components.Schemas.RunnerLogin],
                 name: Swift.String,
+                os: Swift.String? = nil,
                 powerNap: Swift.Bool? = nil,
                 powerNapApplied: Swift.Bool? = nil,
                 reportedAt: Components.Schemas.Timestamp? = nil,
@@ -7954,6 +8526,7 @@ extension Components {
                 wakeMode: Swift.String? = nil,
                 wakeRequestedAt: Components.Schemas.Timestamp? = nil
             ) {
+                self.arch = arch
                 self.asleep = asleep
                 self.drainedAt = drainedAt
                 self.harnessStatus = harnessStatus
@@ -7964,6 +8537,7 @@ extension Components {
                 self.lastSleptSecs = lastSleptSecs
                 self.logins = logins
                 self.name = name
+                self.os = os
                 self.powerNap = powerNap
                 self.powerNapApplied = powerNapApplied
                 self.reportedAt = reportedAt
@@ -7975,6 +8549,7 @@ extension Components {
                 self.wakeRequestedAt = wakeRequestedAt
             }
             public enum CodingKeys: String, CodingKey {
+                case arch
                 case asleep
                 case drainedAt = "drained_at"
                 case harnessStatus = "harness_status"
@@ -7985,6 +8560,7 @@ extension Components {
                 case lastSleptSecs = "last_slept_secs"
                 case logins
                 case name
+                case os
                 case powerNap = "power_nap"
                 case powerNapApplied = "power_nap_applied"
                 case reportedAt = "reported_at"
@@ -8278,6 +8854,65 @@ extension Components {
                 ])
             }
         }
+        /// - Remark: Generated from `#/components/schemas/Sandbox`.
+        public struct Sandbox: Codable, Hashable, Sendable {
+            /// What an agent's harness may touch (API minor 17): `read-only`, `workspace-write` or
+            /// `full-access`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Sandbox/value1`.
+            @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                case readOnly = "read-only"
+                case workspaceWrite = "workspace-write"
+                case fullAccess = "full-access"
+            }
+            /// What an agent's harness may touch (API minor 17): `read-only`, `workspace-write` or
+            /// `full-access`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Sandbox/value1`.
+            public var value1: Components.Schemas.Sandbox.Value1Payload?
+            /// - Remark: Generated from `#/components/schemas/Sandbox/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `Sandbox`.
+            ///
+            /// - Parameters:
+            ///   - value1: What an agent's harness may touch (API minor 17): `read-only`, `workspace-write` or
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.Sandbox.Value1Payload? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
+            }
+        }
         /// A seat on a team.
         ///
         /// - Remark: Generated from `#/components/schemas/Seat`.
@@ -8307,6 +8942,33 @@ extension Components {
             }
             public enum CodingKeys: String, CodingKey {
                 case agentId = "agent_id"
+                case capacity
+                case teamRole = "team_role"
+            }
+        }
+        /// A seat on a team.
+        ///
+        /// - Remark: Generated from `#/components/schemas/SeatRequest`.
+        public struct SeatRequest: Codable, Hashable, Sendable {
+            /// Points per sprint.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SeatRequest/capacity`.
+            public var capacity: Swift.Int32?
+            /// - Remark: Generated from `#/components/schemas/SeatRequest/team_role`.
+            public var teamRole: Components.Schemas.TeamRole
+            /// Creates a new `SeatRequest`.
+            ///
+            /// - Parameters:
+            ///   - capacity: Points per sprint.
+            ///   - teamRole:
+            public init(
+                capacity: Swift.Int32? = nil,
+                teamRole: Components.Schemas.TeamRole
+            ) {
+                self.capacity = capacity
+                self.teamRole = teamRole
+            }
+            public enum CodingKeys: String, CodingKey {
                 case capacity
                 case teamRole = "team_role"
             }
@@ -9550,6 +10212,33 @@ extension Components {
                 ])
             }
         }
+        /// What to change about a team; absent fields stay.
+        ///
+        /// - Remark: Generated from `#/components/schemas/TeamUpdate`.
+        public struct TeamUpdate: Codable, Hashable, Sendable {
+            /// Move it to another department of the same company.
+            ///
+            /// - Remark: Generated from `#/components/schemas/TeamUpdate/department_id`.
+            public var departmentId: Swift.Int64?
+            /// - Remark: Generated from `#/components/schemas/TeamUpdate/name`.
+            public var name: Swift.String?
+            /// Creates a new `TeamUpdate`.
+            ///
+            /// - Parameters:
+            ///   - departmentId: Move it to another department of the same company.
+            ///   - name:
+            public init(
+                departmentId: Swift.Int64? = nil,
+                name: Swift.String? = nil
+            ) {
+                self.departmentId = departmentId
+                self.name = name
+            }
+            public enum CodingKeys: String, CodingKey {
+                case departmentId = "department_id"
+                case name
+            }
+        }
         /// What applying a template left in place.
         ///
         /// - Remark: Generated from `#/components/schemas/TemplateApplied`.
@@ -9595,6 +10284,25 @@ extension Components {
                 case hireApprovalIds = "hire_approval_ids"
                 case skillsPublished = "skills_published"
                 case teamId = "team_id"
+            }
+        }
+        /// Why an agent is let go.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Termination`.
+        public struct Termination: Codable, Hashable, Sendable {
+            /// Kept in the audit trail; required.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Termination/reason`.
+            public var reason: Swift.String
+            /// Creates a new `Termination`.
+            ///
+            /// - Parameters:
+            ///   - reason: Kept in the audit trail; required.
+            public init(reason: Swift.String) {
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case reason
             }
         }
         /// - Remark: Generated from `#/components/schemas/Thread`.
