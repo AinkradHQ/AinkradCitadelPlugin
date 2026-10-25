@@ -386,7 +386,7 @@ extension Components {
             /// What the admin wrote about it (API minor 17).
             ///
             /// - Remark: Generated from `#/components/schemas/Agent/description`.
-            public var description: Swift.String
+            public var description: Swift.String?
             /// Absent: the harness default. Stored and shown; not yet applied by dispatch.
             ///
             /// - Remark: Generated from `#/components/schemas/Agent/effort`.
@@ -398,7 +398,7 @@ extension Components {
             /// Short rules, in order.
             ///
             /// - Remark: Generated from `#/components/schemas/Agent/guidelines`.
-            public var guidelines: [Swift.String]
+            public var guidelines: [Swift.String]?
             /// - Remark: Generated from `#/components/schemas/Agent/harness`.
             public var harness: Components.Schemas.Harness
             /// When it was hired.
@@ -410,7 +410,7 @@ extension Components {
             /// Its standing instructions.
             ///
             /// - Remark: Generated from `#/components/schemas/Agent/instructions`.
-            public var instructions: Swift.String
+            public var instructions: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Agent/issue_token_cap`.
             public var issueTokenCap: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Agent/model`.
@@ -469,14 +469,14 @@ extension Components {
                 appearance: Components.Schemas.Appearance,
                 avatarUrl: Swift.String? = nil,
                 companyId: Swift.Int64,
-                description: Swift.String,
+                description: Swift.String? = nil,
                 effort: Components.Schemas.Effort? = nil,
                 figureState: Components.Schemas.FigureState,
-                guidelines: [Swift.String],
+                guidelines: [Swift.String]? = nil,
                 harness: Components.Schemas.Harness,
                 hiredAt: Components.Schemas.Timestamp,
                 id: Swift.Int64,
-                instructions: Swift.String,
+                instructions: Swift.String? = nil,
                 issueTokenCap: Swift.Int64,
                 model: Swift.String,
                 name: Swift.String,
@@ -1007,7 +1007,7 @@ extension Components {
             /// When it was asked (API minor 17).
             ///
             /// - Remark: Generated from `#/components/schemas/Approval/created_at`.
-            public var createdAt: Components.Schemas.Timestamp
+            public var createdAt: Components.Schemas.Timestamp?
             /// When it was approved, rejected or expired; absent while pending.
             ///
             /// - Remark: Generated from `#/components/schemas/Approval/decided_at`.
@@ -1054,7 +1054,7 @@ extension Components {
             public init(
                 agentId: Swift.Int64? = nil,
                 companyId: Swift.Int64,
-                createdAt: Components.Schemas.Timestamp,
+                createdAt: Components.Schemas.Timestamp? = nil,
                 decidedAt: Components.Schemas.Timestamp? = nil,
                 decidedBy: Swift.Int64? = nil,
                 expiresAt: Components.Schemas.Timestamp? = nil,
@@ -2055,11 +2055,11 @@ extension Components {
             /// What it does, for its agents (empty when unset).
             ///
             /// - Remark: Generated from `#/components/schemas/Company/description`.
-            public var description: Swift.String
+            public var description: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Company/id`.
             public var id: Swift.Int64
             /// - Remark: Generated from `#/components/schemas/Company/industries`.
-            public var industries: [Swift.String]
+            public var industries: [Swift.String]?
             /// - Remark: Generated from `#/components/schemas/Company/kind`.
             public var kind: Components.Schemas.CompanyKind
             /// Its uploaded logo (`getCompanyLogo`); absent when it has none.
@@ -2103,9 +2103,9 @@ extension Components {
             public init(
                 accountIds: [Swift.Int64],
                 color: Swift.String? = nil,
-                description: Swift.String,
+                description: Swift.String? = nil,
                 id: Swift.Int64,
-                industries: [Swift.String],
+                industries: [Swift.String]? = nil,
                 kind: Components.Schemas.CompanyKind,
                 logoUrl: Swift.String? = nil,
                 name: Swift.String,

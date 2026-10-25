@@ -18,7 +18,8 @@ final class RunControlsTests: XCTestCase {
             address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_k", company: 1,
             session: FakeServer.session())
         store.companies = [
-            Components.Schemas.Company(accountIds: [], id: 1, kind: .init(value1: .own), name: "Ainkrad")
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 1, industries: [], kind: .init(value1: .own), name: "Ainkrad")
         ]
         store.settings.update { $0.companyID = 1 }
         store.model = CompanyFixture.model()

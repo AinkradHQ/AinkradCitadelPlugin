@@ -417,9 +417,6 @@
           "model",
           "runner_tags",
           "status",
-          "description",
-          "instructions",
-          "guidelines",
           "appearance",
           "figure_state",
           "hired_at",
@@ -814,8 +811,7 @@
           "kind",
           "requested_by",
           "status",
-          "payload",
-          "created_at"
+          "payload"
         ],
         "type": "object"
       },
@@ -1492,9 +1488,7 @@
           "id",
           "name",
           "kind",
-          "account_ids",
-          "description",
-          "industries"
+          "account_ids"
         ],
         "type": "object"
       },

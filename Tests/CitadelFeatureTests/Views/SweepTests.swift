@@ -59,9 +59,13 @@ final class SweepTests: XCTestCase {
     /// Every state, staged on a store that never touches the network.
     private func screens() -> [(String, CitadelStore, CGSize)] {
         let companies = [
-            Components.Schemas.Company(accountIds: [], id: 1, kind: .init(value1: .own), name: "Ainkrad"),
-            Components.Schemas.Company(accountIds: [], id: 2, kind: .init(value1: .client), name: "AutomotiveAi"),
-            Components.Schemas.Company(accountIds: [], id: 3, kind: .init(value1: .client), name: "Optimus"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 1, industries: [], kind: .init(value1: .own), name: "Ainkrad"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 2, industries: [], kind: .init(value1: .client),
+                name: "AutomotiveAi"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 3, industries: [], kind: .init(value1: .client), name: "Optimus"),
         ]
         func store(connectedBefore: Bool, _ stage: (CitadelStore) -> Void) -> CitadelStore {
             let docs = MemoryDocs()
