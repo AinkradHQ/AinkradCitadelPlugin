@@ -36,33 +36,55 @@ extension ConfigSection where Trailing == EmptyView {
     }
 }
 
-/// Teams: the server keeps one owning team per project (MISSING `team_ids`), so picking a team makes it the owner.
+/// Teams: from API minor 18 a project has several (tap to attach or detach, the first is the owner, "Make owner"
+/// moves it); an older server keeps one owning team, so picking a team makes it the owner.
 struct ConfigTeams: View {
     let store: CitadelStore
     let facts: ProjectFacts
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        ConfigSection(title: "Teams on this project", subtitle: "the owner plans sprints with the PO") {
+        let many = facts.hasTrancheB
+        ConfigSection(
+            title: "Teams on this project",
+            subtitle: many
+                ? "every attached team picks up its issues · the owner's lead plans sprints with the PO"
+                : "the owner plans sprints with the PO"
+        ) {
             AinkradCardGrid(columns: 2, spacing: skin.size.s16) {
                 ForEach(facts.model.departments) { department in
                     ForEach(department.teams) { team in
-                        let isOwner = team.id == facts.project.teamID
+                        let attached = facts.teams.contains { $0.id == team.id }
+                        let isOwner = many ? facts.teams.first?.id == team.id : team.id == facts.project.teamID
                         AinkradChoiceCard(
-                            isOn: isOwner, minHeight: skin.size.s80,
-                            action: { store.setTeam(team, project: facts.project) }
+                            isOn: many ? attached : isOwner, minHeight: skin.size.s80,
+                            action: {
+                                if many {
+                                    store.toggleTeam(team, project: facts.project)
+                                } else {
+                                    store.setTeam(team, project: facts.project)
+                                }
+                            }
                         ) {
-                            AinkradCheckBox(isOn: isOwner)
+                            AinkradCheckBox(isOn: many ? attached : isOwner)
                             VStack(alignment: .leading, spacing: skin.size.s3) {
                                 HStack(spacing: skin.size.s6) {
                                     Text(team.name).citadelFont("t12_5", weight: "semibold").foregroundStyle(
                                         skin.color(skin.text.primary))
-                                    if isOwner { AinkradBadge(text: "owner", status: .warning) }
+                                    if isOwner && (!many || attached) { AinkradBadge(text: "owner", status: .warning) }
                                 }
                                 Text("\(department.name) · \(team.seats.count) agents")
                                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            if many && attached && !isOwner {
+                                AinkradTapArea(help: "Its lead plans sprints with the PO") {
+                                    store.makeOwner(team, project: facts.project)
+                                } label: {
+                                    Text("Make owner").citadelFont("t11").foregroundStyle(
+                                        skin.color(skin.palette.accentPrimary))
+                                }
+                            }
                         }
                     }
                 }
@@ -92,14 +114,35 @@ struct ConfigRules: View {
         VStack(alignment: .leading, spacing: skin.size.s16) {
             ConfigSection(
                 title: "Definition of done",
-                subtitle: "\(profile.definitionOfDone.count) rules · QA checks every issue against them"
+                subtitle: facts.hasTrancheB
+                    ? "\(profile.dodRules.filter(\.on).count) of \(profile.dodRules.count) on · QA checks every issue against the ones on"
+                    : "\(profile.definitionOfDone.count) rules · QA checks every issue against them"
             ) {
                 AinkradCardGrid(columns: 2) {
-                    ForEach(profile.definitionOfDone, id: \.self) { rule in
-                        AinkradToggleCard(title: rule, isOn: true) {
-                            store.updateProfile(
-                                project: id,
-                                Schemas.ProfilePatch(definitionOfDone: profile.definitionOfDone.filter { $0 != rule }))
+                    if facts.hasTrancheB {
+                        ForEach(Array(profile.dodRules.enumerated()), id: \.offset) { index, rule in
+                            AinkradToggleCard(title: rule.text, isOn: rule.on) {
+                                var rules = profile.dodRules
+                                rules[index].on.toggle()
+                                store.setDoneRules(project: id, rules)
+                            }
+                            .overlay(alignment: .trailing) {
+                                AinkradIconButton(systemName: "xmark", size: skin.size.s18, tooltip: "Remove rule") {
+                                    var rules = profile.dodRules
+                                    rules.remove(at: index)
+                                    store.setDoneRules(project: id, rules)
+                                }
+                                .bare().padding(.trailing, skin.size.s56)
+                            }
+                        }
+                    } else {
+                        ForEach(profile.definitionOfDone, id: \.self) { rule in
+                            AinkradToggleCard(title: rule, isOn: true) {
+                                store.updateProfile(
+                                    project: id,
+                                    Schemas.ProfilePatch(
+                                        definitionOfDone: profile.definitionOfDone.filter { $0 != rule }))
+                            }
                         }
                     }
                     AinkradChoiceCard(isAdd: true, minHeight: skin.size.s46) {
@@ -160,7 +203,11 @@ struct ConfigRules: View {
         let rule = draft.trimmingCharacters(in: .whitespaces)
         guard !rule.isEmpty else { return }
         draft = ""
-        store.updateProfile(project: id, Schemas.ProfilePatch(definitionOfDone: profile.definitionOfDone + [rule]))
+        if facts.hasTrancheB {
+            store.setDoneRules(project: id, profile.dodRules + [DodRuleInfo(text: rule)])
+        } else {
+            store.updateProfile(project: id, Schemas.ProfilePatch(definitionOfDone: profile.definitionOfDone + [rule]))
+        }
         store.toast(AinkradRichToast(title: "Rule added", body: "QA checks it from the next issue.", status: .success))
     }
 
@@ -193,8 +240,8 @@ struct ConfigRules: View {
     }
 }
 
-/// Runtime: environments (read-only until the server carries deploy fields), the tool allowlist and the small-task
-/// rule. Runners and the network host list wait on S10.
+/// Runtime: environments (read-only until the server carries deploy fields), the runners' tags and limits and the
+/// network hosts (API minor 18), the tool allowlist and the small-task rule.
 struct ConfigRuntime: View {
     let store: CitadelStore
     let facts: ProjectFacts
@@ -205,6 +252,10 @@ struct ConfigRuntime: View {
         VStack(alignment: .leading, spacing: skin.size.s16) {
             if let profile = facts.profile {
                 EnvironmentsGroup(profile: profile)
+            }
+            if facts.hasTrancheB {
+                ProjectsRunnersSection(store: store, facts: facts)
+                ProjectsNetworkSection(store: store, facts: facts)
             }
             if let policy = facts.page.policies[id] {
                 ConfigSection(title: "Tools allowed without asking", subtitle: "a tool, or tool:command prefix") {
@@ -246,21 +297,35 @@ struct ConfigDocs: View {
     }
 }
 
-/// Context: how much of the profile budget a run's injected context uses. The rendered text waits on S12.
+/// Context: what a run sees. From API minor 18 the text itself, as the server renders it; before, how much of the
+/// profile budget a run's injected context uses.
 struct ConfigContext: View {
     let facts: ProjectFacts
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let profile = facts.profile ?? ProfileInfo()
+        let preview = facts.hasTrancheB ? facts.page.preview[facts.project.id] : nil
         ConfigSection(title: "What a run sees", subtitle: "injected before the issue, on every run in this project") {
             AinkradBudgetBar(
-                label: "Profile budget", value: Double(profile.injectedBytes),
-                limit: Double(max(profile.budgetBytes, 1)))
+                label: "Profile budget", value: Double(preview?.bytes ?? profile.injectedBytes),
+                limit: Double(max(preview?.budgetBytes ?? profile.budgetBytes, 1)))
             Text(
-                "\(profile.injectedBytes.formatted(.byteCount(style: .file))) of \(profile.budgetBytes.formatted(.byteCount(style: .file))) · generated from Repos · Rules · Runtime · Limits"
+                "\((preview?.bytes ?? profile.injectedBytes).formatted(.byteCount(style: .file))) of \((preview?.budgetBytes ?? profile.budgetBytes).formatted(.byteCount(style: .file))) · generated from Repos · Rules · Runtime · Limits"
             )
             .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+            if let preview {
+                Text(preview.text.isEmpty ? "Nothing is injected yet." : preview.text).citadelFont("t11", mono: true)
+                    .foregroundStyle(skin.color(skin.text.primary)).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .topLeading).padding(skin.size.s12)
+                    .background(
+                        skin.color(.palette("black", skin.opacity.o28)),
+                        in: RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
+                if !preview.dropped.isEmpty {
+                    Text("Left out for the budget: \(preview.dropped.joined(separator: ", "))").citadelFont("t11")
+                        .foregroundStyle(skin.color(skin.palette.warning))
+                }
+            }
         }
     }
 }

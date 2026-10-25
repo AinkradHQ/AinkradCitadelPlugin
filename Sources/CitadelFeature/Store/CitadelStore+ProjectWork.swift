@@ -35,6 +35,7 @@ extension CitadelStore {
             work.monthSpend = mine.isEmpty ? nil : mine.reduce(0) { $0 + $1.costMicros }
         }
         model.projectsPage.work[project] = work
+        if hasTrancheB { model.projectsPage.cfd[project] = await server.cumulativeFlow(project: project) }
     }
 
     /// The project's QA agent: the reviewer a card dragged to In review is submitted to.

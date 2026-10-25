@@ -38,6 +38,8 @@ final class CitadelStore {
     var companies: [Components.Schemas.Company] = []
     /// The companies' uploaded logos (API minor 17), loaded like the agents' avatars.
     let logos = CompanyLogos()
+    /// The projects' uploaded logos (API minor 18).
+    let projectLogos = ProjectLogos()
     var agentCount: Int?
     var latency: Duration?
     /// The server's version (`GET /me`), shown on the connected card.

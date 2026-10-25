@@ -7,6 +7,7 @@ extension CitadelStore {
     func loadProjectsPage() {
         guard let server, let model else { return }
         let page = model.projectsPage
+        loadProjectLogos(using: server)
         Task {
             for project in model.projects {
                 if let repos = await server.repos(project: project.id) { page.repos[project.id] = repos }
@@ -40,6 +41,7 @@ extension CitadelStore {
         async let repos = server.repos(project: project)
         async let settings = server.settings(scope: "project:\(project)")
         async let policy = server.policy(project: project)
+        if hasTrancheB { page.preview[project] = await server.profilePreview(project: project) }
         if let profile = await profile { page.profiles[project] = profile }
         if let policy = await policy { page.policies[project] = policy }
         if let repos = await repos { page.repos[project] = repos }
@@ -174,13 +176,19 @@ extension CitadelStore {
 
     /// "＋ New project": the new project joins the list, selected; a refusal (a taken key) stays in the sheet.
     func createProject(
-        name: String, key: String, mode: String, team: Int64? = nil, done: @escaping @MainActor (ActionFailure?) -> Void
+        name: String, key: String, mode: String, team: Int64? = nil, icon: String? = nil, color: String? = nil,
+        teams: [Int64] = [], done: @escaping @MainActor (ActionFailure?) -> Void
     ) {
         guard let server, let model else { return }
         let name = name.trimmingCharacters(in: .whitespaces)
         let key = key.trimmingCharacters(in: .whitespaces).uppercased()
         Task {
-            switch await server.createProject(company: model.companyID, name: name, key: key, mode: mode, team: team) {
+            // Identity and several teams are API minor 18's; an older server is sent the name, key, mode and one team.
+            let identity = hasTrancheB
+            switch await server.createProject(
+                company: model.companyID, name: name, key: key, mode: mode, team: identity ? teams.first ?? team : team,
+                icon: identity ? icon : nil, color: identity ? color : nil, teams: identity ? teams : [])
+            {
             case .success(let project):
                 model.projects.append(project)
                 done(nil)

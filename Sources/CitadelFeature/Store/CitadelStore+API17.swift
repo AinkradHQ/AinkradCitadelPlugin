@@ -15,9 +15,10 @@ extension CitadelStore {
 
     /// Help text for a control the server cannot back yet.
     static let needsServerUpdate = "Needs a Citadel server update (API 17)"
+    static let needsServerUpdate18 = "Needs a Citadel server update (API 18)"
 
     /// The control's help: the line for an old server, else `ready`.
     func help(minor: Int = CitadelStore.structureMinor, ready: String = "") -> String {
-        serverSupports(minor: minor) ? ready : Self.needsServerUpdate
+        serverSupports(minor: minor) ? ready : "Needs a Citadel server update (API \(minor))"
     }
 }

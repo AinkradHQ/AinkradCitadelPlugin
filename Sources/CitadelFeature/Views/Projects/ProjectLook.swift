@@ -1,4 +1,5 @@
 import AinkradAppKit
+import AppKit
 import SwiftUI
 
 /// A project's look (prototype `project-board.js` `PROJ_COL`, `project-new.js` `PN_ICONS` / `PN_COLS`): the icon and
@@ -67,26 +68,34 @@ struct ProjectMark: View {
     let glyph: String
     let tint: (Color, Color)
     let side: CGFloat
+    /// The uploaded logo (API minor 18), which takes the glyph's place.
+    var logo: NSImage?
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: side * 0.29, style: .continuous)
-        Text(glyph)
-            .citadelFont("t20", weight: "semibold")
-            .scaleEffect(side / skin.size.s44)
-            .foregroundStyle(skin.color(.palette("foreground", 1)))
-            .frame(width: side, height: side)
-            .background(
-                shape.fill(
-                    LinearGradient(colors: [tint.0, tint.1], startPoint: .topLeading, endPoint: .bottomTrailing))
-            )
-            .overlay(
-                shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o25)), lineWidth: 1).mask(
-                    LinearGradient(
-                        colors: [skin.color(.palette("foreground", 1)), .clear], startPoint: .top, endPoint: .center))
-            )
-            .shadow(color: tint.0.opacity(skin.opacity.o35), radius: side * 0.2, y: side * 0.18)
-            .accessibilityHidden(true)
+        Group {
+            if let logo {
+                Image(nsImage: logo).resizable().scaledToFill().frame(width: side, height: side).clipShape(shape)
+            } else {
+                Text(glyph)
+                    .citadelFont("t20", weight: "semibold")
+                    .scaleEffect(side / skin.size.s44)
+                    .foregroundStyle(skin.color(.palette("foreground", 1)))
+                    .frame(width: side, height: side)
+            }
+        }
+        .background(
+            shape.fill(
+                LinearGradient(colors: [tint.0, tint.1], startPoint: .topLeading, endPoint: .bottomTrailing))
+        )
+        .overlay(
+            shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o25)), lineWidth: 1).mask(
+                LinearGradient(
+                    colors: [skin.color(.palette("foreground", 1)), .clear], startPoint: .top, endPoint: .center))
+        )
+        .shadow(color: tint.0.opacity(skin.opacity.o35), radius: side * 0.2, y: side * 0.18)
+        .accessibilityHidden(true)
     }
 }
 

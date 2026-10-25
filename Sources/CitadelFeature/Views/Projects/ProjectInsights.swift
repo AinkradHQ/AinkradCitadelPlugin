@@ -215,11 +215,17 @@ struct RoadmapGrid: View {
     }
 }
 
-/// The Reports tab (`quest-plan.js` `qReports`): cumulative flow (needs the server), throughput per week, cycle
-/// time with its 85th percentile, and the work mix.
+/// The Reports tab (`quest-plan.js` `qReports`): cumulative flow (API minor 18), throughput per week, cycle time
+/// with its 85th percentile, and the work mix.
 struct ProjectReports: View {
     let facts: ProjectFacts
     @Environment(\.ainkradSkin) private var skin
+
+    /// "42 days" of history, or the old "6 weeks" label when there is none.
+    private var cfdCaption: String {
+        let days = facts.page.cfd[facts.project.id]?.count ?? 0
+        return facts.hasTrancheB && days > 1 ? "\(days) days" : "6 weeks"
+    }
 
     var body: some View {
         let work = facts.work
@@ -227,12 +233,15 @@ struct ProjectReports: View {
             AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     OverviewHead(title: "Cumulative flow") {
-                        Text("6 weeks").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                        Text(cfdCaption).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
                     }
-                    Text("Needs daily state counts from the server (MISSING `GET /projects/{id}/cfd`).").citadelFont(
-                        "t11"
-                    )
-                    .foregroundStyle(skin.color(skin.text.faint)).frame(maxWidth: .infinity, minHeight: skin.size.s140)
+                    if facts.hasTrancheB, let cfd = facts.page.cfd[facts.project.id], cfd.count > 1 {
+                        ProjectsCumulativeFlow(points: cfd).frame(height: skin.size.s140)
+                    } else {
+                        Text(facts.hasTrancheB ? "Not enough days of history yet." : CitadelStore.needsServerUpdate18)
+                            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                            .frame(maxWidth: .infinity, minHeight: skin.size.s140)
+                    }
                     HStack(spacing: skin.size.s14) {
                         ForEach(["done", "review", "in_progress", "todo"], id: \.self) {
                             ProjectLegend(tint: ProjectLook.flowTint($0, skin: skin), label: ProjectLogic.title($0))

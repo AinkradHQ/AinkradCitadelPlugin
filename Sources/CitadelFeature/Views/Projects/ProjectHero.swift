@@ -104,9 +104,8 @@ struct ProjectHero: View {
                         .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s2)
                 }
             }
-            ProjectMark(glyph: facts.glyph, tint: tint, side: slim ? skin.size.s64 : skin.size.s120)
+            ProjectsLogoMark(store: store, facts: facts, side: slim ? skin.size.s64 : skin.size.s120)
                 .offset(x: mx * skin.size.s10, y: my * skin.size.s8)
-                .help("Logo upload needs the server (MISSING `PUT /projects/{id}/logo`)")
                 .padding(.top, slim ? skin.size.s2 : skin.size.s6)
         }
     }

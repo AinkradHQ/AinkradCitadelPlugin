@@ -1,4 +1,5 @@
 import AinkradAppKit
+import AppKit
 import SwiftUI
 
 /// What the list card, the hero and the Overview read about one project, derived from the company model: its team,
@@ -9,6 +10,8 @@ struct ProjectFacts {
     let model: CompanyModel
     /// The server speaks API minor 18: chore / spike, 5-level priority, project identity and the rest show.
     var hasTrancheB = false
+    /// The uploaded logo, when the server has one (API minor 18).
+    var logo: NSImage?
 
     var page: ProjectsPage { model.projectsPage }
     var work: ProjectWork { page.work[project.id] ?? ProjectWork() }
@@ -18,13 +21,21 @@ struct ProjectFacts {
     var glyph: String { ProjectLook.glyph(project, in: model) }
     var isScrum: Bool { project.mode != "kanban" }
 
-    /// The owning team (the server keeps one: MISSING `team_ids`).
+    /// The owning team.
     var team: TeamInfo? { model.departments.flatMap(\.teams).first { $0.id == project.teamID } }
-    var teams: [TeamInfo] { team.map { [$0] } ?? [] }
+    /// Every team on the project, the owner first (API minor 18); the owner alone from an older server.
+    var teams: [TeamInfo] {
+        guard hasTrancheB else { return team.map { [$0] } ?? [] }
+        let all = model.departments.flatMap(\.teams)
+        return project.allTeamIDs.compactMap { id in all.first { $0.id == id } }
+    }
     var department: DepartmentInfo? { model.departments.first { $0.teams.contains { $0.id == project.teamID } } }
 
     var agents: [AgentInfo] {
-        (team?.seats ?? []).compactMap { model.agents[$0.agentID] }.filter { $0.status != "terminated" }
+        var seen = Set<Int64>()
+        let seats = hasTrancheB ? teams.flatMap(\.seats) : (team?.seats ?? [])
+        return seats.filter { seen.insert($0.agentID).inserted }.compactMap { model.agents[$0.agentID] }
+            .filter { $0.status != "terminated" }
     }
 
     var lead: AgentInfo? {

@@ -11,7 +11,11 @@ struct ProjectPage: View {
     @Environment(\.ainkradSkin) private var skin
 
     private var page: ProjectsPage { model.projectsPage }
-    private var facts: ProjectFacts { ProjectFacts(project: project, model: model, hasTrancheB: store.hasTrancheB) }
+    private var facts: ProjectFacts {
+        ProjectFacts(
+            project: project, model: model, hasTrancheB: store.hasTrancheB,
+            logo: store.projectLogos.images[project.id])
+    }
 
     var body: some View {
         let facts = facts

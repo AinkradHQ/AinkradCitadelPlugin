@@ -48,6 +48,9 @@ final class ProjectsPage {
     /// The item drawer's runs and activity, per issue.
     var itemRuns: [Int64: [RunInfo]] = [:]
     var itemActivity: [Int64: [AuditLine]] = [:]
+    /// Each project's cumulative flow, and the text a run on it is given (API minor 18).
+    var cfd: [Int64: [CfdPoint]] = [:]
+    var preview: [Int64: ProfilePreviewInfo] = [:]
 }
 
 enum ProjectTab: String, CaseIterable, Hashable, Sendable {

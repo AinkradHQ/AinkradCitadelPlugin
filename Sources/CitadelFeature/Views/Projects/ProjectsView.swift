@@ -45,7 +45,9 @@ struct ProjectsView: View {
                 ) {
                     ForEach(Array(model.projects.enumerated()), id: \.element.id) { index, project in
                         ProjectCard(
-                            facts: ProjectFacts(project: project, model: model, hasTrancheB: store.hasTrancheB),
+                            facts: ProjectFacts(
+                                project: project, model: model, hasTrancheB: store.hasTrancheB,
+                                logo: store.projectLogos.images[project.id]),
                             order: index
                         ) {
                             store.openProject(project.id)
@@ -125,7 +127,7 @@ private struct ProjectCard: View {
 
     private var top: some View {
         HStack(spacing: skin.size.s12) {
-            ProjectMark(glyph: facts.glyph, tint: facts.tint, side: skin.size.s44)
+            ProjectMark(glyph: facts.glyph, tint: facts.tint, side: skin.size.s44, logo: facts.logo)
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 Text(facts.project.name).citadelFont("t16", weight: "bold").foregroundStyle(
                     skin.color(skin.text.primary)
@@ -134,7 +136,10 @@ private struct ProjectCard: View {
                 (Text(facts.project.key).font(skin.font(AinkradFontToken(sizeKey: "t11", mono: "family")))
                     .foregroundStyle(skin.color(skin.palette.accentSecondary))
                     + Text(
-                        [facts.team?.name, facts.lead.map { "★ \($0.name)" }].compactMap { $0 }.map { " · \($0)" }
+                        [
+                            Optional(facts.teams.map(\.name).joined(separator: " + ")).nonEmpty,
+                            facts.lead.map { "★ \($0.name)" },
+                        ].compactMap { $0 }.map { " · \($0)" }
                             .joined()))
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
             }
