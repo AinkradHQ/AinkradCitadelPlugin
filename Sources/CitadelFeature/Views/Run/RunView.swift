@@ -27,7 +27,9 @@ struct RunView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     RunHero(
                         store: store, model: model, run: run, followsLive: followsLive,
-                        toggleFollow: { followsLive ? (followsLive = false) : jump() }, stop: { confirmsStop = true })
+                        toggleFollow: {
+                            if followsLive { followsLive = false } else { jump() }
+                        }, stop: { confirmsStop = true })
                     if run.hasNoTranscript(model.transcripts[runID]) {
                         NoTranscriptView(store: store, model: model, run: run)
                     } else {
