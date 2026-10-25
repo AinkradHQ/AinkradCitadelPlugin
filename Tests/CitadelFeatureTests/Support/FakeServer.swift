@@ -3,8 +3,10 @@ import XCTest
 
 @testable import CitadelFeature
 
-/// A stand-in Citadel for the HTTP side: a `URLProtocol` that answers from `FakeServer.route` and records every
-/// request it saw. One test at a time (XCTest runs a class's tests serially).
+/// A stand-in Citadel for the HTTP side: a `URLProtocol` that answers from the current test's route and records every
+/// request it saw. State is per test: `Boundary` opens a fresh `Scope` before each test, and every session stamps
+/// the scope it was made in onto its requests. A store a previous test left running still sends into its old scope,
+/// which no longer exists, so its requests are dropped instead of answered by, or logged into, the next test.
 final class FakeServer: URLProtocol, @unchecked Sendable {
     struct Reply {
         var status = 200
@@ -14,24 +16,48 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
         var contentType = "application/json"
     }
 
-    nonisolated(unsafe) private static var lock = NSLock()
-    nonisolated(unsafe) private static var _requests: [URLRequest] = []
-    nonisolated(unsafe) private static var _route: (URLRequest) -> Reply? = { _ in nil }
+    private final class Scope {
+        let id = UUID().uuidString
+        var requests: [URLRequest] = []
+        var route: (URLRequest) -> Reply? = { _ in nil }
+    }
 
-    static var requests: [URLRequest] { lock.withLock { _requests } }
+    private static let scopeHeader = "X-Fake-Server-Scope"
+
+    nonisolated(unsafe) private static var lock = NSLock()
+    nonisolated(unsafe) private static var scopes: [String: Scope] = [:]
+    nonisolated(unsafe) private static var current: Scope = openScope()
+
+    /// Makes a fresh scope the current one and forgets the previous ones. Call with `lock` held.
+    private static func openScope() -> Scope {
+        scopes = [:]
+        let scope = Scope()
+        scopes[scope.id] = scope
+        return scope
+    }
+
+    static var requests: [URLRequest] { lock.withLock { current.requests } }
 
     /// Answers `route`; `nil` is a dropped connection (`URLError.cannotConnectToHost`).
     static func serve(_ route: @escaping (URLRequest) -> Reply?) {
+        Boundary.install()
         lock.withLock {
-            _requests = []
-            _route = route
+            current.requests = []
+            current.route = route
         }
     }
 
     static func session() -> URLSession {
+        Boundary.install()
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FakeServer.self]
+        configuration.httpAdditionalHeaders = [scopeHeader: lock.withLock { current.id }]
         return CitadelServer.makeSession(configuration: configuration)
+    }
+
+    /// Opens a fresh scope at the start of every test, so nothing from the last test reaches this one.
+    fileprivate static func beginTest() {
+        lock.withLock { current = openScope() }
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -39,8 +65,11 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
 
     override func startLoading() {
         let (reply, url) = Self.lock.withLock { () -> (Reply?, URL?) in
-            Self._requests.append(request)
-            return (Self._route(request), request.url)
+            guard let id = request.value(forHTTPHeaderField: Self.scopeHeader), let scope = Self.scopes[id] else {
+                return (nil, nil)
+            }
+            scope.requests.append(request)
+            return (scope.route(request), request.url)
         }
         guard let reply, let url else {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
@@ -55,6 +84,17 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+}
+
+/// Opens a fresh `FakeServer` scope when each test case starts (before its `setUp`), installed on first use.
+private final class Boundary: NSObject, XCTestObservation {
+    nonisolated(unsafe) private static let installed: Void = {
+        XCTestObservationCenter.shared.addTestObserver(Boundary())
+    }()
+
+    static func install() { _ = installed }
+
+    func testCaseWillStart(_ testCase: XCTestCase) { FakeServer.beginTest() }
 }
 
 /// JSON the real server writes.
