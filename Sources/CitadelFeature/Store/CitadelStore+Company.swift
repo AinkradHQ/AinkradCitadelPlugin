@@ -274,6 +274,7 @@ extension CitadelStore {
                 case "company": return company?.name ?? "Company"
                 case "department": return model.departments.first { $0.id == id }?.name ?? "Department"
                 case "sprint": return model.sprint.flatMap { $0.id == id ? $0.title : nil } ?? "Sprint"
+                case "issue": return model.issue(id)?.key ?? "Issue"
                 default: return "Project"
                 }
             }

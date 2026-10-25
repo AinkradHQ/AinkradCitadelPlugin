@@ -2,7 +2,8 @@ import AinkradAppKit
 import SwiftUI
 
 /// `.cs-hero`: the company budget as a ring, what it used against its cap with the pace it is on, and the period
-/// tabs. In tokens until the server stores dollar caps; with no company budget it shows the priced dollars alone.
+/// tabs. In dollars when the budget has a dollar cap (API minor 18), else tokens; with no company budget it shows the priced
+/// dollars alone.
 struct CostHero: View {
     let model: CompanyModel
     @Binding var period: CostPeriod
@@ -21,18 +22,18 @@ struct CostHero: View {
                 Text((budget == nil ? "Priced spend · " : "Company budget · ") + label).textCase(.uppercase)
                     .citadelFont("t11").tracking(0.5).foregroundStyle(skin.color(skin.text.faint))
                 if let budget {
-                    big(Fmt.tokens(budget.spent), small: " / \(Fmt.tokens(budget.cap)) tok")
+                    big(budget.spentWord, small: " / \(budget.capWord)\(budget.isDollars ? "" : " tok")")
                     ProjectionBar(
-                        fraction: budget.fraction,
-                        projected: pace(budget).map { Double($0) / Double(max(budget.cap, 1)) })
+                        fraction: budget.shownFraction,
+                        projected: pace(budget).map { Double($0) / Double(max(budget.shownCap, 1)) })
                     HStack(spacing: skin.size.s14) {
                         AinkradLegendSwatch(color: blue, label: "used")
                         if let pace = pace(budget) {
                             AinkradLegendSwatch(
-                                color: blue.opacity(skin.opacity.o35), label: "on pace for \(Fmt.tokens(pace))")
+                                color: blue.opacity(skin.opacity.o35), label: "on pace for \(budget.word(pace))")
                         }
                         Spacer()
-                        Text("cap \(Fmt.tokens(budget.cap))")
+                        Text("cap \(budget.capWord)")
                     }
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                     .frame(maxWidth: skin.size.s560)
@@ -115,7 +116,7 @@ struct CostHero: View {
         guard let unit, let span = calendar.dateInterval(of: unit, for: now) else { return nil }
         let gone = now.timeIntervalSince(span.start) / span.duration
         guard gone > 0.02 else { return nil }
-        return Int64(Double(budget.spent) / gone)
+        return Int64(Double(budget.shownSpent) / gone)
     }
 }
 

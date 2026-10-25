@@ -115,23 +115,26 @@ extension CitadelStore {
         }
     }
 
-    /// The agent's month budget (tokens): changed when it has one, created when it doesn't.
-    func setMonthBudget(_ agent: AgentInfo, cap: Int64, warnPercent: Int?) {
+    /// The agent's month budget, in tokens (`cap`) or dollars (`usdCap`, millionths, API minor 18): changed when it
+    /// has one, created when it doesn't.
+    func setMonthBudget(_ agent: AgentInfo, cap: Int64, usdCap: Int64? = nil, warnPercent: Int?) {
         guard let model else { return }
         let old = model.monthBudget(of: agent.id)
+        let usd = serverSupports(minor: Self.trancheBMinor) ? usdCap : nil
+        let now = usd.map { Fmt.budgetDollars(micros: $0) } ?? "\(Fmt.tokens(cap)) tok"
         let done: @MainActor @Sendable () -> Void = {
             self.agentToast(
-                agent, title: "Budget \(old.map { Fmt.tokens($0.cap) } ?? "none") → \(Fmt.tokens(cap)) tok",
+                agent, title: "Budget \(old.map { $0.capWord } ?? "none") → \(now)",
                 body: "Audited · applies to the next run.")
         }
         if let old {
             perform("Couldn't change \(agent.name)'s budget", outcome: "The budget is unchanged.", done: done) {
-                await $0.setBudget(company: model.companyID, old, cap: cap, warnPercent: warnPercent)
+                await $0.setBudget(company: model.companyID, old, cap: cap, usdCap: usd, warnPercent: warnPercent)
             }
         } else {
             perform("Couldn't add \(agent.name)'s budget", outcome: "No budget was added.", done: done) {
                 await $0.createBudget(
-                    company: model.companyID, scope: "agent:\(agent.id)", period: "month", cap: cap,
+                    company: model.companyID, scope: "agent:\(agent.id)", period: "month", cap: cap, usdCap: usd,
                     warnPercent: warnPercent)
             }
         }

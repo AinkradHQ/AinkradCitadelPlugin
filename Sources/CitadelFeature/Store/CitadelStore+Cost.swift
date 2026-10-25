@@ -146,24 +146,37 @@ extension CitadelStore {
         }
     }
 
-    /// "Set a price…": the model's price from now on; runs before stay unpriced.
-    func setPrice(_ price: PriceDraft) {
-        act("Couldn't set the price of \(price.model)", outcome: "No price was set.") { await $0.setPrice(price) }
-    }
-
-    /// A budget's cap (tokens, raises included as shown) and warn % (`nil` inherits).
-    func setBudget(_ budget: BudgetInfo, cap: Int64, warnPercent: Int?) {
-        guard let company = model?.companyID else { return }
-        act("Couldn't change the \(budget.label) budget", outcome: "The budget is unchanged.") {
-            await $0.setBudget(company: company, budget, cap: cap, warnPercent: warnPercent)
+    /// "Set a price…": the model's price from now on, or (`pastToo`, API minor 18) its unpriced past runs as well.
+    func setPrice(_ price: PriceDraft, pastToo: Bool = false) {
+        let past = pastToo && serverSupports(minor: Self.trancheBMinor)
+        act("Couldn't set the price of \(price.model)", outcome: "No price was set.") {
+            await $0.setPrice(price, pastToo: past)
         }
     }
 
-    /// "＋ New budget".
-    func createBudget(scope: String, label: String, period: String, cap: Int64, warnPercent: Int?) {
+    /// A budget's token cap (raises included as shown) and warn % (`nil` inherits); its dollar cap is kept.
+    func setBudget(_ budget: BudgetInfo, cap: Int64, warnPercent: Int?) {
+        setBudget(budget, cap: cap, usdCap: budget.usdCap, warnPercent: warnPercent)
+    }
+
+    /// A budget's caps — tokens and dollars (millionths, `nil` clears it; sent from API minor 18 only) — and warn %.
+    func setBudget(_ budget: BudgetInfo, cap: Int64, usdCap: Int64?, warnPercent: Int?) {
         guard let company = model?.companyID else { return }
+        let usd = serverSupports(minor: Self.trancheBMinor) ? usdCap : nil
+        act("Couldn't change the \(budget.label) budget", outcome: "The budget is unchanged.") {
+            await $0.setBudget(company: company, budget, cap: cap, usdCap: usd, warnPercent: warnPercent)
+        }
+    }
+
+    /// "＋ New budget" (`usdCap` in millionths of a dollar, sent from API minor 18 only).
+    func createBudget(
+        scope: String, label: String, period: String, cap: Int64, usdCap: Int64? = nil, warnPercent: Int?
+    ) {
+        guard let company = model?.companyID else { return }
+        let usd = serverSupports(minor: Self.trancheBMinor) ? usdCap : nil
         act("Couldn't add a budget for \(label)", outcome: "No budget was added.") {
-            await $0.createBudget(company: company, scope: scope, period: period, cap: cap, warnPercent: warnPercent)
+            await $0.createBudget(
+                company: company, scope: scope, period: period, cap: cap, usdCap: usd, warnPercent: warnPercent)
         }
     }
 

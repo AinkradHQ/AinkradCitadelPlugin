@@ -245,7 +245,7 @@ struct OrgPeekPanel: View {
             HStack {
                 PeekLabel(text: "Month budget")
                 Spacer()
-                Text(budget.map { "\(Fmt.tokens($0.spent)) / \(Fmt.tokens($0.cap)) tok" } ?? "no budget")
+                Text(budget?.pairWord ?? "no budget")
                     .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
             }
             MiniBar(fraction: agent.isHirePending ? 0 : budget?.fraction ?? 0, warnAt: budget?.warnFraction ?? 0.8)

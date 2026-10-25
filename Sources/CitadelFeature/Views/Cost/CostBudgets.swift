@@ -2,7 +2,7 @@ import AinkradAppKit
 import SwiftUI
 
 /// `budgetsTile`: every budget as a ring card — spent / cap (the cap pill edits inline), warn % with where it
-/// comes from (↺ resets an override), the state; a stopped budget links to its raise approval. Caps in tokens.
+/// comes from (↺ resets an override), the state; a stopped budget links to its raise approval. Caps in dollars where a budget has a dollar cap, else tokens.
 struct BudgetsCard: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -58,9 +58,9 @@ private struct BudgetCard: View {
                 Text(title).citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
                     .lineLimit(1)
                 HStack(spacing: skin.size.s4) {
-                    Text("\(Fmt.tokens(budget.spent)) /").citadelFont("t12", mono: true).foregroundStyle(
+                    Text("\(budget.spentWord) /").citadelFont("t12", mono: true).foregroundStyle(
                         skin.color(skin.text.muted))
-                    AinkradValuePill(text: Fmt.tokens(budget.cap), help: "Edit cap (tokens)") {
+                    AinkradValuePill(text: budget.capWord, help: "Edit cap (\(budget.unitNoun))") {
                         store.editBudgetCap(budget, text: $0, inheritsWarn: !isOverridden(scope))
                     }
                 }

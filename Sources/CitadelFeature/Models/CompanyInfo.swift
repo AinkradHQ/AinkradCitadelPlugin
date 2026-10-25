@@ -240,9 +240,20 @@ struct BudgetInfo: Identifiable, Equatable, Sendable {
     var raised: Int64 = 0
     /// Runs stop at the cap, or it only warns.
     var hardStop = true
+    /// Dollars beside the tokens (API minor 18), in millionths, the approved raises included; `nil` without one.
+    var usdCap: Int64?
+    /// Priced dollars spent in the period, in millionths.
+    var usdSpent: Int64 = 0
+    /// Dollars added by approved raises, in millionths; `usdCap` includes them, the stored cap does not.
+    var raisedUsd: Int64 = 0
 
     var warnFraction: Double { Double(warnPercent) / 100 }
-    var fraction: Double { cap > 0 ? Double(spent) / Double(cap) : 0 }
+    /// How much of the cap is used: the larger of the token and the dollar share (the server stops at either).
+    var fraction: Double {
+        let tokens = cap > 0 ? Double(spent) / Double(cap) : 0
+        let dollars = (usdCap ?? 0) > 0 ? Double(usdSpent) / Double(usdCap ?? 1) : 0
+        return max(tokens, dollars)
+    }
 }
 
 struct SpendInfo: Equatable, Sendable {

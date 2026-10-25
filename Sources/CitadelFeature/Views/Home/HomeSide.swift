@@ -279,7 +279,7 @@ struct SpendTile: View {
                             .foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
                         Spacer(minLength: skin.size.s8)
                         AinkradBudgetBar(
-                            label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
+                            label: budget.label, value: Double(budget.shownSpent), limit: Double(budget.shownCap),
                             warnFraction: budget.warnFraction, showsHardLimit: false
                         )
                         .frame(width: skin.size.s120)

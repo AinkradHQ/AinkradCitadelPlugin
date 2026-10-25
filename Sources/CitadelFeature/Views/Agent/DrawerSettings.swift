@@ -14,6 +14,7 @@ struct DrawerSettings: View {
     @State private var sandbox = "workspace-write"
     @State private var tags: Set<String> = []
     @State private var budget = ""
+    @State private var unit = BudgetUnit.tokens
     @State private var warn = "80"
     @State private var cap = ""
     @State private var about = ""
@@ -97,18 +98,33 @@ struct DrawerSettings: View {
         }
         .id("chain")
         DrawerTile(title: "Budget") {
-            BudgetFields(budget: $budget, warn: $warn, cap: $cap)
+            if store.serverSupports(minor: CitadelStore.trancheBMinor) {
+                AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }.fixedSize()
+            }
+            if unit == .dollars {
+                AinkradFormRow(title: "Monthly budget", help: "Dollars a month: $120, 1.5k.") {
+                    AinkradTextField(text: $budget, placeholder: "$120").monospaced()
+                }
+            } else {
+                BudgetFields(budget: $budget, warn: $warn, cap: $cap)
+            }
             HStack {
                 NeedsServer(text: "The per-run cap is set per company or project; an agent scope needs the server.")
                 Spacer()
                 AinkradButton(title: "Save budget") {
-                    if let tokens = TokenAmount.parse(budget), tokens > 0 {
-                        store.setMonthBudget(agent, cap: tokens, warnPercent: Int(warn).map { min(99, max(1, $0)) })
+                    if let caps = BudgetUnit.parseCap(budget, unit: unit) {
+                        store.setMonthBudget(
+                            agent, cap: caps.cap, usdCap: caps.usdCap,
+                            warnPercent: Int(warn).map { min(99, max(1, $0)) })
                     }
                 }
                 .compact().fixedSize()
-                .disabled((TokenAmount.parse(budget) ?? 0) <= 0)
+                .disabled(BudgetUnit.parseCap(budget, unit: unit) == nil)
             }
+        }
+        .onChange(of: unit) { _, now in
+            let month = model.monthBudget(of: agent.id)
+            budget = month?.unit == now ? month?.capWord ?? "" : ""
         }
         .id("budget")
         DrawerTile(title: "Access") {
@@ -167,7 +183,8 @@ struct DrawerSettings: View {
             about = agent.about ?? ""
             boss = agent.reportsTo
             let month = model.monthBudget(of: agent.id)
-            budget = month.map { Fmt.tokens($0.cap) } ?? ""
+            unit = month?.unit ?? .tokens
+            budget = month?.capWord ?? ""
             warn = "\(month?.warnPercent ?? Int(model.warnFraction * 100))"
             cap = model.runCap.map(Fmt.tokens) ?? ""
         }

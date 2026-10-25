@@ -230,7 +230,9 @@ extension BudgetInfo {
         self.init(
             id: budget.budgetId, label: label(scope), scope: scope, period: budget.period.word,
             periodKey: budget.periodKey, spent: budget.spent, cap: budget.tokenCap + budget.raised,
-            warnPercent: Int(budget.warnAtPercent), raised: budget.raised, hardStop: budget.hardStop)
+            warnPercent: Int(budget.warnAtPercent), raised: budget.raised, hardStop: budget.hardStop,
+            usdCap: budget.usdCapMicros.map { $0 + (budget.raisedUsdMicros ?? 0) },
+            usdSpent: budget.usdSpentMicros ?? 0, raisedUsd: budget.raisedUsdMicros ?? 0)
     }
 }
 

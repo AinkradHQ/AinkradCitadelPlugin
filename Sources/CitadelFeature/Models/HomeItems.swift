@@ -56,7 +56,7 @@ extension CompanyModel {
                     id: "budget-\(budget.id)", rank: 2, glyph: "$", tone: .warning,
                     title: "\(budget.label) hit \(Int(budget.fraction * 100))% of its \(budget.period) budget",
                     subtitle:
-                        "\(Fmt.tokens(budget.spent)) of \(Fmt.tokens(budget.cap)) tokens · warn at \(budget.warnPercent)%",
+                        "\(budget.spentWord) of \(budget.capWord)\(budget.isDollars ? "" : " tokens") · warn at \(budget.warnPercent)%",
                     action: .openScreen(.cost, title: "Cost")))
         }
         for run in liveRuns {

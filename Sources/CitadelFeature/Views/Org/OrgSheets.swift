@@ -145,7 +145,7 @@ struct PendingHiresSheet: View {
         let proposer = approval.flatMap { model.agent($0.requestedBy) }
         let chips =
             ["\(agent.harnessName) · \(agent.model)"]
-            + (model.monthBudget(of: agent.id).map { ["\(Fmt.tokens($0.cap)) tok / month"] } ?? [])
+            + (model.monthBudget(of: agent.id).map { ["\($0.capWord)\($0.isDollars ? "" : " tok") / month"] } ?? [])
             + ["reports to \(model.agent(agent.reportsTo)?.name ?? "—")"]
             + (agent.runnerTags.isEmpty ? [] : [agent.runnerTags.joined(separator: ", ")])
         return HStack(alignment: .center, spacing: skin.size.s14) {

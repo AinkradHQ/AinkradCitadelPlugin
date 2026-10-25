@@ -52,7 +52,7 @@ struct AgentHoverCard: View {
                 if let budget = model.monthBudget(of: agent.id) {
                     GridRow {
                         label("Month budget")
-                        value("\(Fmt.tokens(budget.spent)) of \(Fmt.tokens(budget.cap)) tok")
+                        value("\(budget.spentWord) of \(budget.capWord)\(budget.isDollars ? "" : " tok")")
                     }
                 }
                 GridRow {

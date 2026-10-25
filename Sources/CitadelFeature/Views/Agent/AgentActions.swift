@@ -52,26 +52,37 @@ enum AgentMenu {
     }
 }
 
-/// "Edit budget…" (440): the month cap in tokens, its source; Save sets or creates the agent's budget.
+/// "Edit budget…" (440): the month cap in dollars or tokens (a $ / tokens toggle from API minor 18), its source; Save
+/// sets or creates the agent's budget.
 struct EditBudgetSheet: View {
     let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
     @State private var text = ""
+    @State private var unit = BudgetUnit.tokens
     @State private var problem: String?
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let budget = model.monthBudget(of: agent.id)
+        let tranche = store.serverSupports(minor: CitadelStore.trancheBMinor)
         VStack(alignment: .leading, spacing: skin.size.s12) {
             Text("\(agent.name)'s monthly budget").citadelFont("t15", weight: "semibold")
             Text(
-                "Warns at \(budget?.warnPercent ?? Int(model.warnFraction * 100))%; at 100% new runs stop until next month or a raise. \(Fmt.tokens(budget?.spent ?? 0)) tokens used this month."
+                "Warns at \(budget?.warnPercent ?? Int(model.warnFraction * 100))%; at 100% new runs stop until next month or a raise. \(budget.map { $0.isDollars ? "\($0.spentWord) spent" : "\($0.spentWord) tokens used" } ?? "0 tokens used") this month."
             )
             .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).fixedSize(
                 horizontal: false, vertical: true)
-            AinkradFormRow(title: "Budget", help: "Tokens a month: 8M, 500k or 8000000.") {
-                AinkradTextField(text: $text, placeholder: budget.map { Fmt.tokens($0.cap) } ?? "8M").monospaced()
+            if tranche {
+                AinkradFormRow(title: "Unit") {
+                    AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }.fixedSize()
+                }
+            }
+            AinkradFormRow(
+                title: "Budget",
+                help: unit == .dollars ? "Dollars a month: $120, 1.5k." : "Tokens a month: 8M, 500k or 8000000."
+            ) {
+                AinkradTextField(text: $text, placeholder: unit == .dollars ? "$120" : "8M").monospaced()
             }
             AinkradFormRow(title: "Source") {
                 Text(budget == nil ? "none yet — Save adds an agent budget" : "● agent override")
@@ -79,17 +90,26 @@ struct EditBudgetSheet: View {
             }
             if let problem { Text(problem).citadelFont("t12").foregroundStyle(skin.color(skin.palette.danger)) }
             SheetButtons(confirm: "Save") {
-                guard let cap = TokenAmount.parse(text), cap > 0 else {
-                    problem = "Enter a positive amount of tokens."
+                guard let caps = BudgetUnit.parseCap(text, unit: unit) else {
+                    problem =
+                        unit == .dollars ? "Enter a positive dollar amount." : "Enter a positive amount of tokens."
                     return false
                 }
-                store.setMonthBudget(agent, cap: cap, warnPercent: budget?.warnPercent)
+                store.setMonthBudget(agent, cap: caps.cap, usdCap: caps.usdCap, warnPercent: budget?.warnPercent)
                 return true
             } cancel: {
                 model.orgPage.sheet = nil
             }
         }
-        .onAppear { text = model.monthBudget(of: agent.id).map { Fmt.tokens($0.cap) } ?? "" }
+        .onAppear {
+            let month = model.monthBudget(of: agent.id)
+            unit = month?.unit ?? .tokens
+            text = month?.capWord ?? ""
+        }
+        .onChange(of: unit) { _, now in
+            if let month = model.monthBudget(of: agent.id), month.unit != now { text = "" }
+            if let month = model.monthBudget(of: agent.id), month.unit == now { text = month.capWord }
+        }
     }
 }
 

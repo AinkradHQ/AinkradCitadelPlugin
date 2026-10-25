@@ -183,7 +183,7 @@ private struct AgentStageStats: View {
                     label: budget.map { "\(Int(($0.fraction * 100).rounded()))%" } ?? "—")
             } text: {
                 value(
-                    budget.map { Fmt.tokens($0.spent) } ?? "No budget", small: budget.map { " / \(Fmt.tokens($0.cap))" }
+                    budget?.spentWord ?? "No budget", small: budget.map { " / \($0.capWord)" }
                 )
                 caption("budget · \(Date().formatted(.dateTime.month(.abbreviated)))")
             }

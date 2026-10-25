@@ -101,7 +101,8 @@ struct SetPriceForm: View {
     }
 }
 
-/// Cost › New budget (`costNewBudget`): scope, target, period and cap in tokens; warn inherits the company's.
+/// Cost › New budget (`costNewBudget`): scope, target, period and a cap in dollars or tokens (API minor 18; older
+/// servers: tokens, no issue scope); warn inherits the company's.
 struct NewBudgetForm: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -110,6 +111,7 @@ struct NewBudgetForm: View {
     @State private var scope: String
     @State private var period = "month"
     @State private var cap = ""
+    @State private var unit: BudgetUnit
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -118,7 +120,10 @@ struct NewBudgetForm: View {
         self.model = model
         self._isPresented = isPresented
         self._scope = State(initialValue: "company:\(model.companyID)")
+        self._unit = State(initialValue: store.serverSupports(minor: CitadelStore.trancheBMinor) ? .dollars : .tokens)
     }
+
+    private var tranche: Bool { store.serverSupports(minor: CitadelStore.trancheBMinor) }
 
     /// Every target of the chosen kind, labelled as the budget cards read.
     private var targets: [(scope: String, label: String)] {
@@ -126,12 +131,15 @@ struct NewBudgetForm: View {
         case "department": model.departments.map { ("department:\($0.id)", $0.name) }
         case "project": model.projects.map { ("project:\($0.id)", "\($0.key) · \($0.name)") }
         case "agent": model.agents.values.sorted { $0.name < $1.name }.map { ("agent:\($0.id)", $0.name) }
+        case "issue":
+            model.issues.values.filter { !["done", "cancelled"].contains($0.state) }.sorted { $0.key < $1.key }
+                .map { ("issue:\($0.id)", "\($0.key) · \($0.title)") }
         default: [("company:\(model.companyID)", "Company")]
         }
     }
 
     var body: some View {
-        let edit = BudgetEdit.parse(cap: cap, warn: "")
+        let edit = BudgetEdit.parse(cap: cap, warn: "", unit: unit)
         let label = targets.first { $0.scope == scope }?.label ?? targets.first?.label ?? "Company"
         AinkradDrawerPanel(
             style: .form, onClose: { isPresented = false },
@@ -141,8 +149,8 @@ struct NewBudgetForm: View {
                 AinkradOptionGrid(
                     options: ["company", "department", "project", "agent", "issue"].map {
                         AinkradOption(
-                            id: $0, title: $0.capitalized, detail: "", isEnabled: $0 != "issue",
-                            help: $0 == "issue" ? "Issue budgets need the server (BudgetScope issue)" : nil)
+                            id: $0, title: $0.capitalized, detail: "", isEnabled: $0 != "issue" || tranche,
+                            help: $0 == "issue" && !tranche ? store.help(minor: CitadelStore.trancheBMinor) : nil)
                     }, columns: 5, isOn: { $0 == kind }
                 ) { picked in
                     kind = picked
@@ -162,8 +170,15 @@ struct NewBudgetForm: View {
                 AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) { $0.capitalized }
                     .fixedSize()
             }
-            AinkradDrawerSection(title: "Cap", hint: "tokens · dollar caps need the server") {
-                AinkradTextField(text: $cap, placeholder: "2M").monospaced()
+            AinkradDrawerSection(
+                title: "Cap",
+                hint: tranche
+                    ? "dollars or tokens" : "tokens · dollar caps: \(store.help(minor: CitadelStore.trancheBMinor))"
+            ) {
+                if tranche {
+                    AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }.fixedSize()
+                }
+                AinkradTextField(text: $cap, placeholder: unit == .dollars ? "$120" : "2M").monospaced()
                 if !cap.isEmpty, case .failure(let why) = edit {
                     Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
                 }
@@ -174,38 +189,56 @@ struct NewBudgetForm: View {
         } footer: {
             Spacer()
             AinkradDockButton("Cancel") { isPresented = false }
-            AinkradDockButton("Create budget", tone: .primary, isEnabled: (try? edit.get()) != nil) {
+            AinkradDockButton("Create budget", tone: .primary, isEnabled: (try? edit.get()) != nil && !scope.isEmpty) {
                 guard case .success(let edit) = edit else { return }
-                store.addBudget(scope: scope, label: label, period: period, cap: edit.cap)
+                store.addBudget(scope: scope, label: label, period: period, cap: edit.cap, usdCap: edit.usdCap)
                 isPresented = false
             }
         }
     }
 }
 
-/// A budget edit as typed: the cap in tokens (`2M`, `900k`, `1500`) and the warn % (`nil` inherits).
+/// A budget edit as typed: the cap in tokens (`2M`, `900k`, `1500`) or dollars (`$900`, `1.5k`), and the warn %
+/// (`nil` inherits). A dollar edit leaves `cap` 0 — the caller keeps the budget's own token cap.
 struct BudgetEdit: Equatable {
     var cap: Int64
+    var usdCap: Int64?
     var warnPercent: Int?
 
+    init(cap: Int64, usdCap: Int64? = nil, warnPercent: Int?) {
+        self.cap = cap
+        self.usdCap = usdCap
+        self.warnPercent = warnPercent
+    }
+
     enum Problem: Error, Equatable {
-        case cap, warn
+        case cap, dollars, warn
 
         var message: String {
             switch self {
             case .cap: "The cap is a token count, 0 or more (2M, 900k)."
+            case .dollars: "The cap is a dollar amount, 0 or more ($900, 1.5k)."
             case .warn: "Warn at is 50–99%, or empty to inherit."
             }
         }
     }
 
-    static func parse(cap: String, warn: String) -> Result<BudgetEdit, Problem> {
-        guard let tokens = ScopedSetting.parse(cap, unit: "tokens"), tokens >= 0 else { return .failure(.cap) }
+    static func parse(cap: String, warn: String, unit: BudgetUnit = .tokens) -> Result<BudgetEdit, Problem> {
+        var tokens: Int64 = 0
+        var dollars: Int64?
+        switch unit {
+        case .tokens:
+            guard let parsed = ScopedSetting.parse(cap, unit: "tokens"), parsed >= 0 else { return .failure(.cap) }
+            tokens = parsed
+        case .dollars:
+            guard let parsed = BudgetUnit.parseDollars(cap) else { return .failure(.dollars) }
+            dollars = parsed
+        }
         let typed = warn.trimmingCharacters(in: .whitespaces)
-        if typed.isEmpty { return .success(BudgetEdit(cap: tokens, warnPercent: nil)) }
+        if typed.isEmpty { return .success(BudgetEdit(cap: tokens, usdCap: dollars, warnPercent: nil)) }
         guard let percent = ScopedSetting.parse(typed, unit: "percent"), (50...99).contains(percent) else {
             return .failure(.warn)
         }
-        return .success(BudgetEdit(cap: tokens, warnPercent: Int(percent)))
+        return .success(BudgetEdit(cap: tokens, usdCap: dollars, warnPercent: Int(percent)))
     }
 }
