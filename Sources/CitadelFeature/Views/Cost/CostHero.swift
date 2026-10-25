@@ -26,9 +26,10 @@ struct CostHero: View {
                         fraction: budget.fraction,
                         projected: pace(budget).map { Double($0) / Double(max(budget.cap, 1)) })
                     HStack(spacing: skin.size.s14) {
-                        Swatch(color: blue, label: "used")
+                        LegendSwatch(color: blue, label: "used")
                         if let pace = pace(budget) {
-                            Swatch(color: blue.opacity(skin.opacity.o35), label: "on pace for \(Fmt.tokens(pace))")
+                            LegendSwatch(
+                                color: blue.opacity(skin.opacity.o35), label: "on pace for \(Fmt.tokens(pace))")
                         }
                         Spacer()
                         Text("cap \(Fmt.tokens(budget.cap))")
@@ -273,9 +274,9 @@ struct CostChartTile: View {
                         .foregroundStyle(skin.color(skin.text.primary))
                     Spacer()
                     HStack(spacing: skin.size.s12) {
-                        Swatch(color: blue, label: "Priced")
-                        Swatch(color: amber, label: "Unpriced")
-                        Swatch(color: violet, label: "Subscription")
+                        LegendSwatch(color: blue, label: "Priced")
+                        LegendSwatch(color: amber, label: "Unpriced")
+                        LegendSwatch(color: violet, label: "Subscription")
                     }
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                 }
@@ -328,13 +329,14 @@ struct CostChartTile: View {
         let t = day.totals
         return ChartTip {
             Text(axis(day)).bold().foregroundStyle(skin.color(skin.text.primary))
-            Swatch(
+            LegendSwatch(
                 color: skin.color(skin.palette.accentPrimary),
                 label: "Priced \(Fmt.dollars(micros: t.costMicros)) · \(Fmt.tokens(t.pricedTokens)) tok")
-            Swatch(
+            LegendSwatch(
                 color: skin.color(skin.palette.warning),
                 label: t.unpricedTokens > 0 ? "\(Fmt.tokens(t.unpricedTokens)) tok unpriced" : "no unpriced")
-            Swatch(color: skin.color(skin.palette.accentViolet), label: "\(Fmt.tokens(t.subscriptionTokens)) sub tok")
+            LegendSwatch(
+                color: skin.color(skin.palette.accentViolet), label: "\(Fmt.tokens(t.subscriptionTokens)) sub tok")
         }
         .foregroundStyle(skin.color(skin.text.muted))
     }

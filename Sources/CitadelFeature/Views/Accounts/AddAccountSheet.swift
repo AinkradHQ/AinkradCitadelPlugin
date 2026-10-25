@@ -23,9 +23,9 @@ struct AddAccountSheet: View {
                 "A login or key you own. Credentials stay on the runners as a config dir — Citadel only stores a reference."
             )
             OpsSection(title: "Provider") {
-                ChoiceCardGrid(
+                OpsChoiceGrid(
                     cards: Self.providers.map { harness, name, detail in
-                        ChoiceCard(
+                        OpsChoice(
                             id: harness, title: name, detail: detail,
                             leading: AnyView(SolidHarnessTag(harness: harness, size: skin.size.s40)),
                             tint: AgentLook.harness(harness)?.color)
@@ -38,12 +38,12 @@ struct AddAccountSheet: View {
                 }
             }
             OpsSection(title: "Kind") {
-                ChoiceCardGrid(
+                OpsChoiceGrid(
                     cards: [
-                        ChoiceCard(
+                        OpsChoice(
                             id: "subscription", title: "Subscription login", detail: "usage windows, counted in tokens",
                             systemImage: "square.stack.3d.up"),
-                        ChoiceCard(
+                        OpsChoice(
                             id: "metered", title: "API key", detail: "billed per token, counted in $",
                             systemImage: "key"),
                     ], columns: 2, isOn: { $0 == draft.billing }, pick: { draft.billing = $0 })

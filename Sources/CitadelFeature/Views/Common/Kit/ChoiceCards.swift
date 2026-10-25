@@ -4,8 +4,8 @@
 import AinkradAppKit
 import SwiftUI
 
-/// One card of a `ChoiceCardGrid`.
-struct ChoiceCard<ID: Hashable>: Identifiable {
+/// One card of a `OpsChoiceGrid`.
+struct OpsChoice<ID: Hashable>: Identifiable {
     let id: ID
     var title: String
     var detail: String
@@ -19,8 +19,8 @@ struct ChoiceCard<ID: Hashable>: Identifiable {
 }
 
 /// A grid of selectable cards: `isOn` marks the chosen ones (one or many), `pick` answers a tap.
-struct ChoiceCardGrid<ID: Hashable>: View {
-    let cards: [ChoiceCard<ID>]
+struct OpsChoiceGrid<ID: Hashable>: View {
+    let cards: [OpsChoice<ID>]
     var columns = 3
     /// Centred cards (provider tiles) instead of leading-aligned ones.
     var centered = false
@@ -34,14 +34,14 @@ struct ChoiceCardGrid<ID: Hashable>: View {
             spacing: skin.size.s8
         ) {
             ForEach(cards) { card in
-                ChoiceCardView(card: card, centered: centered, isOn: isOn(card.id)) { pick(card.id) }
+                OpsChoiceView(card: card, centered: centered, isOn: isOn(card.id)) { pick(card.id) }
             }
         }
     }
 }
 
-private struct ChoiceCardView<ID: Hashable>: View {
-    let card: ChoiceCard<ID>
+private struct OpsChoiceView<ID: Hashable>: View {
+    let card: OpsChoice<ID>
     let centered: Bool
     let isOn: Bool
     let pick: () -> Void

@@ -189,17 +189,17 @@ struct AccountLimitsDrawer: View {
         let setting = page.companySettings["account.at_limit"]
         let value = setting?.value ?? 0
         return OpsSection(title: "At the limit", hint: "what new runs do · company-wide") {
-            ChoiceCardGrid(
+            OpsChoiceGrid(
                 cards: [
-                    ChoiceCard(
+                    OpsChoice(
                         id: Int64(-1), title: "Skip it",
                         detail: "New runs go to the next healthy account until the window resets",
                         systemImage: "arrow.right", isEnabled: false,
                         help: "The pool always skips a limited account first; a per-account choice needs the server"),
-                    ChoiceCard(
+                    OpsChoice(
                         id: Int64(1), title: "Queue", detail: "Runs that need this account wait for the reset",
                         systemImage: "clock", isEnabled: setting != nil),
-                    ChoiceCard(
+                    OpsChoice(
                         id: Int64(0), title: "Fall back", detail: "Use the agent's next chain entry right away",
                         systemImage: "arrow.counterclockwise", isEnabled: setting != nil),
                 ], isOn: { $0 == value && setting != nil }, pick: { store.setAtLimit($0) })

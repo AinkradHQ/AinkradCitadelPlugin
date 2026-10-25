@@ -54,12 +54,12 @@ struct SetPriceForm: View {
                 OpsHint("input · output · cache read")
             }
             OpsSection(title: "Apply to") {
-                ChoiceCardGrid(
+                OpsChoiceGrid(
                     cards: [
-                        ChoiceCard(
+                        OpsChoice(
                             id: "past", title: "Past runs too", detail: "re-cost this period's unpriced runs",
                             isEnabled: false, help: "Re-pricing past runs needs the server (apply_from)"),
-                        ChoiceCard(id: "now", title: "From now on", detail: "runs before stay unpriced"),
+                        OpsChoice(id: "now", title: "From now on", detail: "runs before stay unpriced"),
                     ], columns: 2, isOn: { $0 == "now" }, pick: { _ in })
             }
             if !history.isEmpty {
@@ -132,9 +132,9 @@ struct NewBudgetForm: View {
         let label = targets.first { $0.scope == scope }?.label ?? targets.first?.label ?? "Company"
         OpsDrawerPanel(crumb: ["Cost", "New budget"], close: { isPresented = false }) {
             OpsSection(title: "Scope") {
-                ChoiceCardGrid(
+                OpsChoiceGrid(
                     cards: ["company", "department", "project", "agent", "issue"].map {
-                        ChoiceCard(
+                        OpsChoice(
                             id: $0, title: $0.capitalized, detail: "", isEnabled: $0 != "issue",
                             help: $0 == "issue" ? "Issue budgets need the server (BudgetScope issue)" : nil)
                     }, columns: 5, isOn: { $0 == kind }

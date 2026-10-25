@@ -130,7 +130,7 @@ struct ChartTip<Content: View>: View {
 }
 
 /// A legend swatch: an 8 pt rounded square and its label.
-struct Swatch: View {
+struct LegendSwatch: View {
     let color: Color
     let label: String
     @Environment(\.ainkradSkin) private var skin
