@@ -36,13 +36,17 @@ struct CompanySwitcher: View {
                 .layoutPriority(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down").citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(hovering || store.isSwitchingCompany ? skin.text.primary : skin.text.muted))
+                    .foregroundStyle(
+                        skin.color(hovering || store.isSwitchingCompany ? skin.text.primary : skin.text.muted)
+                    )
                     .frame(width: skin.size.s22, height: skin.size.s26)
                     .background(
                         RoundedRectangle(cornerRadius: skin.size.s7, style: .continuous)
                             .fill(
                                 skin.color(
-                                    .palette("foreground", hovering || store.isSwitchingCompany ? skin.opacity.o10 : skin.opacity.o05))))
+                                    .palette(
+                                        "foreground",
+                                        hovering || store.isSwitchingCompany ? skin.opacity.o10 : skin.opacity.o05))))
             }
             .padding(skin.size.s8)
             .background {
@@ -66,7 +70,8 @@ struct CompanySwitcher: View {
             }
             .overlay(
                 shape.strokeBorder(
-                    tint.opacity(store.isSwitchingCompany ? skin.opacity.o60 : hovering ? skin.opacity.o50 : skin.opacity.o28),
+                    tint.opacity(
+                        store.isSwitchingCompany ? skin.opacity.o60 : hovering ? skin.opacity.o50 : skin.opacity.o28),
                     lineWidth: 1)
             )
             .shadow(color: skin.color(.palette("black", skin.opacity.o25)), radius: skin.size.s10, y: skin.size.s6)

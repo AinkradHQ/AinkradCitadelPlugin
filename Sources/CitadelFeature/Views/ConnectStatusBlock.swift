@@ -22,6 +22,19 @@ struct ConnectStatusBlock: View {
                     let ms = max(0, Int(context.date.timeIntervalSince(since) * 1000))
                     detail(Text(verbatim: "Step \(step) of \(CitadelStore.steps) · \(ms) ms"))
                 }
+                // TLS ok · checking key · opening the event stream, filled as each lands.
+                HStack(spacing: skin.size.s4) {
+                    ForEach(1...CitadelStore.steps, id: \.self) { index in
+                        Capsule()
+                            .fill(
+                                index <= step
+                                    ? skin.color(skin.palette.accentSecondary)
+                                    : skin.color(.palette("foreground", skin.opacity.o10))
+                            )
+                            .frame(height: skin.size.s3)
+                    }
+                }
+                .padding(.top, skin.size.s4)
             }
         case .connected:
             block(tint: status.success) {
@@ -68,7 +81,9 @@ struct ConnectStatusBlock: View {
 
     /// Version, host, API, round trip: `citadel 0.1.0 · citadel.ainkrad.io · api 1 · 42 ms`.
     private var connectedFacts: String {
-        var facts = [store.serverVersion.map { "citadel \($0)" }, store.host, "api 1"].compactMap { $0 }
+        var facts = [store.serverVersion.map { "citadel \($0)" }, store.host, "api \(store.apiMinor ?? 1)"].compactMap {
+            $0
+        }
         if let latency = store.latency {
             facts.append("\(Int(latency / .milliseconds(1))) ms")
         }

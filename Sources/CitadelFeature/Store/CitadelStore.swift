@@ -208,7 +208,13 @@ final class CitadelStore {
         phase = .setup
     }
 
-    func openHome() { hasOpenedHome = true }
+    func openHome() {
+        hasOpenedHome = true
+        let who = [company?.name, agentCount.map { "\($0) agents" }].compactMap { $0 }.joined(separator: " · ")
+        toast(
+            AinkradRichToast(
+                title: "Connected to \(host)", body: "\(who) · replayed \(replayed) events", status: .success))
+    }
 
     func select(company id: Int64) {
         guard id != settings.document.companyID, let server else { return }
@@ -221,6 +227,12 @@ final class CitadelStore {
         stream?.stop()
         startStream(server.scoped(to: id))
         Task { agentCount = try? await server.scoped(to: id).agentCount(company: id) }
+        if let name = companies.first(where: { $0.id == id })?.name {
+            toast(
+                AinkradRichToast(
+                    title: "Switched to \(name)", body: "Accounts, runners and cost are per company — nothing is mixed."
+                ))
+        }
     }
 
     func stop() {
@@ -337,6 +349,12 @@ final class CitadelStore {
         case .live, .polling:
             if model?.companyID != company?.id { loadCompany() }
             if phase != .connected {
+                if case .offline = phase {
+                    toast(
+                        AinkradRichToast(
+                            title: "Back online", body: "Replayed \(replayed) events — nothing was missed.",
+                            status: .success))
+                }
                 phase = .connected
                 settings.update {
                     $0.hasConnected = true

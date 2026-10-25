@@ -47,7 +47,8 @@ struct ShellView: View {
         }
         .animation(
             reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "spring", response: 0.32, damping: 0.8)),
-            value: store.isSearching)
+            value: store.isSearching
+        )
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
     }

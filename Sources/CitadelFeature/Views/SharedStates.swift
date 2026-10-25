@@ -20,7 +20,10 @@ struct OfflineBar: View {
         .foregroundStyle(skin.color(skin.text.muted))
         .padding(.horizontal, skin.size.s12)
         .padding(.vertical, skin.size.s8)
-        .background(status.warning.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous))
+        .background(
+            status.warning.opacity(skin.opacity.o12),
+            in: RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
+        )
         .padding(.horizontal, skin.size.s14)
         .padding(.bottom, skin.size.s6)
     }

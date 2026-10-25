@@ -36,7 +36,8 @@ struct SpotlightPreview: View {
             if let agent = model.agent(id) {
                 VStack(spacing: skin.size.s8) {
                     AgentFigure(agent: agent, model: model, size: skin.size.s80 + skin.size.s4, isActive: true)
-                    Text(agent.name).citadelFont("t15", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
+                    Text(agent.name).citadelFont("t15", weight: "semibold").foregroundStyle(
+                        skin.color(skin.text.primary))
                     Text("\(agent.role) · \(agent.harnessName) · \(agent.model)").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
                 }
@@ -54,7 +55,8 @@ struct SpotlightPreview: View {
         case .requirement(let id):
             if let requirement = model.requirements.first(where: { $0.id == id }) {
                 HStack(spacing: skin.size.s12) {
-                    let fraction = requirement.points > 0 ? Double(requirement.donePoints) / Double(requirement.points) : nil
+                    let fraction =
+                        requirement.points > 0 ? Double(requirement.donePoints) / Double(requirement.points) : nil
                     AinkradRingGauge(
                         value: fraction, tint: skin.color(skin.palette.accentSecondary), diameter: skin.size.s56,
                         lineWidth: skin.size.s6
@@ -96,10 +98,13 @@ struct SpotlightPreview: View {
             card("Issues · \(issues.count)") {
                 ForEach(issues.prefix(8)) { issue in
                     HStack(spacing: skin.size.s6) {
-                        Text(issue.key).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.palette.accentSecondary))
+                        Text(issue.key).citadelFont("t11", mono: true).foregroundStyle(
+                            skin.color(skin.palette.accentSecondary))
                         Text(issue.title).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                         Spacer(minLength: skin.size.s4)
-                        StatePill(text: issue.state.replacingOccurrences(of: "_", with: " "), tint: skin.color(skin.text.muted))
+                        StatePill(
+                            text: issue.state.replacingOccurrences(of: "_", with: " "),
+                            tint: skin.color(skin.text.muted))
                     }
                 }
                 if issues.isEmpty {
@@ -119,10 +124,14 @@ struct SpotlightPreview: View {
             if let approval = model.approvals.first(where: { $0.id == id }) {
                 let line = ToolLine.line(approval.fields)
                 if !line.isEmpty {
-                    Text("$ \(line)").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.palette.accentSecondary))
-                        .padding(skin.size.s10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(skin.color(.palette("black", skin.opacity.o30)), in: RoundedRectangle(cornerRadius: skin.size.s10))
+                    Text("$ \(line)").citadelFont("t11", mono: true).foregroundStyle(
+                        skin.color(skin.palette.accentSecondary)
+                    )
+                    .padding(skin.size.s10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        skin.color(.palette("black", skin.opacity.o30)),
+                        in: RoundedRectangle(cornerRadius: skin.size.s10))
                 }
                 card("Asked") {
                     fact("By", model.agent(approval.agentID ?? approval.requestedBy)?.name ?? "—")
@@ -147,7 +156,9 @@ struct SpotlightPreview: View {
                     fact("Key", project.key)
                     fact("Cadence", project.mode == "kanban" ? "Kanban" : "Sprints")
                     if let sprint = model.sprint {
-                        fact("Sprint", "\(Wording.sprintName(sprint.title)) · \(sprint.completed)/\(sprint.committed) pts")
+                        fact(
+                            "Sprint",
+                            "\(Wording.sprintName(sprint.title)) · \(sprint.completed)/\(sprint.committed) pts")
                     }
                 }
             }
@@ -165,8 +176,10 @@ struct SpotlightPreview: View {
             AinkradBudgetBar(
                 label: "Run tokens", value: Double(run.tokens), limit: Double(model.runCap ?? max(run.tokens, 1)),
                 warnFraction: model.warnFraction, showsHardLimit: false)
-            Text("\(Fmt.tokens(run.tokens)) of \(model.runCap.map(Fmt.tokens) ?? "—") tok · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")")
-                .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
+            Text(
+                "\(Fmt.tokens(run.tokens)) of \(model.runCap.map(Fmt.tokens) ?? "—") tok · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")"
+            )
+            .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
             if run.isLive {
                 Text("▸ \(model.toolNow[run.id] ?? run.state)").citadelFont("t11", mono: true)
                     .foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
@@ -183,7 +196,8 @@ struct SpotlightPreview: View {
         }
         .padding(skin.size.s12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(skin.color(.palette("foreground", skin.opacity.o05)), in: RoundedRectangle(cornerRadius: skin.size.s14))
+        .background(
+            skin.color(.palette("foreground", skin.opacity.o05)), in: RoundedRectangle(cornerRadius: skin.size.s14))
     }
 
     private func fact(_ label: String, _ value: String) -> some View {

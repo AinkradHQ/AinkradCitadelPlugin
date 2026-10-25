@@ -64,7 +64,8 @@ struct Spotlight: View {
                 AinkradCommandField(
                     "Search agents, runs, requirements, issues, actions…", text: $query, focus: $focused,
                     leading: {
-                        Image(systemName: "magnifyingglass").citadelFont("t18").foregroundStyle(skin.color(skin.text.muted))
+                        Image(systemName: "magnifyingglass").citadelFont("t18").foregroundStyle(
+                            skin.color(skin.text.muted))
                     },
                     onArrow: { arrow in
                         switch arrow {
@@ -117,7 +118,8 @@ struct Spotlight: View {
                     .fill(
                         isOn
                             ? skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o18)
-                            : skin.color(.palette("foreground", skin.opacity.o05))))
+                            : skin.color(.palette("foreground", skin.opacity.o05)))
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: skin.size.s9, style: .continuous)
                     .strokeBorder(
@@ -138,7 +140,8 @@ struct Spotlight: View {
             ScrollView {
                 if rows.isEmpty {
                     VStack(spacing: skin.size.s8) {
-                        Image(systemName: "magnifyingglass").citadelFont("t26").foregroundStyle(skin.color(skin.text.faint))
+                        Image(systemName: "magnifyingglass").citadelFont("t26").foregroundStyle(
+                            skin.color(skin.text.faint))
                         Text("Nothing matches “\(query)”").citadelFont("t13", weight: "semibold")
                             .foregroundStyle(skin.color(skin.text.primary))
                         Text("Try another word, or press ⇥ to change scope").citadelFont("t12")
@@ -150,11 +153,13 @@ struct Spotlight: View {
                 LazyVStack(alignment: .leading, spacing: skin.size.s1) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                         if index == 0 || rows[index - 1].group != item.group {
-                            Text(item.group.uppercased()).citadelFont("t10_5", weight: "semibold").tracking(skin.size.s1 / 2)
-                                .foregroundStyle(skin.color(skin.text.faint))
-                                .padding(.top, index == 0 ? skin.size.s6 : skin.size.s12)
-                                .padding(.bottom, skin.size.s4)
-                                .padding(.horizontal, skin.size.s10)
+                            Text(item.group.uppercased()).citadelFont("t10_5", weight: "semibold").tracking(
+                                skin.size.s1 / 2
+                            )
+                            .foregroundStyle(skin.color(skin.text.faint))
+                            .padding(.top, index == 0 ? skin.size.s6 : skin.size.s12)
+                            .padding(.bottom, skin.size.s4)
+                            .padding(.horizontal, skin.size.s10)
                         }
                         row(item, isSelected: index == selected)
                             .id(item.id)
@@ -185,7 +190,9 @@ struct Spotlight: View {
                 Text(meta).citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.muted))
                     .padding(.horizontal, skin.size.s6)
                     .padding(.vertical, skin.size.s2)
-                    .background(skin.color(.palette("foreground", skin.opacity.o07)), in: RoundedRectangle(cornerRadius: skin.size.s6))
+                    .background(
+                        skin.color(.palette("foreground", skin.opacity.o07)),
+                        in: RoundedRectangle(cornerRadius: skin.size.s6))
             }
         }
         .padding(.vertical, skin.size.s7)
@@ -198,7 +205,9 @@ struct Spotlight: View {
             }
         }
         .contentShape(Rectangle())
-        .animation(reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.18)), value: isSelected)
+        .animation(
+            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.18)),
+            value: isSelected)
     }
 
     private func highlighted(_ title: String) -> Text {

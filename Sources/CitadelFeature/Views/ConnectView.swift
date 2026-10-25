@@ -11,48 +11,75 @@ struct ConnectView: View {
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
+    @State private var breathe = false
+
     var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: 0) {
-                mark
-                Text("Connect to your Citadel")
-                    .font(skin.font(AinkradFontToken(sizeKey: "t18", weight: "bold"), typography: typo))
-                    .foregroundStyle(skin.color(skin.text.primary))
-                    .padding(.top, skin.size.s10)
-                    .padding(.bottom, skin.size.s4)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+        ZStack {
+            // The breathing cyan glow behind the card.
+            RadialGradient(
+                colors: [skin.color(skin.palette.accentSecondary).opacity(skin.opacity.o16), .clear], center: .center,
+                startRadius: 0, endRadius: skin.size.s260
+            )
+            .frame(width: skin.size.s520, height: skin.size.s520)
+            .scaleEffect(breathe ? 1.12 : 1)
+            .allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: skin.size.s12) {
+                HStack(spacing: skin.size.s14) {
+                    mark
+                    VStack(alignment: .leading, spacing: skin.size.s2) {
+                        Text("Citadel").citadelFont("t10_5", weight: "semibold").foregroundStyle(
+                            skin.color(skin.text.muted))
+                        Text("Connect to your Citadel").citadelFont("t18", weight: "bold")
+                            .foregroundStyle(skin.color(skin.text.primary))
+                    }
+                }
                 Text(
                     "Citadel runs your agent company on a server. This Mac watches it, answers approvals and talks to agents."
                 )
-                .font(skin.font(AinkradFontToken(sizeKey: "t13"), typography: typo))
+                .citadelFont("t13")
                 .foregroundStyle(skin.color(skin.text.muted))
                 .lineSpacing(skin.size.s3)
                 .fixedSize(horizontal: false, vertical: true)
-                form.padding(.top, skin.size.s16)
+                form.padding(.top, skin.size.s4)
                 ConnectStatusBlock(store: store)
-                    .padding(.top, skin.size.s16)
                     .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.phase)
-                actions.padding(.top, skin.size.s12)
+                actions.padding(.top, skin.size.s4)
             }
-            .padding(.horizontal, skin.size.s12)
-            .padding(.vertical, skin.size.s10)
+            .padding(.vertical, skin.size.s26)
+            .padding(.horizontal, skin.size.s28)
+            .frame(width: skin.size.s480 + skin.size.s20)
+            .background(shape.fill(skin.color(.palette("surfaceElevated", skin.opacity.o60))))
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o12)), lineWidth: 1))
         }
-        .frame(width: skin.size.s460)
         .padding(skin.size.s20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 3)).repeatForever()) {
+                breathe = true
+            }
+        }
     }
 
+    /// The brand: an Orb whose mood follows the connection (idle, loading, success, confused on a 401, sleepy offline).
     private var mark: some View {
-        let shape =
-            skin.usesNativeGlass
-            ? AnyShape(RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
-            : AnyShape(skin.shape(cut: skin.size.s10))
-        return Text("⛫")
-            .font(skin.font(AinkradFontToken(sizeKey: "t20"), typography: typo))
-            .foregroundStyle(theme.accentSecondary)
-            .frame(width: skin.size.s44, height: skin.size.s44)
-            .background(shape.fill(theme.surface.opacity(skin.opacity.o90)))
-            .overlay(shape.stroke(theme.accentSecondary.opacity(skin.opacity.o35), lineWidth: 1))
-            .accessibilityHidden(true)
+        AinkradAgentFigure(
+            name: "Citadel", state: mood, palette: .neonTide, harness: nil, size: skin.size.s72, isActive: true,
+            image: nil
+        )
+        .accessibilityHidden(true)
+    }
+
+    private var mood: AinkradFigureState {
+        switch store.phase {
+        case .setup: .idle
+        case .connecting: .loading
+        case .connected: .success
+        case .rejected: .confused
+        case .offline: .sleepy
+        }
     }
 
     private var form: some View {
@@ -132,35 +159,31 @@ struct ConnectView: View {
                     AinkradButton(title: "Cancel", style: .ghost) { store.resume() }.borderless().secondaryAccent()
                         .fixedSize()
                 }
-                AinkradButton(title: "Connect ↵", style: .primary) { store.connect() }
+                AinkradDockButton("Connect ↵", tone: .primary) { store.connect() }
                     .keyboardShortcut(.return, modifiers: [])
-                    .fixedSize()
             case .connecting:
                 Spacer(minLength: 0)
                 AinkradButton(title: "Cancel", style: .ghost) { store.cancel() }.borderless().secondaryAccent()
                     .keyboardShortcut(.cancelAction)
                     .fixedSize()
-                // Stays lit while connecting (mockup 01); the status block carries the progress.
-                AinkradButton(title: "Connect ↵", style: .primary) {}.fixedSize()
+                AinkradDockButton("Connecting…", tone: .primary, isEnabled: false) {}
             case .connected:
-                AinkradButton(title: "Open Home", style: .primary) { store.openHome() }
-                    .keyboardShortcut(.return, modifiers: [])
-                    .fixedSize()
                 Spacer(minLength: 0)
+                AinkradDockButton("Open Home", tone: .primary) { store.openHome() }
+                    .keyboardShortcut(.return, modifiers: [])
             case .rejected:
-                AinkradButton(title: "Paste new key", style: .secondary) {
-                    store.keyDraft = ""
-                    store.editConnection()
-                }
-                .fixedSize()
                 AinkradButton(title: "How keys work", style: .ghost) { store.showsKeyHelp.toggle() }
                     .borderless().secondaryAccent().fixedSize()
                 Spacer(minLength: 0)
+                AinkradDockButton("Paste new key", tone: .primary) {
+                    store.keyDraft = ""
+                    store.editConnection()
+                }
             case .offline:
-                AinkradButton(title: "Retry now", style: .secondary) { store.retryNow() }.fixedSize()
                 AinkradButton(title: "Change server", style: .ghost) { store.editConnection() }
                     .borderless().secondaryAccent().fixedSize()
                 Spacer(minLength: 0)
+                AinkradDockButton("Retry now", tone: .primary) { store.retryNow() }
             }
         }
     }

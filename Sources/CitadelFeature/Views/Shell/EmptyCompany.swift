@@ -30,12 +30,14 @@ struct NoAgentsView: View {
         return [
             Step(
                 done: !accounts.isEmpty, now: false, locked: false, title: "Assign a provider account",
-                detail: accounts.isEmpty ? "Agents need an account to run on" : "\(accounts.joined(separator: ", ")) · shared from the pool",
+                detail: accounts.isEmpty
+                    ? "Agents need an account to run on" : "\(accounts.joined(separator: ", ")) · shared from the pool",
                 button: "Accounts"
             ) { store.go(to: .accounts) },
             Step(
                 done: model.runnersOnline > 0, now: false, locked: false, title: "Pick a runner",
-                detail: model.runners.isEmpty ? "No runner has called home yet" : "\(model.runnersOnline) of \(model.runners.count) online",
+                detail: model.runners.isEmpty
+                    ? "No runner has called home yet" : "\(model.runnersOnline) of \(model.runners.count) online",
                 button: "Runners"
             ) { store.go(to: .runners) },
             Step(
@@ -70,13 +72,15 @@ struct NoAgentsView: View {
         }
         .ainkradConfirmDialog(
             isPresented: $confirming, title: "Hire the Engineering template?",
-            message: "\(Self.engineering.count) hires: \(Self.engineering.joined(separator: ", ")) — each lands in Approvals for you to confirm.",
+            message:
+                "\(Self.engineering.count) hires: \(Self.engineering.joined(separator: ", ")) — each lands in Approvals for you to confirm.",
             confirmTitle: "Propose \(Self.engineering.count) hires"
         ) {
             store.useTemplate()
             store.toast(
                 AinkradRichToast(
-                    title: "\(Self.engineering.count) hires proposed", body: "They wait in Approvals — nothing runs until you hire.",
+                    title: "\(Self.engineering.count) hires proposed",
+                    body: "They wait in Approvals — nothing runs until you hire.",
                     status: .success))
         }
     }
@@ -102,7 +106,9 @@ struct NoAgentsView: View {
                     Text(
                         "A company is a CEO, its agents and their budgets. Hire a team, hand the CEO a requirement, and it plans the sprint — every hire and every spend above a cap waits for you."
                     )
-                    .citadelFont("t13").foregroundStyle(skin.color(skin.text.muted)).frame(maxWidth: skin.size.s520, alignment: .leading)
+                    .citadelFont("t13").foregroundStyle(skin.color(skin.text.muted)).frame(
+                        maxWidth: skin.size.s520, alignment: .leading
+                    )
                     .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: skin.size.s8) {
                         AinkradDockButton("Use Engineering template", tone: .primary) { confirming = true }
@@ -136,14 +142,17 @@ struct NoAgentsView: View {
     private func seat(_ role: String, size: CGFloat, solid: Bool, index: Int) -> some View {
         let blue = skin.color(skin.palette.accentPrimary)
         let shape = RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
-        return Text(role).citadelFont("t10", weight: "semibold", mono: true).foregroundStyle(blue.opacity(skin.opacity.o90))
-            .frame(width: size, height: size)
-            .background(shape.fill(blue.opacity(solid ? skin.opacity.o16 : skin.opacity.o06)))
-            .overlay(
-                shape.strokeBorder(
-                    blue.opacity(solid ? skin.opacity.o50 : skin.opacity.o35),
-                    style: StrokeStyle(lineWidth: 1, dash: solid ? [] : [skin.size.s3, skin.size.s3])))
-            .modifier(SeatEntrance(index: index))
+        return Text(role).citadelFont("t10", weight: "semibold", mono: true).foregroundStyle(
+            blue.opacity(skin.opacity.o90)
+        )
+        .frame(width: size, height: size)
+        .background(shape.fill(blue.opacity(solid ? skin.opacity.o16 : skin.opacity.o06)))
+        .overlay(
+            shape.strokeBorder(
+                blue.opacity(solid ? skin.opacity.o50 : skin.opacity.o35),
+                style: StrokeStyle(lineWidth: 1, dash: solid ? [] : [skin.size.s3, skin.size.s3]))
+        )
+        .modifier(SeatEntrance(index: index))
     }
 
     private func setup(done: Int) -> some View {
@@ -152,9 +161,11 @@ struct NoAgentsView: View {
                 HStack(spacing: skin.size.s8) {
                     Text("Setup").citadelFont("t10_5", weight: "semibold").foregroundStyle(skin.color(skin.text.muted))
                     AinkradBudgetBar(
-                        label: "Setup", value: Double(done), limit: Double(steps.count), warnFraction: nil, showsHardLimit: false,
+                        label: "Setup", value: Double(done), limit: Double(steps.count), warnFraction: nil,
+                        showsHardLimit: false,
                         tone: .progress(Double(done), of: Double(steps.count)))
-                    Text("\(done)/\(steps.count)").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    Text("\(done)/\(steps.count)").citadelFont("t11", mono: true).foregroundStyle(
+                        skin.color(skin.text.faint))
                 }
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                     stepRow(step, number: index + 1)
@@ -164,11 +175,14 @@ struct NoAgentsView: View {
     }
 
     private func stepRow(_ step: Step, number: Int) -> some View {
-        let tint = step.done ? status.success : step.now ? skin.color(skin.palette.accentPrimary) : skin.color(skin.text.muted)
+        let tint =
+            step.done ? status.success : step.now ? skin.color(skin.palette.accentPrimary) : skin.color(skin.text.muted)
         return HStack(spacing: skin.size.s10) {
             Text(step.done ? "✓" : "\(number)").citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(tint)
                 .frame(width: skin.size.s30, height: skin.size.s30)
-                .background(tint.opacity(step.now ? skin.opacity.o25 : skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s9))
+                .background(
+                    tint.opacity(step.now ? skin.opacity.o25 : skin.opacity.o12),
+                    in: RoundedRectangle(cornerRadius: skin.size.s9))
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 Text(step.title).citadelFont("t13", weight: "medium")
                     .foregroundStyle(skin.color(step.done ? skin.text.muted : skin.text.primary))
@@ -176,7 +190,9 @@ struct NoAgentsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if !step.locked {
-                AinkradDockButton(step.done ? "Review" : step.button, tone: step.now ? .primary : .plain, height: skin.size.s26, action: step.action)
+                AinkradDockButton(
+                    step.done ? "Review" : step.button, tone: step.now ? .primary : .plain, height: skin.size.s26,
+                    action: step.action)
             }
         }
         .padding(.vertical, skin.size.s8)
@@ -187,13 +203,15 @@ struct NoAgentsView: View {
     private var templates: some View {
         BentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                Text("Team templates").citadelFont("t10_5", weight: "semibold").foregroundStyle(skin.color(skin.text.muted))
+                Text("Team templates").citadelFont("t10_5", weight: "semibold").foregroundStyle(
+                    skin.color(skin.text.muted))
                 templateRow(
                     count: "\(Self.engineering.count)", name: "Engineering", tag: "Recommended",
                     detail: Self.engineering.joined(separator: " · "), trailing: "at default budgets"
                 ) { confirming = true }
                 templateRow(
-                    count: "＋", name: "Start blank", tag: nil, detail: "Propose agents one by one · each is a hire you approve",
+                    count: "＋", name: "Start blank", tag: nil,
+                    detail: "Propose agents one by one · each is a hire you approve",
                     trailing: "you pick"
                 ) { proposing = true }
             }
@@ -206,16 +224,21 @@ struct NoAgentsView: View {
         let blue = skin.color(skin.palette.accentPrimary)
         return AinkradTapArea(action: action) {
             HStack(spacing: skin.size.s10) {
-                Text(count).citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(blue.opacity(skin.opacity.o90))
-                    .frame(width: skin.size.s30, height: skin.size.s30)
-                    .background(blue.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s9))
+                Text(count).citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(
+                    blue.opacity(skin.opacity.o90)
+                )
+                .frame(width: skin.size.s30, height: skin.size.s30)
+                .background(blue.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s9))
                 VStack(alignment: .leading, spacing: skin.size.s1) {
                     HStack(spacing: skin.size.s6) {
                         Text(name).citadelFont("t13", weight: "medium").foregroundStyle(skin.color(skin.text.primary))
                         if let tag {
-                            Text(tag).citadelFont("t9_5", weight: "semibold").foregroundStyle(blue.opacity(skin.opacity.o90))
-                                .padding(.horizontal, skin.size.s6)
-                                .background(blue.opacity(skin.opacity.o18), in: RoundedRectangle(cornerRadius: skin.size.s5))
+                            Text(tag).citadelFont("t9_5", weight: "semibold").foregroundStyle(
+                                blue.opacity(skin.opacity.o90)
+                            )
+                            .padding(.horizontal, skin.size.s6)
+                            .background(
+                                blue.opacity(skin.opacity.o18), in: RoundedRectangle(cornerRadius: skin.size.s5))
                         }
                     }
                     Text(detail).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
@@ -243,7 +266,9 @@ private struct SeatEntrance: ViewModifier {
             .scaleEffect(shown || reduceMotion ? 1 : 0.9)
             .offset(y: shown || reduceMotion ? 0 : skin.size.s6)
             .onAppear {
-                withAnimation(skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.5)).delay(Double(index) * 0.12)) {
+                withAnimation(
+                    skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.5)).delay(Double(index) * 0.12)
+                ) {
                     shown = true
                 }
             }

@@ -23,8 +23,15 @@ enum SearchScope: String, CaseIterable, Identifiable {
 /// One row: its group (the header it sits under), what it is, and what ↵ / ⌘↵ do.
 struct SearchItem: Identifiable {
     enum Kind: Equatable {
-        case agent(Int64), run(Int64), requirement(Int64), issue(Int64), project(Int64), approval(Int64), stuck(Int)
-        case screen(Screen), action(String)
+        case agent(Int64)
+        case run(Int64)
+        case requirement(Int64)
+        case issue(Int64)
+        case project(Int64)
+        case approval(Int64)
+        case stuck(Int)
+        case screen(Screen)
+        case action(String)
     }
 
     let id: String
@@ -75,7 +82,8 @@ extension CompanyModel {
             items.append(
                 SearchItem(
                     id: "ap\(approval.id)", kind: .approval(approval.id), scope: .actions, group: "Needs you",
-                    title: summary.title, subtitle: approval.kind.replacingOccurrences(of: "_", with: " "), meta: "approve",
+                    title: summary.title, subtitle: approval.kind.replacingOccurrences(of: "_", with: " "),
+                    meta: "approve",
                     glyph: "✓", altTitle: approval.fields["run"] == nil ? nil : "Run"))
         }
         for (index, item) in stuck.enumerated() {
@@ -83,7 +91,8 @@ extension CompanyModel {
             items.append(
                 SearchItem(
                     id: "st\(index)", kind: .stuck(index), scope: .issues, group: "Needs you",
-                    title: [key, item.reason].compactMap { $0 }.joined(separator: " "), subtitle: item.action, meta: "stuck",
+                    title: [key, item.reason].compactMap { $0 }.joined(separator: " "), subtitle: item.action,
+                    meta: "stuck",
                     glyph: "⚑"))
         }
         for run in liveRuns {
@@ -92,14 +101,16 @@ extension CompanyModel {
                 SearchItem(
                     id: "lr\(run.id)", kind: .run(run.id), scope: .runs, group: "Live runs",
                     title: "\(who) · \(issue(run.issueID)?.title ?? runTitle(run))",
-                    subtitle: "#\(run.id) · \(issue(run.issueID)?.key ?? "") · \(toolNow[run.id] ?? run.state)", meta: "live",
+                    subtitle: "#\(run.id) · \(issue(run.issueID)?.key ?? "") · \(toolNow[run.id] ?? run.state)",
+                    meta: "live",
                     glyph: "▶", altTitle: "Agent"))
         }
         for agent in agents.values.sorted(by: { $0.name < $1.name }) where agent.status != "terminated" {
             items.append(
                 SearchItem(
                     id: "ag\(agent.id)", kind: .agent(agent.id), scope: .agents, group: "Agents", title: agent.name,
-                    subtitle: "\(agent.role) · \(agent.harnessName) · \(agent.model)", meta: orgLine(agent).text
+                    subtitle: "\(agent.role) · \(agent.harnessName) · \(agent.model)",
+                    meta: orgLine(agent).text
                         .components(separatedBy: " · ").last, glyph: "◉", altTitle: "Chat"))
         }
         for requirement in requirements {
@@ -107,14 +118,16 @@ extension CompanyModel {
                 SearchItem(
                     id: "rq\(requirement.id)", kind: .requirement(requirement.id), scope: .requirements,
                     group: "Requirements", title: "\(requirement.key) \(requirement.title)",
-                    subtitle: "\(requirement.donePoints) / \(requirement.points) pts · \(requirement.state.replacingOccurrences(of: "_", with: " "))",
+                    subtitle:
+                        "\(requirement.donePoints) / \(requirement.points) pts · \(requirement.state.replacingOccurrences(of: "_", with: " "))",
                     meta: requirement.state == "plan_review" ? "plan" : nil, glyph: "◆"))
         }
         for issue in issues.values.sorted(by: { $0.id > $1.id }) {
             items.append(
                 SearchItem(
                     id: "is\(issue.id)", kind: .issue(issue.id), scope: .issues, group: "Issues",
-                    title: "\(issue.key) \(issue.title)", subtitle: issue.state.replacingOccurrences(of: "_", with: " "),
+                    title: "\(issue.key) \(issue.title)",
+                    subtitle: issue.state.replacingOccurrences(of: "_", with: " "),
                     meta: issue.points.map { "\($0) pts" }, glyph: "◇"))
         }
         for run in (companyRuns ?? []) where !run.isLive {
@@ -122,7 +135,8 @@ extension CompanyModel {
             items.append(
                 SearchItem(
                     id: "rn\(run.id)", kind: .run(run.id), scope: .runs, group: "Runs",
-                    title: "#\(run.id) \(who) · \(issue(run.issueID)?.key ?? runTitle(run))", subtitle: run.endWord, meta: nil,
+                    title: "#\(run.id) \(who) · \(issue(run.issueID)?.key ?? runTitle(run))", subtitle: run.endWord,
+                    meta: nil,
                     glyph: "▶", altTitle: "Agent"))
         }
         for project in projects {
@@ -134,8 +148,10 @@ extension CompanyModel {
         for screen in Screen.allCases {
             items.append(
                 SearchItem(
-                    id: "go\(screen.rawValue)", kind: .screen(screen), scope: .goTo, group: "Go to", title: screen.title,
-                    subtitle: "Open \(screen.title)", meta: Screen.allCases.firstIndex(of: screen).flatMap { $0 < 9 ? "⌘\($0 + 1)" : nil },
+                    id: "go\(screen.rawValue)", kind: .screen(screen), scope: .goTo, group: "Go to",
+                    title: screen.title,
+                    subtitle: "Open \(screen.title)",
+                    meta: Screen.allCases.firstIndex(of: screen).flatMap { $0 < 9 ? "⌘\($0 + 1)" : nil },
                     glyph: "→"))
         }
         for (key, title, hint) in [
@@ -145,7 +161,8 @@ extension CompanyModel {
         ] {
             items.append(
                 SearchItem(
-                    id: "ac\(key)", kind: .action(key), scope: .actions, group: "Actions", title: title, subtitle: "Action",
+                    id: "ac\(key)", kind: .action(key), scope: .actions, group: "Actions", title: title,
+                    subtitle: "Action",
                     meta: hint, glyph: "⌘"))
         }
         return items
@@ -155,9 +172,13 @@ extension CompanyModel {
     /// Needs you, Live runs, Go to and Actions.
     func searchResults(_ query: String, scope: SearchScope) -> [SearchItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let pool = searchItems().filter { scope == .all || $0.scope == scope || (scope == .actions && $0.group == "Needs you") }
+        let pool = searchItems().filter {
+            scope == .all || $0.scope == scope || (scope == .actions && $0.group == "Needs you")
+        }
         if trimmed.isEmpty {
-            let quiet = scope == .all ? pool.filter { ["Needs you", "Live runs", "Go to", "Actions"].contains($0.group) } : pool
+            let quiet =
+                scope == .all
+                ? pool.filter { ["Needs you", "Live runs", "Go to", "Actions"].contains($0.group) } : pool
             return Array(quiet.prefix(30))
         }
         let scored = pool.map { ($0, searchScore(trimmed, title: $0.title, subtitle: $0.subtitle)) }.filter { $0.1 > 0 }
