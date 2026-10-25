@@ -9,6 +9,9 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
     struct Reply {
         var status = 200
         var json = "{}"
+        /// A binary answer (an image): sent as `contentType` instead of `json`.
+        var data: Data?
+        var contentType = "application/json"
     }
 
     nonisolated(unsafe) private static var lock = NSLock()
@@ -45,9 +48,9 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
         }
         let response = HTTPURLResponse(
             url: url, statusCode: reply.status, httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"])
+            headerFields: ["Content-Type": reply.contentType])
         if let response { client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed) }
-        client?.urlProtocol(self, didLoad: Data(reply.json.utf8))
+        client?.urlProtocol(self, didLoad: reply.data ?? Data(reply.json.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
 

@@ -31,6 +31,18 @@ extension CitadelServer {
         }
     }
 
+    /// The company's uploaded logo, when it has one.
+    func logo(company id: Int64) async -> Data? {
+        await read("getCompanyLogo") {
+            guard case .ok(let ok) = try await client.getCompanyLogo(path: .init(id: id)) else { return nil }
+            let body: HTTPBody =
+                switch ok.body {
+                case .jpeg(let b), .png(let b), .imageWebp(let b): b
+                }
+            return try await Data(collecting: body, upTo: 4 << 20)
+        }
+    }
+
     func agentRuns(_ agent: Int64, limit: Int32) async -> [RunInfo]? {
         await read("listAgentRuns") {
             guard case .ok(let ok) = try await client.listAgentRuns(path: .init(id: agent), query: .init(limit: limit))

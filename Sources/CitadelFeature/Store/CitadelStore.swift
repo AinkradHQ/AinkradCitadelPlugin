@@ -36,6 +36,8 @@ final class CitadelStore {
     // Set only by the store; internal so previews and the screenshot sweep can stage a state.
     var phase: Phase = .setup
     var companies: [Components.Schemas.Company] = []
+    /// The companies' uploaded logos (API minor 17), loaded like the agents' avatars.
+    let logos = CompanyLogos()
     var agentCount: Int?
     var latency: Duration?
     /// The server's version (`GET /me`), shown on the connected card.
@@ -271,6 +273,7 @@ final class CitadelStore {
             }
             serverDraft = address.origin.absoluteString
             self.companies = companies
+            loadCompanyLogos(using: base)
             let pick = await startingCompany(
                 companies, origin: address.origin.absoluteString, sameServer: previousServer == serverDraft,
                 server: base)

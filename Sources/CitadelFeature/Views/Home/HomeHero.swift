@@ -319,7 +319,9 @@ private struct HomeOrbit: View {
             PingRing(delay: 0, side: side)
             PingRing(delay: 1.5, side: side)
             if let company = store.company {
-                CompanyMark(company: company, size: side, live: false, radius: skin.size.s20, fontKey: "t26")
+                CompanyMark(
+                    company: company, size: side, live: false, radius: skin.size.s20, fontKey: "t26",
+                    logo: store.logos.images[company.id])
             }
         }
     }

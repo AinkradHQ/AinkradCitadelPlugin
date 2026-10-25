@@ -24,7 +24,9 @@ struct CompanySwitcher: View {
             store.isSwitchingCompany.toggle()
         } label: {
             HStack(spacing: skin.size.s10) {
-                CompanyMark(company: company, size: skin.size.s34, live: (store.model?.busyAgents ?? 0) > 0)
+                CompanyMark(
+                    company: company, size: skin.size.s34, live: (store.model?.busyAgents ?? 0) > 0,
+                    logo: store.logos.images[company.id])
                 VStack(alignment: .leading, spacing: skin.size.s2) {
                     HStack(spacing: skin.size.s6) {
                         Text(company.name).citadelFont("t13", weight: "bold")
@@ -116,7 +118,10 @@ struct CompanySwitcher: View {
                 .padding(.vertical, skin.size.s6)
             ForEach(Array(store.companies.enumerated()), id: \.element.id) { index, company in
                 MenuRow(
-                    leading: AnyView(CompanyMark(company: company, size: skin.size.s32, live: false, fontKey: "t14")),
+                    leading: AnyView(
+                        CompanyMark(
+                            company: company, size: skin.size.s32, live: false, fontKey: "t14",
+                            logo: store.logos.images[company.id])),
                     title: company.name, chip: AnyView(KindChip(company: company)),
                     detail: company.id == current.id ? currentDetail : "Switch to see its work",
                     badge: company.id == current.id
@@ -147,33 +152,41 @@ struct CompanySwitcher: View {
     }
 }
 
-/// A company's mark: its initial on its colour (the logo once the server stores one), with the live dot.
+/// A company's mark: its logo when it has one, else its initial on its colour, with the live dot.
 struct CompanyMark: View {
     let company: Components.Schemas.Company
     let size: CGFloat
     var live: Bool
     var radius: CGFloat?
     var fontKey = "t15"
+    /// The uploaded logo, read from `store.logos`.
+    var logo: NSImage?
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let tint = CompanyLook.color(company, skin: skin)
-        Text(String(company.name.prefix(1)).uppercased())
-            .citadelFont(fontKey, weight: "heavy")
-            .foregroundStyle(skin.color(.palette("foreground", 1)))
-            .frame(width: size, height: size)
-            .background(
-                LinearGradient(
-                    colors: [tint, skin.color(skin.palette.accentViolet).opacity(skin.opacity.o80)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: radius ?? size * 0.3, style: .continuous)
-            )
-            .shadow(color: tint.opacity(skin.opacity.o35), radius: size * 0.2, y: size * 0.08)
-            .overlay(alignment: .bottomTrailing) {
-                if live {
-                    LiveDot(size: skin.size.s10).offset(x: skin.size.s3, y: skin.size.s3)
-                }
+        let shape = RoundedRectangle(cornerRadius: radius ?? size * 0.3, style: .continuous)
+        Group {
+            if let logo {
+                Image(nsImage: logo).resizable().scaledToFill().frame(width: size, height: size).clipShape(shape)
+            } else {
+                Text(String(company.name.prefix(1)).uppercased())
+                    .citadelFont(fontKey, weight: "heavy")
+                    .foregroundStyle(skin.color(.palette("foreground", 1)))
+                    .frame(width: size, height: size)
+                    .background(
+                        LinearGradient(
+                            colors: [tint, skin.color(skin.palette.accentViolet).opacity(skin.opacity.o80)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: shape)
             }
+        }
+        .shadow(color: tint.opacity(skin.opacity.o35), radius: size * 0.2, y: size * 0.08)
+        .overlay(alignment: .bottomTrailing) {
+            if live {
+                LiveDot(size: skin.size.s10).offset(x: skin.size.s3, y: skin.size.s3)
+            }
+        }
     }
 }
 
@@ -290,10 +303,21 @@ struct MenuRow: View {
     }
 }
 
-/// A company's colour. The server has no colour field yet, so it is picked from the prototype's swatches by id.
+/// A company's colour: the one the server stores (`color`, API minor 17) when set, else a prototype swatch
+/// picked by id.
 enum CompanyLook {
-    // ponytail: colour derived from the company id; read `Company.color` once the server stores one.
+    /// `#rrggbb` as red, green and blue in 0...1; nil for anything else.
+    static func rgb(_ text: String?) -> (red: Double, green: Double, blue: Double)? {
+        guard let text, text.count == 7, text.hasPrefix("#"), let value = UInt32(text.dropFirst(), radix: 16) else {
+            return nil
+        }
+        return (
+            Double((value >> 16) & 0xFF) / 255, Double((value >> 8) & 0xFF) / 255, Double(value & 0xFF) / 255
+        )
+    }
+
     static func color(_ company: Components.Schemas.Company, skin: AinkradSkin) -> Color {
+        if let rgb = rgb(company.color) { return Color(.sRGB, red: rgb.red, green: rgb.green, blue: rgb.blue) }
         let swatches: [AinkradColorToken] = [
             skin.palette.accentPrimary, skin.palette.success, skin.palette.accentViolet, skin.palette.warning,
             skin.palette.danger, skin.palette.accentSecondary,
