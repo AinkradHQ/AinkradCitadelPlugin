@@ -63,9 +63,10 @@ enum OrgFilter: String, CaseIterable, Hashable {
 }
 
 extension CompanyModel {
-    /// A department's head: the agent outside every team (not the CEO) whose direct reports are seated in it —
-    /// the server has no `head_agent_id` yet, so the chain of command says who it is.
+    /// A department's head: the one the server names (`head_agent_id`, API minor 17), else the agent outside every
+    /// team (not the CEO) whose direct reports are seated in it — the chain of command says who it is.
     func head(of department: DepartmentInfo) -> AgentInfo? {
+        if let stored = department.headAgentID.flatMap({ agents[$0] }) { return stored }
         let seated = Set(departments.flatMap(\.agentIDs))
         let members = Set(department.agentIDs)
         return agents.values.filter { candidate in

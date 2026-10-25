@@ -80,8 +80,8 @@ private struct OrgSheets: ViewModifier {
         case .pendingHires: PendingHiresSheet(store: store, model: model)
         case .structure: StructureSheet(store: store, model: model)
         case .hire(let team, let step): HireWizard(store: store, model: model, team: team, step: step)
-        case .team(let id): TeamSheet(model: model, team: id)
-        case .department(let id): DepartmentSheet(model: model, department: id)
+        case .team(let id): TeamSheet(store: store, model: model, team: id)
+        case .department(let id): DepartmentSheet(store: store, model: model, department: id)
         case .role(let name): RoleSheet(model: model, role: name)
         case .editBudget(let id):
             if let agent = model.agents[id] { EditBudgetSheet(store: store, model: model, agent: agent) }

@@ -1,9 +1,9 @@
 import AinkradAppKit
 import SwiftUI
 
-// The Structure forms (prototype `structure.js` teamSheet / deptSheet / roleSheet). The server has no org CRUD
-// over HTTP yet (departments, teams, seats, roles — spec 03 §5.6), so each form is drawn and editable but its
-// Save stays off with a "needs server" line.
+// The Structure forms (prototype `structure.js` teamSheet / deptSheet / roleSheet). Departments, teams and seats
+// save with the API minor 17 endpoints; on an older server Save stays off with a "needs a server update" line.
+// Roles have no server resource yet, so the role form stays a drawn, read-only template.
 
 /// A person card (`personCard`): figure 30, name, what they do.
 struct PersonCard: View {
@@ -23,6 +23,7 @@ struct PersonCard: View {
 }
 
 struct TeamSheet: View {
+    let store: CitadelStore
     let model: CompanyModel
     let team: Int64?
     @State private var name = ""
@@ -31,6 +32,8 @@ struct TeamSheet: View {
     @State private var key = ""
     @State private var sprint = false
     @Environment(\.ainkradSkin) private var skin
+
+    private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
 
     var body: some View {
         let current = model.departments.flatMap(\.teams).first { $0.id == team }
@@ -93,11 +96,41 @@ struct TeamSheet: View {
                     }
                 }
             }
-            NeedsServer(text: "Creating or editing a team needs team and seat endpoints on the server.")
+            if let current, !current.seats.isEmpty {
+                field("Members") {
+                    ForEach(current.seats, id: \.agentID) { seat in
+                        if let agent = model.agents[seat.agentID] {
+                            HStack(spacing: skin.size.s8) {
+                                AgentFigure(agent: agent, model: model, size: skin.size.s22)
+                                Text(agent.name).citadelFont("t12", weight: "medium")
+                                Text(seat.teamRole.replacingOccurrences(of: "_", with: " ")).citadelFont("t11")
+                                    .foregroundStyle(skin.color(skin.text.faint))
+                                Spacer()
+                                AinkradButton(title: "Remove", style: .ghost) { store.unseat(agent, from: current) }
+                                    .compact().borderless().fixedSize().disabled(!supported)
+                                    .help(store.help(ready: "Take \(agent.name) off the team"))
+                            }
+                        }
+                    }
+                }
+            }
+            Text("The project key and cadence belong to the team's project; they are not sent from here.")
+                .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
         } foot: {
+            if let current {
+                AinkradButton(title: "Delete team", style: .danger) {
+                    store.deleteTeam(current) { model.orgPage.close() }
+                }
+                .fixedSize().disabled(!supported).help(store.help(ready: "Deletes the team with its seats"))
+            }
             Spacer()
             AinkradButton(title: "Cancel", style: .ghost) { model.orgPage.close() }.borderless().fixedSize()
-            AinkradButton(title: current == nil ? "Create team" : "Save team") {}.disabled(true).fixedSize()
+            AinkradButton(title: current == nil ? "Create team" : "Save team") {
+                store.saveTeam(current, name: name, department: department, lead: lead) { model.orgPage.close() }
+            }
+            .fixedSize().disabled(!supported || name.trimmingCharacters(in: .whitespaces).isEmpty)
+            .help(store.help())
         }
         .onAppear {
             guard let current else {
@@ -131,12 +164,15 @@ struct TeamSheet: View {
 }
 
 struct DepartmentSheet: View {
+    let store: CitadelStore
     let model: CompanyModel
     let department: Int64?
     @State private var name = ""
     @State private var head: Int64?
     @State private var about = ""
     @Environment(\.ainkradSkin) private var skin
+
+    private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
 
     var body: some View {
         let current = model.departments.first { $0.id == department }
@@ -164,20 +200,25 @@ struct DepartmentSheet: View {
                     text: $about, placeholder: "One line — shown on the org chart and to the CEO when it routes work",
                     minHeight: skin.size.s56)
             }
-            NeedsServer(
-                text:
-                    "Departments are read-only over HTTP: creating, editing and the head / about fields need the server."
-            )
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
         } foot: {
             if let current, current.teams.isEmpty {
-                AinkradButton(title: "Delete department", style: .danger) {}.disabled(true).fixedSize()
+                AinkradButton(title: "Delete department", style: .danger) {
+                    store.deleteDepartment(current) { model.orgPage.close() }
+                }
+                .fixedSize().disabled(!supported).help(store.help())
             }
             Spacer()
             AinkradButton(title: "Cancel", style: .ghost) { model.orgPage.close() }.borderless().fixedSize()
-            AinkradButton(title: current == nil ? "Create department" : "Save") {}.disabled(true).fixedSize()
+            AinkradButton(title: current == nil ? "Create department" : "Save") {
+                store.saveDepartment(department, name: name, about: about, head: head) { model.orgPage.close() }
+            }
+            .fixedSize().disabled(!supported || name.trimmingCharacters(in: .whitespaces).isEmpty)
+            .help(store.help())
         }
         .onAppear {
             name = current?.name ?? ""
+            about = current?.about ?? ""
             head = current.flatMap { model.head(of: $0)?.id } ?? pool(current).first?.id
         }
     }

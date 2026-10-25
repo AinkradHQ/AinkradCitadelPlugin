@@ -108,7 +108,15 @@ extension DepartmentInfo {
                 TeamInfo(
                     id: team.id, name: team.name,
                     seats: team.members.map { SeatInfo(agentID: $0.agentId, teamRole: $0.teamRole.word) })
-            })
+            }, about: department.about, headAgentID: department.headAgentId)
+    }
+}
+
+extension TeamInfo {
+    init(_ team: Schemas.Team) {
+        self.init(
+            id: team.id, name: team.name,
+            seats: team.members.map { SeatInfo(agentID: $0.agentId, teamRole: $0.teamRole.word) })
     }
 }
 

@@ -42,6 +42,9 @@ struct DepartmentInfo: Identifiable, Equatable, Sendable {
     let id: Int64
     var name: String
     var teams: [TeamInfo]
+    /// What it does, and the agent that heads it (API minor 17); nil from an older server.
+    var about: String? = nil
+    var headAgentID: Int64? = nil
 
     var agentIDs: [Int64] { teams.flatMap { $0.seats.map(\.agentID) } }
 }
