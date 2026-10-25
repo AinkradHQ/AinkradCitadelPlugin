@@ -96,4 +96,29 @@ extension CompanyFixture {
         ]
         model.costPeriod = .month
     }
+
+    /// The prototype's Cost (`cost.js`): `costPage` plus budgets as ring cards — in tokens until dollar caps exist.
+    static func costParityPage(_ model: CompanyModel) {
+        costPage(model)
+        func budget(
+            _ id: Int64, _ label: String, _ scope: String, _ period: String, spent: Int64, cap: Int64, warn: Int = 80
+        )
+            -> BudgetInfo
+        {
+            BudgetInfo(
+                id: id, label: label, scope: scope, period: period, periodKey: "2026-10", spent: spent, cap: cap,
+                warnPercent: warn)
+        }
+        model.budgets = [
+            budget(1, "Company", "company:1", "month", spent: 2_300_000, cap: 5_000_000),
+            budget(2, "Marketing", "department:2", "month", spent: 710_000, cap: 1_000_000),
+            budget(3, "Sprint CIT S4", "sprint:4", "total", spent: 350_000, cap: 600_000, warn: 70),
+            budget(4, "Quill", "agent:15", "day", spent: 168_000, cap: 200_000),
+            budget(5, "Agent Flint", "agent:14", "month", spent: 400_000, cap: 400_000),
+        ]
+        model.approvals.append(
+            ApprovalInfo(
+                id: 24, kind: "budget_overrun", agentID: 14, issueID: nil, requestedBy: 14, expiresAt: nil,
+                fields: ["scope": "agent:14"]))
+    }
 }

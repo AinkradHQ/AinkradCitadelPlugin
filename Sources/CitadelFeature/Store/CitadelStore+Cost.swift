@@ -1,3 +1,4 @@
+import AinkradAppKit
 import AppKit
 import Foundation
 import UniformTypeIdentifiers
@@ -202,7 +203,15 @@ extension CitadelStore {
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.nameFieldStringValue = "citadel-cost-\(model.costPeriod?.rawValue ?? "period").csv"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? Data(costCSV(model.costTasks).utf8).write(to: url)
+        do {
+            try Data(costCSV(model.costTasks).utf8).write(to: url)
+            toast(
+                AinkradRichToast(
+                    title: "\(url.lastPathComponent) exported",
+                    body: "Priced, unpriced and subscription in separate columns", status: .success))
+        } catch {
+            toast(AinkradRichToast(title: "Couldn't export", body: error.localizedDescription, status: .danger))
+        }
     }
 }
 

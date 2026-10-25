@@ -1,150 +1,93 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Screen 09: three kinds of spend never mixed into one number — priced dollars, unpriced runs and tokens (never
-/// $0), subscription tokens — per day, by project, by account (this company's share only), per task, and the
-/// budgets with their warn marks. Today / Week / Month / Sprint; Export CSV.
+/// Which inset drawer the Cost screen shows.
+enum CostDrawer: Equatable {
+    case price, newBudget
+}
+
+/// Screen 09 (prototype `cost.js`): three kinds of spend never mixed into one number — priced dollars, unpriced runs
+/// and tokens (never $0), subscription tokens. The hero rings the company budget (tokens until the server stores
+/// dollar caps) with its pace; the kinds, the per-day chart, the tabbed breakdown, per task, and the budgets as ring
+/// cards edited inline. Set a price and New budget open as inset drawers.
 struct CostView: View {
     let store: CitadelStore
     let model: CompanyModel
     @State private var period: CostPeriod = .month
-    @State private var pricing = false
-    @State private var editing: BudgetInfo?
-    @State private var adding = false
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradStatusColors) private var status
-
-    private var totals: SpendTotals { SpendTotals(model.costTasks) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PaneTitle(title: "Cost", crumb: crumb) {
-                HStack(spacing: skin.size.s8) {
-                    AinkradSegmentedPicker(items: CostPeriod.allCases, selection: $period) { $0.title }
-                        .disabledOptions { $0 == .sprint && model.sprint == nil }
-                        .controlSize(.small).fixedSize()
-                    AinkradIconButton(systemName: "square.and.arrow.down", size: skin.size.s30, tooltip: "Export CSV") {
-                        store.exportCostCSV()
-                    }
-                    .outlineBox().disabled(model.costTasks.isEmpty)
+                AinkradDockButton(
+                    "Export CSV", systemImage: "square.and.arrow.down", isEnabled: !model.costTasks.isEmpty
+                ) {
+                    store.exportCostCSV()
                 }
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s14) {
-                    kpis
-                    PerDayChart(days: model.costDays, hourly: period == .today)
-                    HStack(alignment: .top, spacing: skin.size.s14) {
-                        ByDepartmentTile(model: model)
-                        ByProjectTile(rows: model.costByProject())
-                        ByAgentTile(store: store, model: model)
+                VStack(alignment: .leading, spacing: skin.size.s12) {
+                    CostHero(model: model, period: $period, label: periodLabel)
+                    CostKinds(model: model) { model.costPage.drawer = .price }
+                    CostChartTile(model: model, hourly: period == .today)
+                    HStack(alignment: .top, spacing: skin.size.s12) {
+                        BreakdownCard(store: store, model: model)
+                        PerTaskCard(store: store, model: model, period: period)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                    HStack(alignment: .top, spacing: skin.size.s14) {
-                        AccountShareTile(store: store, model: model)
-                        PerTaskTile(tasks: model.costTasks)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    BudgetsTile(model: model, edit: { editing = $0 }, add: { adding = true })
+                    BudgetsCard(store: store, model: model) { model.costPage.drawer = .newBudget }
                 }
                 .padding(.horizontal, skin.size.s20)
                 .padding(.bottom, skin.size.s20)
             }
+            .scrollIndicators(.never)
             .offlineDimmed()
+        }
+        .opsDrawer(
+            isPresented: Binding(get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } })
+        ) {
+            let shown = Binding(get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } })
+            switch model.costPage.drawer {
+            case .price: SetPriceForm(store: store, isPresented: shown)
+            case .newBudget: NewBudgetForm(store: store, model: model, isPresented: shown)
+            case nil: EmptyView()
+            }
         }
         .onChange(of: period, initial: true) { _, period in
             if model.costPeriod != period { store.loadCost(period) }
         }
-        .ainkradPanelModal(isPresented: $adding, contentWidth: skin.size.s440) {
-            NewBudgetForm(store: store, model: model, isPresented: $adding)
-        }
-        .ainkradPanelModal(isPresented: $pricing, contentWidth: skin.size.s440) {
-            SetPriceForm(store: store, isPresented: $pricing)
-        }
-        .ainkradPanelModal(
-            isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } }),
-            contentWidth: skin.size.s440
-        ) {
-            if let editing {
-                EditBudgetForm(
-                    store: store, budget: editing, inherited: inheritedWarn,
-                    overridden: { if case .overridden = model.warnScope(editing) { true } else { false } }(),
-                    isPresented: Binding(get: { self.editing != nil }, set: { if !$0 { self.editing = nil } }))
-            }
-        }
+        .onAppear { if let loaded = model.costPeriod { period = loaded } }
     }
 
-    /// The company's (or server's) warn %, what an empty Warn at inherits.
-    private var inheritedWarn: String { "\(model.limits["budget.warn_percent"]?.value ?? 80)%" }
-
-    /// "October · day 22 of 31 · 3 budgets".
-    private var crumb: Text {
+    /// "October · day 22 of 31", "This week · Oct 20 → 26", "Today · Oct 24", "Sprint CIT S4 · day 6 of 10".
+    private var periodLabel: String {
         let now = Date()
         let calendar = Calendar.current
-        let day = calendar.component(.day, from: now)
-        let days = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
-        var parts = ["\(now.formatted(.dateTime.month(.wide))) · day \(day) of \(days)"]
+        switch period {
+        case .today: return "Today · \(now.formatted(.dateTime.month(.abbreviated).day()))"
+        case .week:
+            guard let week = calendar.dateInterval(of: .weekOfYear, for: now) else { return "This week" }
+            let end = week.end.addingTimeInterval(-1)
+            return
+                "This week · \(week.start.formatted(.dateTime.month(.abbreviated).day())) → \(end.formatted(.dateTime.day()))"
+        case .month:
+            let day = calendar.component(.day, from: now)
+            let days = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+            return "\(now.formatted(.dateTime.month(.wide))) · day \(day) of \(days)"
+        case .sprint:
+            guard let sprint = model.sprint else { return "Sprint" }
+            guard let start = sprint.startsOn, let end = sprint.endsOn else { return "Sprint \(sprint.name)" }
+            let day = (calendar.dateComponents([.day], from: start, to: now).day ?? 0) + 1
+            let days = (calendar.dateComponents([.day], from: start, to: end).day ?? 0) + 1
+            return "Sprint \(sprint.name) · day \(day) of \(days)"
+        }
+    }
+
+    /// "October · day 22 of 31 · company budget 5M tok".
+    private var crumb: Text {
+        var parts = [periodLabel]
         if let company = model.budgets.first(where: { $0.scope.hasPrefix("company:") }) {
-            parts.append("company budget \(Fmt.tokens(company.cap)) tokens / \(company.period)")
+            parts.append("company budget \(Fmt.tokens(company.cap)) tok")
         }
-        return Text(parts.joined(separator: " · ")).foregroundStyle(skin.color(skin.text.muted))
-    }
-
-    private var kpis: some View {
-        let t = totals
-        return VStack(alignment: .leading, spacing: skin.size.s10) {
-            HStack(alignment: .top, spacing: skin.size.s14) {
-                CostKPI(
-                    label: "Priced", value: Fmt.dollars(micros: t.costMicros), unit: nil, tone: nil,
-                    detail: Text("API-billed runs at known prices · \(Fmt.tokens(t.pricedTokens)) tokens"))
-                CostKPI(
-                    label: "Unpriced", value: "\(t.unpricedRuns)",
-                    unit: "run\(t.unpricedRuns == 1 ? "" : "s") · \(Fmt.tokens(t.unpricedTokens)) tokens",
-                    tone: t.unpricedRuns > 0 ? .warning : nil,
-                    detail: Text("A model with no price set — counted in tokens, never as $0"),
-                    // Decision #37: "Set a price…" inline (POST /prices).
-                    action: ("Set a price…", { pricing = true }))
-                CostKPI(
-                    label: "Subscription", value: Fmt.tokens(t.subscriptionTokens), unit: "tokens", tone: nil,
-                    detail: Text(
-                        "\(Wording.count(t.subscriptionRuns, "run")) on Claude Max / Codex Pro logins — tokens, not dollars"
-                    ))
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            if t.pricedTokens + t.unpricedTokens + t.subscriptionTokens > 0 { SpendSplitBar(spend: t.spend) }
-        }
-    }
-}
-
-/// A KPI tile: label, big value + unit, a line under it, and an optional disabled inline action.
-private struct CostKPI: View {
-    let label: String
-    let value: String
-    let unit: String?
-    let tone: AinkradChartTone?
-    let detail: Text
-    var action: (title: String, perform: () -> Void)?
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s2) {
-                Text(skin.labelCased(label)).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(tone?.tint(skin) ?? skin.color(skin.text.muted))
-                HStack(alignment: .firstTextBaseline, spacing: skin.size.s4) {
-                    Text(value).citadelFont("t26", weight: "semibold")
-                        .foregroundStyle(tone?.tint(skin) ?? skin.color(skin.text.primary))
-                    if let unit { Text(unit).citadelFont("t13").foregroundStyle(skin.color(skin.text.muted)) }
-                }
-                detail.citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
-                    .fixedSize(horizontal: false, vertical: true)
-                if let action {
-                    AinkradButton(title: action.title, style: .ghost, action: action.perform)
-                        .borderless().secondaryAccent().compact().fixedSize()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .rim(tone)
+        return Text(parts.joined(separator: "  ·  ")).foregroundStyle(skin.color(skin.text.muted))
     }
 }

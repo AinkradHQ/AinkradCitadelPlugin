@@ -1,5 +1,6 @@
 import AinkradAppKit
 import Foundation
+import Observation
 
 /// The Cost screen's period switch (screen 09): Today, this week, this month, the active sprint.
 enum CostPeriod: String, CaseIterable, Hashable {
@@ -24,6 +25,14 @@ enum CostPeriod: String, CaseIterable, Hashable {
         let weekAgo = calendar.date(byAdding: .day, value: -6, to: today) ?? today
         return min(start ?? weekAgo, weekAgo)
     }
+}
+
+/// Cost's view state that outlives the view: the open drawer and the breakdown tab.
+@MainActor
+@Observable
+final class CostPage {
+    var drawer: CostDrawer?
+    var breakdownTab = "department"
 }
 
 /// One issue's spend in the period (`getTaskCosts`): tokens by kind, dollars of its priced runs only, wall time.

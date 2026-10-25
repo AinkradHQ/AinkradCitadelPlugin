@@ -115,6 +115,7 @@ final class CompanyModel {
     let artifactsPage = ArtifactsPage()
     let threadsPage = ThreadsPage()
     let projectsPage = ProjectsPage()
+    let costPage = CostPage()
     let limitsPage = LimitsPage()
     let accountsPage = AccountsPage()
     let runnersPage = RunnersPage()

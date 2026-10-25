@@ -1,31 +1,63 @@
 import AinkradAppKit
 import SwiftUI
 
-/// One account: provider, label, billing, health, the companies it serves with their share, runs and drops, and
-/// a bar per window with its warn mark, use and reset — plus why it is skipped or flaky.
+/// One account (`.acx`): harness tag, id, plan, health pill; its windows as rings; the companies' shares; runs and
+/// drops; why it is skipped / flaky / logged out; and Pause, Re-login, Limits.
 struct AccountCard: View {
     let store: CitadelStore
     let model: CompanyModel
     let account: PoolAccount
+    var index = 0
+    let open: (AccountDrawer) -> Void
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @State private var hovering = false
     @State private var editingPlan = false
     @State private var planDraft = ""
 
     private var page: AccountsPage { model.accountsPage }
+    private var health: PoolAccount.Health { page.health(of: account) }
+    private var harnessTint: Color {
+        AgentLook.harness(account.harness)?.color ?? skin.color(skin.palette.accentPrimary)
+    }
 
     var body: some View {
-        AinkradCard(onTap: { page.pickedAccount = account.id }) {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                HStack(alignment: .top, spacing: skin.size.s14) {
-                    identity.frame(maxWidth: .infinity, alignment: .leading)
-                    windows.frame(width: skin.size.s280)
-                }
-                if let reason { reason.transition(.move(edge: .top).combined(with: .opacity)) }
-            }
+        let shape = RoundedRectangle(cornerRadius: skin.size.s18, style: .continuous)
+        let state = health.tone.tint(skin)
+        VStack(alignment: .leading, spacing: skin.size.s12) {
+            head
+            windows
+            if account.companyTokens.values.contains(where: { $0 > 0 }) { share }
+            meta
+            if let why { why }
+            actions
         }
-        .rim(rim)
+        .padding(skin.size.s16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            shape.fill(
+                LinearGradient(
+                    colors: [
+                        harnessTint.opacity(skin.opacity.o10), skin.color(.palette("background", skin.opacity.o85)),
+                    ],
+                    startPoint: .top, endPoint: .center))
+        )
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [harnessTint, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(height: skin.size.s3)
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(state.opacity(skin.opacity.o22), lineWidth: 1))
+        .shadow(
+            color: hovering ? skin.color(.palette("black", skin.opacity.o32)) : .clear, radius: skin.size.s20,
+            y: skin.size.s16
+        )
+        .opacity(health == .disabled ? skin.opacity.o55 : 1)
+        .offset(y: hovering && !reduceMotion ? -skin.size.s3 : 0)
+        .onHover { hovering = $0 }
+        .animation(
+            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.25, damping: 0.7)), value: hovering
+        )
         .ainkradContextMenu([
             AinkradMenuItem(title: "Set plan tier…", systemName: "tag") {
                 planDraft = account.planTier ?? ""
@@ -33,6 +65,186 @@ struct AccountCard: View {
             }
         ])
         .ainkradPanelModal(isPresented: $editingPlan, contentWidth: skin.size.s440) { planForm }
+    }
+
+    private var head: some View {
+        HStack(spacing: skin.size.s10) {
+            SolidHarnessTag(harness: account.harness, size: skin.size.s36)
+            VStack(alignment: .leading, spacing: skin.size.s1) {
+                Text(account.label).citadelFont("t13", weight: "semibold", mono: true)
+                    .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                Text(planLine).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+            }
+            Spacer(minLength: skin.size.s6)
+            HealthPill(health: health)
+        }
+    }
+
+    /// "Claude · subscription · Max 20×", "Claude · API key · priced".
+    private var planLine: String {
+        let kind =
+            account.isSubscription ? "subscription" + (account.planTier.map { " · \($0)" } ?? "") : "API key · priced"
+        return "\(AgentLook.harnessName(account.harness)) · \(kind)"
+    }
+
+    private var windows: some View {
+        let warn = page.warnPercent(account.id)
+        let bars = account.windows(warnPercent: warn)
+        return HStack(spacing: skin.size.s14) {
+            if bars.isEmpty {
+                Text(account.isSubscription ? "No window reported yet" : "billed per token · no window")
+                    .citadelFont("t12", mono: true).foregroundStyle(skin.color(skin.text.muted))
+                    .padding(.horizontal, skin.size.s12)
+                    .padding(.vertical, skin.size.s8)
+                    .background(
+                        skin.color(.palette("foreground", skin.opacity.o05)),
+                        in: RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
+            }
+            ForEach(bars.prefix(2)) { bar in
+                HStack(spacing: skin.size.s10) {
+                    WindowRing(bar: bar, harness: harnessTint, diameter: skin.size.s50, labelSize: "t11")
+                    VStack(alignment: .leading, spacing: skin.size.s1) {
+                        Text(bar.label).citadelFont("t12", weight: "semibold").foregroundStyle(
+                            skin.color(skin.text.primary))
+                        Text(
+                            bar.resetText(now: Date())
+                                ?? (bar.limit.map { "≤ \($0.text.split(separator: "≤").last ?? "")" } ?? "")
+                        )
+                        .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                    }
+                }
+            }
+        }
+    }
+
+    private var share: some View {
+        let ids = account.companyIDs.filter { (account.companyTokens[$0] ?? 0) > 0 }
+        return VStack(alignment: .leading, spacing: skin.size.s5) {
+            ShareBar(parts: ids.map { (Double(account.companyTokens[$0] ?? 0), companyColor($0)) })
+            HStack(spacing: skin.size.s10) {
+                ForEach(account.companyIDs, id: \.self) { id in
+                    HStack(spacing: skin.size.s5) {
+                        RoundedRectangle(cornerRadius: skin.size.s2).fill(companyColor(id))
+                            .frame(width: skin.size.s8, height: skin.size.s8)
+                        Text(store.companies.first { $0.id == id }?.name ?? "Company \(id)")
+                        if let share = account.share(of: id), share > 0 {
+                            Text("\(share)%").bold().foregroundStyle(skin.color(skin.text.primary))
+                        }
+                    }
+                }
+            }
+            .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+        }
+    }
+
+    /// The company's swatch: a fixed palette by its place in the list (the server stores no company colour yet).
+    private func companyColor(_ id: Int64) -> Color {
+        let palette: [Color] = [
+            skin.color(skin.palette.accentPrimary), skin.color(skin.palette.success),
+            skin.color(skin.palette.accentViolet), skin.color(skin.palette.accentSecondary),
+            skin.color(skin.palette.warning), skin.color(skin.palette.accentTertiary),
+        ]
+        let index = store.companies.firstIndex { $0.id == id } ?? Int(id)
+        return palette[index % palette.count]
+    }
+
+    private var meta: some View {
+        let runs = model.liveRuns.filter { $0.accountID == account.id }.count
+        let drops = account.recentDropsWindowSecs > 0 ? account.recentDrops : account.drops
+        let window =
+            account.recentDropsWindowSecs > 0
+            ? ScopedSetting.format(account.recentDropsWindowSecs, unit: "seconds")
+            : page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min"
+        return HStack(spacing: skin.size.s10) {
+            if runs > 0 { LiveDots(count: min(3, runs)) }
+            Text("\(Wording.count(runs, "run")) now")
+            Text("\(drops) drops / \(window.replacingOccurrences(of: "1 d", with: "24 h"))")
+                .foregroundStyle(drops > 2 ? skin.color(skin.palette.danger) : skin.color(skin.text.faint))
+        }
+        .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+    }
+
+    /// Why it is skipped (amber), logged out somewhere (amber) or flaky / unhealthy (red).
+    private var why: AnyView? {
+        let primary = skin.color(skin.text.primary)
+        let text: Text
+        var link: (String, () -> Void)?
+        switch health {
+        case .atLimit:
+            let until = account.statusUntil.map { " until \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
+            let others = page.visible(company: model.companyID).filter {
+                $0.id != account.id && $0.harness == account.harness && page.health(of: $0) == .healthy
+            }
+            let moved = others.isEmpty ? "" : " New runs go to \(others.map(\.label).joined(separator: " and "))."
+            text =
+                Text("Skipped\(until).").bold().foregroundStyle(primary)
+                + Text(moved + (account.statusReason.map { " \($0.capitalizedFirst)." } ?? ""))
+        case .flaky:
+            let threshold = page.settings[account.id]?["account.drop_threshold"]?.value ?? 3
+            let window = page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min"
+            text =
+                Text("\(Wording.count(account.drops, "provider drop")) in \(window).").bold().foregroundStyle(primary)
+                + Text(
+                    " Each run resumed its session with backoff; \(max(1, threshold - account.drops)) more in the window marks it unhealthy and stops new work."
+                )
+        case .partial:
+            let names = page.loggedOutRunners(account).map(\.name).joined(separator: ", ")
+            text =
+                Text("Logged out on \(names)").bold().foregroundStyle(primary)
+                + Text(
+                    " · the runner's harness check failed (same as Runners). Runs that need \(AgentLook.harnessName(account.harness)) skip \(names) until you log in again there. "
+                )
+            link = ("Re-login on server…", { open(.relogin(account.id)) })
+        case .unhealthy:
+            text =
+                Text("Unhealthy.").bold().foregroundStyle(primary)
+                + Text(account.statusReason.map { " \($0.capitalizedFirst)." } ?? "")
+        default: return nil
+        }
+        let tint = health.tone.tint(skin)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+        return AnyView(
+            VStack(alignment: .leading, spacing: skin.size.s4) {
+                text.citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let link {
+                    AinkradTapArea(action: link.1) {
+                        Text(link.0).citadelFont("t12", mono: true).foregroundStyle(
+                            skin.color(skin.palette.accentSecondary))
+                    }
+                }
+            }
+            .padding(.horizontal, skin.size.s12)
+            .padding(.vertical, skin.size.s10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(tint.opacity(skin.opacity.o08)))
+            .overlay(shape.strokeBorder(tint.opacity(skin.opacity.o22), lineWidth: 1))
+        )
+    }
+
+    private var actions: some View {
+        let height = skin.size.s30
+        return HStack(spacing: skin.size.s6) {
+            if health == .disabled {
+                AinkradDockButton("Resume", systemImage: "play.fill", tone: .primary, height: height) {
+                    store.setAccountPaused(account, false)
+                }
+            } else {
+                AinkradDockButton("Pause", systemImage: "pause", height: height) {
+                    store.setAccountPaused(account, true)
+                }
+            }
+            if account.isSubscription {
+                AinkradDockButton(
+                    "Re-login", systemImage: "key", tone: health == .partial ? .primary : .plain, height: height
+                ) {
+                    open(.relogin(account.id))
+                }
+            }
+            AinkradDockButton("Limits", systemImage: "gauge.with.dots.needle.33percent", height: height) {
+                open(.limits(account.id))
+            }
+        }
     }
 
     /// "Max 20x": what the account's plan is called; empty clears it.
@@ -54,248 +266,94 @@ struct AccountCard: View {
             }
         }
     }
+}
 
-    private var rim: AinkradChartTone? {
-        switch account.health {
-        case .atLimit: .warning
-        case .flaky, .unhealthy: .danger
-        default: nil
-        }
-    }
+/// A window as a ring: the harness colour, amber past the warn mark, red at the limit; its % in the middle.
+struct WindowRing: View {
+    let bar: UsageWindow
+    let harness: Color
+    let diameter: CGFloat
+    let labelSize: String
+    @Environment(\.ainkradSkin) private var skin
 
-    private var identity: some View {
-        VStack(alignment: .leading, spacing: skin.size.s6) {
-            HStack(spacing: skin.size.s8) {
-                AinkradBadge(
-                    text: AgentLook.harnessName(account.harness),
-                    tint: AgentLook.harness(account.harness)?.color ?? theme.foreground
-                )
-                .fixedSize()
-                Text(account.label).citadelFont("t13", weight: "semibold", mono: true)
-                    .foregroundStyle(account.health == .atLimit ? status.warning : skin.color(skin.text.primary))
-                    .lineLimit(1).layoutPriority(1)
-                healthBadge.fixedSize()
-            }
-            HStack(spacing: skin.size.s6) {
-                // Billing leads the second line so the label never truncates beside the windows column.
-                AinkradBadge(
-                    text: (account.isSubscription ? "subscription" : "API key · priced")
-                        + (account.planTier.map { " · \($0)" } ?? ""),
-                    tint: account.isSubscription ? skin.color(skin.palette.accentPrimary) : theme.accentSecondary
-                )
-                .fixedSize()
-                companies
-            }
-            Text(meta).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
-        }
-    }
-
-    private var healthBadge: some View {
-        switch account.health {
-        case .healthy: AinkradBadge(text: "● healthy", status: .success)
-        case .atLimit: AinkradBadge(text: "◐ at limit", status: .warning)
-        case .flaky: AinkradBadge(text: "● flaky", status: .danger)
-        case .unhealthy: AinkradBadge(text: "● unhealthy", status: .danger)
-        case .disabled: AinkradBadge(text: "○ disabled")
-        }
-    }
-
-    /// "Ainkrad 82%" per company it is assigned to.
-    private var companies: some View {
-        HStack(spacing: skin.size.s6) {
-            ForEach(account.companyIDs, id: \.self) { id in
-                let name = store.companies.first { $0.id == id }?.name ?? "Company \(id)"
-                AinkradChip(label: account.share(of: id).map { "\(name) \($0)%" } ?? name)
-            }
-        }
-    }
-
-    /// "2 runs now · 0 drops / 10 min · config ~/.citadel/acct/claude-personal".
-    private var meta: String {
-        let runs = model.liveRuns.filter { $0.accountID == account.id }.count
-        // The display window (a day by default) when the server reports one, else the unhealthy window.
-        let drops =
-            account.recentDropsWindowSecs > 0
-            ? "\(account.recentDrops) drops / \(ScopedSetting.format(account.recentDropsWindowSecs, unit: "seconds"))"
-            : "\(account.drops) drops / \(page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min")"
-        var parts = ["\(runs) run\(runs == 1 ? "" : "s") now", drops]
-        if !account.configDir.isEmpty { parts.append("config \(account.configDir)") }
-        return parts.joined(separator: " · ")
-    }
-
-    private var windows: some View {
-        let warn = page.warnPercent(account.id)
-        let bars = account.windows(warnPercent: warn)
-        return VStack(alignment: .leading, spacing: skin.size.s6) {
-            if bars.isEmpty {
-                Text(account.isSubscription ? "No window reported yet" : "billed per token · no limit set")
-                    .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-            }
-            ForEach(bars) { bar in
-                HStack(spacing: skin.size.s10) {
-                    Text(bar.label).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
-                        .lineLimit(1).frame(width: skin.size.s50, alignment: .leading)
-                    AinkradBudgetBar(
-                        label: "\(account.label) · \(bar.label)", value: bar.fraction, limit: 1,
-                        warnFraction: bar.warnFraction, showsHardLimit: false, tone: bar.tone)
-                    Text(
-                        [["\(bar.percent)%"], [bar.resetText(now: Date())].compactMap { $0 }].joined().joined(
-                            separator: " · ")
-                    )
-                    .citadelFont("t11", mono: true)
-                    .foregroundStyle(bar.isPastWarn ? status.warning : skin.color(skin.text.muted))
-                    .lineLimit(1).fixedSize()
-                }
-            }
-            if !bars.isEmpty { source(bars, warn: warn) }
-        }
-    }
-
-    /// "limits from harness signal · warn 80% ↳ server" / "limit configured · 5 h ≤ 3.0M tok".
-    private func source(_ bars: [UsageWindow], warn: Int) -> some View {
-        let counted = bars.compactMap(\.limit)
-        let text =
-            counted.isEmpty
-            ? "harness signal" : "configured · \(counted.map(\.text).joined(separator: " · "))"
-        let setting = page.settings[account.id]?["account.warn_percent"]
-        let overridden = setting?.isSet(at: "account:\(account.id)") ?? false
-        return HStack(spacing: skin.size.s6) {
-            Text(text).foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
-            Text(overridden ? "warn \(warn)% ● account" : "warn \(warn)% ↳ \(setting?.sourceKind ?? "server")")
-                .foregroundStyle(overridden ? theme.accentSecondary : skin.color(skin.text.faint))
-                .lineLimit(1).fixedSize()
-        }
-        .citadelFont("t10_5", mono: true)
-        .padding(.leading, skin.size.s60)
-    }
-
-    /// Why it is skipped (amber) or flaky / unhealthy (red).
-    private var reason: ReasonBlock? {
-        switch account.health {
-        case .atLimit:
-            let until = account.statusUntil.map { " until \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
-            let others = page.accounts.filter {
-                $0.id != account.id && $0.harness == account.harness && $0.health == .healthy
-            }
-            let moved = others.isEmpty ? "" : " New runs go to \(others.map(\.label).joined(separator: " and "))."
-            return ReasonBlock(
-                title: "Skipped\(until).",
-                detail: (account.statusReason.map { "\($0.capitalizedFirst)." } ?? "") + moved,
-                tone: .warning)
-        case .flaky:
-            let threshold = page.settings[account.id]?["account.drop_threshold"]?.value ?? 3
-            let left = max(1, threshold - account.drops)
-            let window = page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min"
-            return ReasonBlock(
-                title: "\(account.drops) provider drop\(account.drops == 1 ? "" : "s") in \(window).",
-                detail:
-                    "Each run resumed its session with backoff; \(left) more in the window marks it unhealthy and stops new work.",
-                tone: .danger)
-        case .unhealthy:
-            return ReasonBlock(
-                title: "Unhealthy.", detail: account.statusReason.map { "\($0.capitalizedFirst)." } ?? "", tone: .danger
-            )
-        default: return nil
+    var body: some View {
+        let tint =
+            bar.isAtLimit
+            ? skin.color(skin.palette.danger) : bar.isPastWarn ? skin.color(skin.palette.warning) : harness
+        AinkradRingGauge(value: bar.fraction, tint: tint, diameter: diameter, lineWidth: diameter * 0.14) {
+            Text("\(bar.percent)%").citadelFont(labelSize, weight: "semibold", mono: true)
+                .foregroundStyle(skin.color(skin.text.primary))
         }
     }
 }
 
-/// The Limits tile for the picked account (decision #56: windows and caps per account, pool-wide): its counted
-/// windows, the warn line and how many drops make it unhealthy, each with where it comes from.
-struct AccountLimitsTile: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    let accounts: [PoolAccount]
-    @State private var addingWindow = false
+/// `.ac-tag`: the harness's two letters on its solid colour, with a soft glow.
+struct SolidHarnessTag: View {
+    let harness: String
+    let size: CGFloat
     @Environment(\.ainkradSkin) private var skin
 
-    private var page: AccountsPage { model.accountsPage }
+    var body: some View {
+        let tint = AgentLook.harness(harness)?.color ?? skin.color(skin.text.muted)
+        Text(HarnessTag.letters(harness))
+            .citadelFont(
+                size >= skin.size.s44 ? "t18" : size > skin.size.s28 ? "t12" : "t10", weight: "bold", mono: true
+            )
+            .foregroundStyle(skin.color(.palette("background", 1)))
+            .frame(width: size, height: size)
+            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+            .shadow(color: tint.opacity(skin.opacity.o30), radius: size * 0.2, y: size * 0.1)
+    }
+}
+
+/// `.ac-hb`: the health pill — tinted fill, a glowing dot (pulsing when flaky), the word.
+struct HealthPill: View {
+    let health: PoolAccount.Health
+    @Environment(\.ainkradSkin) private var skin
+    @State private var pulse = false
 
     var body: some View {
-        let picked = accounts.first { $0.id == page.pickedAccount } ?? accounts[0]
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                HStack(spacing: skin.size.s8) {
-                    TileHead(title: "Limits")
-                    Text("server → account · most specific wins").citadelFont("t11")
-                        .foregroundStyle(skin.color(skin.text.faint)).fixedSize()
-                    Spacer(minLength: skin.size.s8)
-                    AinkradSelect(
-                        items: accounts.map(\.id),
-                        selection: Binding(get: { picked.id }, set: { page.pickedAccount = $0 }),
-                        label: { id in accounts.first { $0.id == id }?.label ?? "Account" }
-                    )
-                    .fixedSize()
-                }
-                HStack(alignment: .top, spacing: skin.size.s20) {
-                    windows(picked).frame(maxWidth: .infinity)
-                    settings(picked).frame(maxWidth: .infinity)
-                }
-                Text("Account values are pool-wide (the account is shared). ↺ resets to inherited.")
-                    .citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
+        let tint = health.tone.tint(skin)
+        HStack(spacing: skin.size.s6) {
+            Circle().fill(tint).frame(width: skin.size.s6, height: skin.size.s6)
+                .shadow(color: tint, radius: skin.size.s4)
+                .opacity(health == .flaky && pulse ? skin.opacity.o30 : 1)
+            Text(health.word).citadelFont("t11", weight: "semibold")
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, skin.size.s9)
+        .frame(height: skin.size.s24)
+        .background(
+            tint.opacity(skin.opacity.o14), in: RoundedRectangle(cornerRadius: skin.size.s7, style: .continuous)
+        )
+        .onAppear {
+            guard health == .flaky else { return }
+            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 0.6)).repeatForever()) {
+                pulse = true
             }
         }
     }
+}
 
-    private func windows(_ account: PoolAccount) -> some View {
-        VStack(alignment: .leading, spacing: skin.size.s6) {
-            ForEach(Array(account.limits.enumerated()), id: \.offset) { index, limit in
-                AinkradScopedValue(
-                    label: "Window \(index + 1)",
-                    value: Binding(
-                        get: { limit.text },
-                        set: { store.setAccountWindow(account.id, replacing: limit, text: $0) }),
-                    scope: .overridden(at: "account", inheritedValue: nil),
-                    validate: { AccountLimitInfo.parse($0) != nil },
-                    onReset: { store.clearAccountWindow(account.id, limit) })
-            }
-            ForEach(account.signalWindows, id: \.name) { window in
-                AinkradScopedValue(
-                    label: window.label,
-                    value: Binding(
-                        get: { "\(window.label) ≤ signal" },
-                        set: { store.setAccountWindow(account.id, replacing: nil, text: $0) }),
-                    scope: .inherited(from: "provider"), validate: { AccountLimitInfo.parse($0) != nil })
-            }
-            if addingWindow {
-                AinkradScopedValue(
-                    label: "New window", bounds: "e.g. 5 h ≤ 3M tok",
-                    value: Binding(
-                        get: { "" },
-                        set: {
-                            store.setAccountWindow(account.id, replacing: nil, text: $0)
-                            addingWindow = false
-                        }),
-                    scope: .overridden(at: "account", inheritedValue: nil),
-                    validate: { AccountLimitInfo.parse($0) != nil })
-            }
-            AinkradButton(title: "+ Add window", style: .ghost) { addingWindow = true }
-                .borderless().secondaryAccent().compact().fixedSize()
-        }
-    }
+/// Up to three pulsing cyan dots: runs on the account now.
+struct LiveDots: View {
+    let count: Int
+    @Environment(\.ainkradSkin) private var skin
+    @State private var pulse = false
 
-    @ViewBuilder private func settings(_ account: PoolAccount) -> some View {
-        let window = page.settings[account.id]?["account.drop_window_secs"]?.text ?? "10 min"
-        let rows: [(String, String, (ScopedSetting) -> String)] = [
-            ("account.warn_percent", "Warn at", { "\($0.bounds) of a window" }),
-            ("account.drop_threshold", "Unhealthy at", { "\($0.bounds) drops in \(window)" }),
-            ("account.unhealthy_secs", "Unhealthy for", { $0.bounds }),
-        ]
-        VStack(alignment: .leading, spacing: skin.size.s6) {
-            ForEach(rows, id: \.0) { key, title, suffix in
-                if let setting = page.settings[account.id]?[key] {
-                    let scope = "account:\(account.id)"
-                    AinkradScopedValue(
-                        label: title, bounds: suffix(setting),
-                        value: Binding(
-                            get: { setting.text },
-                            set: { store.setAccountSetting(account.id, key: key, text: $0) }),
-                        scope: setting.chip(at: scope, inherited: page.serverSettings[key]),
-                        validate: setting.accepts,
-                        onReset: setting.isSet(at: scope) ? { store.resetAccountSetting(account.id, key: key) } : nil)
-                }
+    var body: some View {
+        let cyan = skin.color(skin.palette.accentSecondary)
+        HStack(spacing: skin.size.s3) {
+            ForEach(0..<count, id: \.self) { index in
+                Circle().fill(cyan).frame(width: skin.size.s7, height: skin.size.s7)
+                    .shadow(color: cyan, radius: skin.size.s3)
+                    .opacity(pulse ? skin.opacity.o35 : 1)
+                    .animation(
+                        skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 0.8)).repeatForever()
+                            .delay(Double(index) * 0.3), value: pulse)
             }
         }
+        .onAppear { pulse = true }
     }
 }
 
