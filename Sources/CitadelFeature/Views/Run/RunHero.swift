@@ -66,23 +66,23 @@ struct RunHero: View {
             AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
                 stateChip
                 if let agent {
-                    MetaChip(action: { store.open(.agent(agent.id)) }) {
+                    RunMetaChip(action: { store.open(.agent(agent.id)) }) {
                         AgentFigure(agent: agent, model: model, size: skin.size.s16)
                         Text("\(agent.name) · \(agent.role)")
                     }
                 }
-                MetaChip {
+                RunMetaChip {
                     Text(AgentLook.harnessName(run.harness))
                     if let name = run.model ?? agent?.model { Text("· \(name)").citadelFont("t11", mono: true) }
                 }
                 if let account = run.accountID.flatMap({ model.accounts[$0] }) {
-                    MetaChip(action: { store.go(.accounts) }) {
+                    RunMetaChip(action: { store.go(.accounts) }) {
                         Image(systemName: "key").citadelFont("t10")
                         Text(account.label).citadelFont("t11", mono: true)
                     }
                 }
                 if let runner = run.runnerID.flatMap({ model.runners[$0] }) {
-                    MetaChip(action: { store.go(.runners) }) {
+                    RunMetaChip(action: { store.go(.runners) }) {
                         Image(systemName: "server.rack").citadelFont("t10")
                         Text(runner).citadelFont("t11", mono: true)
                     }

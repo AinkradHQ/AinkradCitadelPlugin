@@ -28,8 +28,8 @@ struct RunsPeek: View {
                 kpis
                 if let why = look.why(run) { whyBlock(why) }
                 HStack(alignment: .top, spacing: skin.size.s8) {
-                    RunCard { tokenMix }
-                    RunCard { startup }
+                    RunPanel { tokenMix }
+                    RunPanel { startup }
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 PeekSteps(model: model, run: run)
@@ -73,7 +73,7 @@ struct RunsPeek: View {
                     .citadelFont("t16", weight: "bold").lineLimit(2)
                 AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
                     if let agent {
-                        MetaChip(action: { store.open(.agent(agent.id)) }) {
+                        RunMetaChip(action: { store.open(.agent(agent.id)) }) {
                             AgentFigure(agent: agent, model: model, size: skin.size.s16)
                             Text("\(agent.name) · \(agent.role)")
                         }
@@ -82,7 +82,7 @@ struct RunsPeek: View {
                         text: AgentLook.harnessName(run.harness),
                         tint: AgentLook.harness(run.harness)?.color ?? skin.color(skin.text.primary))
                     if let modelName = run.model ?? agent?.model {
-                        MetaChip { Text(modelName).citadelFont("t11", mono: true) }
+                        RunMetaChip { Text(modelName).citadelFont("t11", mono: true) }
                     }
                 }
             }
@@ -165,13 +165,13 @@ struct RunsPeek: View {
     }
 
     @ViewBuilder private var tokenMix: some View {
-        CardHead(title: "Token mix", value: Fmt.tokens(run.tokens))
+        RunCardHead(title: "Token mix", value: Fmt.tokens(run.tokens))
         LegendBar(segments: RunMix.tokens(run, skin: skin))
     }
 
     @ViewBuilder private var startup: some View {
         let stages = StageTimings(run: run)
-        CardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
+        RunCardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
         if stages.rows.isEmpty {
             Text("no stamps yet").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
         } else {
@@ -203,15 +203,15 @@ struct RunsPeek: View {
             return (name: name, dir: dir, added: added, removed: removed)
         }
         if !edited.isEmpty {
-            RunCard {
-                CardHead(title: "Files changed", aside: "\(edited.count)")
+            RunPanel {
+                RunCardHead(title: "Files changed", aside: "\(edited.count)")
                 ForEach(Array(edited.enumerated()), id: \.offset) { _, file in
                     DiffRow(name: file.name, detail: file.dir, insertions: file.added, deletions: file.removed)
                 }
             }
         } else if !run.diffRepos.isEmpty {
-            RunCard {
-                CardHead(title: "Files changed", aside: "\(run.diffRepos.reduce(0) { $0 + $1.files })")
+            RunPanel {
+                RunCardHead(title: "Files changed", aside: "\(run.diffRepos.reduce(0) { $0 + $1.files })")
                 ForEach(run.diffRepos, id: \.repo) { diff in
                     DiffRow(
                         name: diff.repo, detail: Wording.count(diff.files, "file"), insertions: diff.insertions,

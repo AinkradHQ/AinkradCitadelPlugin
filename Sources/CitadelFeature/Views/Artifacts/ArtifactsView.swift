@@ -148,7 +148,7 @@ struct ArtifactsView: View {
             spacing: skin.size.s14
         ) {
             ForEach(list) { artifact in
-                ArtifactCard(
+                ArtifactGridCard(
                     model: model, artifact: artifact, isSelected: artifact.id == page.selectedID,
                     isFresh: artifact.createdAt == newest && Date().timeIntervalSince(artifact.createdAt) < 120,
                     action: { page.selectedID = artifact.id }
@@ -205,7 +205,7 @@ struct ArtifactAgentPicker: View {
                 RichMenuRow(
                     title: "Everyone", subtitle: Wording.count(ids.count, "agent"), count: all.count,
                     isChecked: page.filter.agentID == nil, action: { pick(nil) }
-                ) { AvatarStack(model: model, ids: Array(ids.prefix(4))) }
+                ) { RunAvatarStack(model: model, ids: Array(ids.prefix(4))) }
                 RichMenuSeparator()
                 ForEach(Array(ids.enumerated()), id: \.element) { index, id in
                     if let agent = model.agent(id) {

@@ -20,16 +20,16 @@ struct RunRail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 tokens
-                RunCard(padding: skin.size.s12) {
-                    CardHead(title: "Liveness")
+                RunPanel(padding: skin.size.s12) {
+                    RunCardHead(title: "Liveness")
                     livenessPill
                 }
                 issueSoFar
                 worktrees
                 startup
                 RunRailContext(store: store, model: model, run: run, tint: colors.0)
-                RunCard(padding: skin.size.s12) {
-                    CardHead(title: "Redacted in this run")
+                RunPanel(padding: skin.size.s12) {
+                    RunCardHead(title: "Redacted in this run")
                     redactions
                 }
             }
@@ -48,7 +48,7 @@ struct RunRail: View {
         let cap = model.limit("run.token_cap", project: project)
         let meter = RunMeter(run: run, cap: cap?.value, warnFraction: model.warnFraction)
         let fraction = cap.map { Double(run.tokens) / Double(max($0.value, 1)) }
-        return RunCard(padding: skin.size.s12) {
+        return RunPanel(padding: skin.size.s12) {
             HStack(spacing: skin.size.s12) {
                 AinkradRingGauge(
                     value: fraction ?? 0, tint: ringTint(fraction ?? 0), diameter: skin.size.s64,
@@ -154,8 +154,8 @@ struct RunRail: View {
     @ViewBuilder private var issueSoFar: some View {
         if let issue = model.issue(run.issueID), let cost = model.issueCosts[issue.id] {
             let cap = model.limit("issue.token_cap", project: project)?.value
-            RunCard(padding: skin.size.s12) {
-                CardHead(
+            RunPanel(padding: skin.size.s12) {
+                RunCardHead(
                     title: "Issue \(issue.key) so far",
                     value: "\(Fmt.tokens(cost.tokens))\(cap.map { " / \(Fmt.tokens($0))" } ?? "")")
                 if let cap {
@@ -182,8 +182,8 @@ struct RunRail: View {
     @ViewBuilder private var worktrees: some View {
         if let repos = run.issueID.flatMap({ model.issueRepos[$0] }), !repos.isEmpty {
             let prs = run.issueID.flatMap { model.issuePRs[$0] } ?? []
-            RunCard(padding: skin.size.s12) {
-                CardHead(title: "Worktrees", value: prs.first?.head)
+            RunPanel(padding: skin.size.s12) {
+                RunCardHead(title: "Worktrees", value: prs.first?.head)
                 ForEach(repos, id: \.self) { repo in
                     let diff = run.diffRepos.first { $0.repo == repo }
                     DiffRow(
@@ -198,8 +198,8 @@ struct RunRail: View {
     @ViewBuilder private var startup: some View {
         let stages = StageTimings(run: run)
         if !stages.rows.isEmpty {
-            RunCard(padding: skin.size.s12) {
-                CardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
+            RunPanel(padding: skin.size.s12) {
+                RunCardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
                 LegendBar(segments: RunMix.stages(stages, skin: skin))
             }
         }

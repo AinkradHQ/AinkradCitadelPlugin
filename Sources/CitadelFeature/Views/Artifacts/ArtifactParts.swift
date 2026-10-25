@@ -50,7 +50,7 @@ struct ArtifactTypeLook {
 
 /// What a card, the drawer and Quick Look show of an artifact: rendered Markdown, the image, coloured log / JSON
 /// lines, or an icon when there is no preview.
-struct ArtifactBody: View {
+struct ArtifactPreviewBody: View {
     let model: CompanyModel
     let artifact: ArtifactInfo
     /// `card` (a mini render under the badge), `drawer`, `quickLook`.
@@ -93,7 +93,7 @@ struct ArtifactBody: View {
 /// `.doc`: rendered Markdown for cards (`.doc.mini`, tables hidden), drawer (`.atd-pv .doc`), and Quick Look (`.ql-b .doc`).
 private struct ArtifactDoc: View {
     let text: String
-    let size: ArtifactBody.Size
+    let size: ArtifactPreviewBody.Size
     @Environment(\.ainkradSkin) private var skin
 
     private var isMini: Bool { size == .card || size == .sibling }
@@ -212,7 +212,7 @@ private struct ArtifactDoc: View {
 /// `.art-code`: mono lines, `[2xx]` and `ok` green, `[4xx]` amber, JSON keys blue.
 struct ArtifactCode: View {
     let lines: [String]
-    var size: ArtifactBody.Size = .card
+    var size: ArtifactPreviewBody.Size = .card
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -248,7 +248,7 @@ struct ArtifactCode: View {
 
 /// `.ac2`: the grid card — a preview well washed in the type's colour, its badge, the publisher's orb, the name and
 /// a line of issue · when · size; lifts and zooms on hover, ringed when selected, flashes when it arrives.
-struct ArtifactCard: View {
+struct ArtifactGridCard: View {
     let model: CompanyModel
     let artifact: ArtifactInfo
     let isSelected: Bool
@@ -267,7 +267,7 @@ struct ArtifactCard: View {
         AinkradTapArea(action: action) {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topLeading) {
-                    ArtifactBody(model: model, artifact: artifact)
+                    ArtifactPreviewBody(model: model, artifact: artifact)
                         .scaleEffect(hovering && !reduceMotion ? 1.04 : 1)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     LinearGradient(

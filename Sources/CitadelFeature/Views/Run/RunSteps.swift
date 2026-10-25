@@ -44,7 +44,7 @@ struct PeekSteps: View {
             }
             : []
         let mix = Dictionary(grouping: done, by: \.name).map { ($0.key, $0.value.count) }.sorted { $0.1 > $1.1 }
-        RunCard {
+        RunPanel {
             HStack(spacing: skin.size.s8) {
                 Text("Steps").citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
                 Text("\(done.count) done").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))

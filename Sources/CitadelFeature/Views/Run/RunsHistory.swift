@@ -199,7 +199,7 @@ struct RunsAgentPicker: View {
                     title: "Everyone",
                     subtitle: "\(Wording.count(ids.count, "agent")) · \(Wording.count(runs.count, "run"))",
                     isChecked: page.agentID == nil, action: { pick(nil) }
-                ) { AvatarStack(model: model, ids: Array(ids.prefix(4))) }
+                ) { RunAvatarStack(model: model, ids: Array(ids.prefix(4))) }
                 RichMenuSeparator()
                 ForEach(Array(ids.enumerated()), id: \.element) { index, id in
                     if let agent = model.agent(id) {
@@ -280,7 +280,7 @@ struct RunsProjectPicker: View {
 }
 
 /// Up to four agent orbs overlapping (`.rm-stack`).
-struct AvatarStack: View {
+struct RunAvatarStack: View {
     let model: CompanyModel
     let ids: [Int64]
     @Environment(\.ainkradSkin) private var skin

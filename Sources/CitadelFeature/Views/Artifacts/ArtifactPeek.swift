@@ -76,7 +76,7 @@ struct ArtifactPeek: View {
     private var preview: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
         return AinkradTapArea(help: "Quick Look (Space)", action: { page.quickLookID = artifact.id }) {
-            ArtifactBody(model: model, artifact: artifact, size: .drawer)
+            ArtifactPreviewBody(model: model, artifact: artifact, size: .drawer)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .frame(height: artifact.isImage ? skin.size.s300 : nil)
                 .frame(maxHeight: skin.size.s360, alignment: .top)
@@ -137,8 +137,8 @@ struct ArtifactPeek: View {
         let requirementID = artifact.requirementID ?? issue?.requirementID
         let requirement = model.requirements.first { $0.id == requirementID }
         let accent = skin.color(skin.palette.accentSecondary)
-        return RunCard {
-            CardHead(title: "Produced by")
+        return RunPanel {
+            RunCardHead(title: "Produced by")
             LazyVGrid(
                 columns: [GridItem(.flexible(), spacing: skin.size.s8), GridItem(.flexible())], spacing: skin.size.s8
             ) {
@@ -187,8 +187,8 @@ struct ArtifactPeek: View {
     @ViewBuilder private var siblings: some View {
         let others = page.items.filter { $0.id != artifact.id && $0.issueID != nil && $0.issueID == artifact.issueID }
         if !others.isEmpty, let issue = model.issue(artifact.issueID) {
-            RunCard {
-                CardHead(title: "Also from \(issue.key)", aside: "\(others.count)")
+            RunPanel {
+                RunCardHead(title: "Also from \(issue.key)", aside: "\(others.count)")
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: skin.size.s150), spacing: skin.size.s8)],
                     spacing: skin.size.s8
@@ -217,7 +217,7 @@ private struct SiblingCard: View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
         AinkradTapArea(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                ArtifactBody(model: model, artifact: artifact, size: .sibling)
+                ArtifactPreviewBody(model: model, artifact: artifact, size: .sibling)
                     .frame(maxWidth: .infinity)
                     .frame(height: skin.size.s80)
                     .clipped()
@@ -294,7 +294,7 @@ struct ArtifactQuickLook: View {
                     .padding(.horizontal, skin.size.s16)
                     .padding(.vertical, skin.size.s14)
                     ScrollView {
-                        ArtifactBody(model: model, artifact: artifact, size: .quickLook)
+                        ArtifactPreviewBody(model: model, artifact: artifact, size: .quickLook)
                             .frame(maxWidth: .infinity, minHeight: artifact.isImage ? geo.size.height * 0.7 : nil)
                             .id(artifact.id)
                     }

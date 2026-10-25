@@ -2,7 +2,7 @@ import AinkradAppKit
 import SwiftUI
 
 /// `.rsd-card`: r16, a 3 % white fill, no border — the peek drawer's and the run rail's blocks.
-struct RunCard<Content: View>: View {
+struct RunPanel<Content: View>: View {
     var padding: CGFloat?
     @ViewBuilder let content: Content
     @Environment(\.ainkradSkin) private var skin
@@ -19,7 +19,7 @@ struct RunCard<Content: View>: View {
 }
 
 /// `.rsd-ch`: a 12.5 bold title, a faint aside, a mono value trailing.
-struct CardHead: View {
+struct RunCardHead: View {
     let title: String
     var aside: String?
     var value: String?
@@ -132,7 +132,7 @@ struct ContextIcon: View {
 }
 
 /// `.rsd-chips` / `.chip`: 24 high, r7, a 7 % fill (12 % on hover when it opens something).
-struct MetaChip<Content: View>: View {
+struct RunMetaChip<Content: View>: View {
     var action: (() -> Void)?
     @ViewBuilder let content: Content
     @State private var hovering = false
