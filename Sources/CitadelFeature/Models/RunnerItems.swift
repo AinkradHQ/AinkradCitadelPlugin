@@ -24,6 +24,19 @@ final class RunnersPage {
     var settings: [Int64: [String: ScopedSetting]] = [:]
     /// The server's values, what a runner's ↺ goes back to.
     var serverSettings: [String: ScopedSetting] = [:]
+    /// The log drawer's level filter: `all`, `err`, `warn`, `info`.
+    var logFilter = "all"
+    /// The runner the Re-login drawer is open for, and whether "I've logged in" was pressed (waiting for its probe).
+    var relogin: Int64?
+    var reloginWaiting = false
+    /// The Add runner drawer: open, its step (0 Machine, 1 Install, 2 Connect) and what was entered.
+    var adding = false
+    var addStep = 0
+    var addDraft = AddRunnerDraft()
+    /// Runners a "Wake now" is in flight for (the button spins).
+    var waking: Set<Int64> = []
+    /// The card a fleet chip just focused (it flashes).
+    var flashed: Int64?
 
     /// The limits a runner card edits under its disk bar, in the mockup's order.
     static let limitKeys = ["runner.disk_cap_bytes", "workspace.idle_secs", "runner.disk_evict_percent"]
@@ -45,6 +58,34 @@ final class RunnersPage {
         let busy = up.map { min($0.slots ?? 0, running[$0.id] ?? 0) }.reduce(0, +)
         return (total - busy, total)
     }
+}
+
+/// What "Add runner" step 1 holds: a name, the machine kind (which sets the default tags) and the tags.
+struct AddRunnerDraft: Equatable, Sendable {
+    /// `linux`, `arm`, `mac`.
+    var machine = "linux"
+    var name = ""
+    var tags: [String] = ["linux", "docker"]
+    /// Tags beyond the chips, comma-separated.
+    var extraTags = ""
+
+    static let machines: [(id: String, title: String, mac: Bool, tags: [String])] = [
+        ("linux", "Linux · x86_64", false, ["linux", "docker"]), ("arm", "Linux · arm64", false, ["linux", "arm64"]),
+        ("mac", "macOS · arm64", true, ["macos", "xcode-27", "swift"]),
+    ]
+    static let tagChoices: [(tag: String, title: String)] = [
+        ("linux", "Linux"), ("docker", "Docker"), ("rust", "Rust"), ("arm64", "arm64"), ("macos", "macOS"),
+        ("xcode-27", "Xcode 27"), ("swift", "Swift"),
+    ]
+
+    /// The chips and the typed extras, deduplicated in order.
+    var allTags: [String] {
+        let extra = extraTags.split { $0 == "," || $0 == " " }.map(String.init).filter { !$0.isEmpty }
+        var seen = Set<String>()
+        return (tags + extra).filter { seen.insert($0).inserted }
+    }
+
+    var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
 }
 
 /// One runner as `GET /runners` reports it.

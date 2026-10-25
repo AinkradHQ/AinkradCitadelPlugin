@@ -6,9 +6,29 @@ import SwiftUI
 extension SweepTests {
     /// Screens 14 Project profile and 16 Limits, at the mockups' window sizes.
     static func settingsShots(_ stage: SweepStage) -> [(String, CitadelStore, CGSize)] {
+        let window = CGSize(width: 1400, height: 900)
+        func settings(_ section: CompanySettingsSection, _ extra: @escaping (CompanyModel) -> Void = { _ in })
+            -> CitadelStore
+        {
+            let store = stage(.home, nil) {
+                CompanyFixture.companySettingsPage($0, section: section)
+                extra($0)
+            }
+            store.isShowingSettings = true
+            return store
+        }
         let limits = stage(.home, nil, CompanyFixture.limitsPage)
         limits.isShowingSettings = true
         return [
+            ("17-settings-general", settings(.general), window),
+            ("17-settings-members", settings(.devices), window),
+            ("17-settings-accounts", settings(.accounts), window),
+            ("17-settings-limits", settings(.limits), window),
+            ("17-settings-limits-full", settings(.limits), CGSize(width: 1400, height: 2000)),
+            ("17-settings-notifications", settings(.notifications), window),
+            ("17-settings-skills", settings(.skills), window),
+            ("17-settings-audit", settings(.audit), window),
+            ("17-settings-audit-agents", settings(.audit) { $0.limitsPage.auditActor = "agents" }, window),
             (
                 "14-project-settings", stage(.projects, nil, CompanyFixture.projectsPage),
                 CGSize(width: 1280, height: 1700)

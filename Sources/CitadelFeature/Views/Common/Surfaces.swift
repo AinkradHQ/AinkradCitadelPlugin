@@ -22,8 +22,8 @@ struct BentoTile<Content: View>: View {
                     LinearGradient(
                         colors: [
                             (tint ?? skin.color(.palette("foreground", 1))).opacity(
-                                tint == nil ? skin.opacity.o05 : skin.opacity.o10),
-                            skin.color(.palette("foreground", skin.opacity.o03)),
+                                tint == nil ? 0.045 : skin.opacity.o10),
+                            skin.color(.palette("foreground", 0.02)),
                         ], startPoint: .top, endPoint: .bottom))
             )
             .overlay(

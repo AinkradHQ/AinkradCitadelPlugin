@@ -11,23 +11,38 @@ struct SkillsSection: View {
 
     var body: some View {
         let skills = model.limitsPage.skills
-        VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Skills", crumb: Text("the latest version of a name is the one runs are given")) {
-                AinkradButton(title: "Publish…", style: .secondary) { publishing = true }.compact().fixedSize()
+        SettingsScroll {
+            SettingsHero(section: .skills) {
+                AinkradDockButton("Publish…", systemImage: "plus", tone: .primary) { publishing = true }
             }
-            ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s2) {
+            SettingsCard(title: "Skills", hint: skills.map { "\($0.count) versions" }) {
+                VStack(alignment: .leading, spacing: skin.size.s8) {
                     if skills?.isEmpty == true {
                         Text("No skills yet.").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                     }
                     ForEach(skills ?? []) { skill in
-                        AinkradListRow(
-                            leading: { EmptyView() }, title: "\(skill.name) · v\(skill.version)",
-                            subtitle: "attached to \(attached(skill)) · \(ScopedSetting.bytes(skill.bytes))",
-                            trailing: { EmptyView() })
+                        HStack(spacing: skin.size.s12) {
+                            SectionGlyph(icon: "sparkles", tint: skin.color(skin.palette.success), size: skin.size.s30)
+                            VStack(alignment: .leading, spacing: skin.size.s1) {
+                                Text("\(skill.name) · v\(skill.version)").citadelFont(
+                                    "t13", weight: "semibold", mono: true
+                                )
+                                .foregroundStyle(skin.color(skin.text.primary))
+                                Text("attached to \(attached(skill)) · \(ScopedSetting.bytes(skill.bytes))")
+                                    .citadelFont("t11")
+                                    .foregroundStyle(skin.color(skin.text.faint))
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, skin.size.s12)
+                        .padding(.vertical, skin.size.s10)
+                        .background(
+                            skin.color(.palette("background", 1)).opacity(skin.opacity.o18),
+                            in: RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous))
                     }
                 }
-                .padding(.horizontal, skin.size.s14)
+                .padding(.top, skin.size.s6)
+                .padding(.bottom, skin.size.s10)
             }
         }
         .onAppear { store.loadSkills() }

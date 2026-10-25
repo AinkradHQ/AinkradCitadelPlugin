@@ -34,28 +34,42 @@ extension CompanyFixture {
         func login(_ harness: String, _ state: String = "logged_in") -> RunnerLoginInfo {
             RunnerLoginInfo(dir: harness, harness: harness, state: state)
         }
+        func tested(_ name: String, _ version: String, _ status: String = "supported", upTo: String? = nil)
+            -> RunnerHarnessInfo
+        {
+            RunnerHarnessInfo(
+                name: name, version: version, status: status, testedUpTo: upTo, offered: true,
+                reason: status == "supported" ? nil : "newer than tested")
+        }
         page.runners = [
             RunnerInfo(
                 id: 1, name: "hetzner-1", status: "online", healthReason: nil, lastSeenAt: now.addingTimeInterval(-2),
                 tags: ["linux", "docker", "rust"],
                 harnesses: ["claude": "2.1.296", "codex": "0.88.0", "opencode": "1.4.2", "agy": "0.9.1"],
-                logins: [login("claude"), login("codex"), login("opencode", "unknown")], slots: 4,
+                logins: [login("claude"), login("codex"), login("opencode", "unknown")],
+                harnessStatus: [
+                    tested("claude", "2.1.296"), tested("codex", "0.88.0"), tested("opencode", "1.4.2"),
+                    tested("agy", "0.9.1", "untested_newer", upTo: "0.9.0"),
+                ], slots: 4,
                 uptimeSecs: 6 * 86_400, reportedAt: now),
             RunnerInfo(
                 id: 2, name: "hetzner-2", status: "unhealthy",
                 healthReason:
-                    "Claude login expired 2h 10m ago. The runner is up, but its harness probe fails, so the engine stopped sending it Claude work.",
+                    "Claude login expired 2h 10m ago. The runner is up, but its harness probe fails, so the engine stopped sending it Claude work. One run ended runner_lost before the probe caught it (CIT-49).",
                 lastSeenAt: now.addingTimeInterval(-4), tags: ["linux", "docker"],
                 harnesses: ["claude": "2.1.296", "codex": "0.88.0"],
-                logins: [login("claude", "logged_out"), login("codex")], slots: 2, uptimeSecs: 11 * 86_400,
+                logins: [login("claude", "logged_out"), login("codex")],
+                harnessStatus: [tested("claude", "2.1.296"), tested("codex", "0.88.0")], slots: 2,
+                uptimeSecs: 11 * 86_400,
                 reportedAt: now),
             RunnerInfo(
                 id: 3, name: "ahmed-mbp", status: "offline", healthReason: nil,
                 lastSeenAt: now.addingTimeInterval(-6 * 3600), tags: ["macos", "xcode-27", "swift"], asleep: true,
-                harnesses: ["claude": "2.1.296"], logins: [login("claude")], slots: 2),
+                harnesses: ["claude": "2.1.296"], logins: [login("claude")],
+                harnessStatus: [tested("claude", "2.1.296")], slots: 2, powerNap: false),
             RunnerInfo(
                 id: 4, name: "oracle-arm", status: "offline", healthReason: nil,
-                lastSeenAt: now.addingTimeInterval(-3 * 86_400 - 600), tags: ["linux", "arm64"]),
+                lastSeenAt: now.addingTimeInterval(-3 * 86_400 - 600), tags: ["linux", "arm64"], slots: 2),
         ]
         func worktree(_ issue: Int64, _ gb: Double, active: Bool, idleHours: Double = 0, leftMinutes: Int64? = nil)
             -> WorktreeDiskInfo

@@ -8,34 +8,7 @@ extension SweepTests {
         let small = CGSize(width: 1200, height: 720)
         // Live runs make the sidebar taller than 720.
         let wide = CGSize(width: 1280, height: 800)
-        var shots: [(String, CitadelStore, CGSize)] = [
-            ("10-runners", stage(.runners, nil, CompanyFixture.runnersPage), CGSize(width: 1280, height: 1040)),
-            (
-                "10-runners-added",
-                stage(.runners, nil) {
-                    CompanyFixture.runnersPage($0)
-                    $0.runnersPage.registered = RegisteredRunnerInfo(
-                        runner: RunnerInfo(
-                            id: 9, name: "hetzner-3", status: "offline", healthReason: nil, lastSeenAt: nil,
-                            tags: ["linux", "docker"]),
-                        key: "rk_7f3a9c2e5b8d1f4a6c0e9b2d")
-                }, CGSize(width: 1280, height: 1040)
-            ),
-            (
-                "10-runners-log",
-                stage(.runners, nil) {
-                    CompanyFixture.runnersPage($0)
-                    $0.runnersPage.log = (
-                        2,
-                        [
-                            "12:01:04 probe claude: CLAUDE_CONFIG_DIR=~/.citadel-runner/claude — not logged in",
-                            "12:01:04 probe codex 0.88.0: ok", "12:01:05 offered: codex · slots 2",
-                            "12:11:04 probe claude: not logged in (2h 10m)",
-                        ]
-                    )
-                }, CGSize(width: 1280, height: 1040)
-            ),
-        ]
+        var shots = runnerScreenShots(stage)
         let accounts = stage(.accounts, nil, CompanyFixture.accountsPage)
         for event in [
             try? CompanyFixture.fallbackEvent(
@@ -100,5 +73,75 @@ extension SweepTests {
                 }, wide
             ))
         return shots
+    }
+
+    /// Screen 10 Runners and its drawers, at the prototype's window size.
+    static func runnerScreenShots(_ stage: SweepStage) -> [(String, CitadelStore, CGSize)] {
+        let window = CGSize(width: 1400, height: 900)
+        func runners(_ extra: @escaping (CompanyModel) -> Void = { _ in }) -> CitadelStore {
+            stage(.runners, nil) {
+                CompanyFixture.runnersPage($0)
+                extra($0)
+            }
+        }
+        let registered = RegisteredRunnerInfo(
+            runner: RunnerInfo(
+                id: 9, name: "hetzner-3", status: "offline", healthReason: nil, lastSeenAt: nil,
+                tags: ["linux", "docker"]),
+            key: "rk_7f3a9c2e5b8d1f4a6c0e9b2d")
+        func adding(step: Int, _ extra: @escaping (CompanyModel) -> Void = { _ in }) -> CitadelStore {
+            runners {
+                $0.runnersPage.adding = true
+                $0.runnersPage.addDraft.name = "hetzner-3"
+                $0.runnersPage.addStep = step
+                if step > 0 { $0.runnersPage.registered = registered }
+                extra($0)
+            }
+        }
+        return [
+            ("10-runners", runners(), window),
+            ("10-runners-full", runners(), CGSize(width: 1400, height: 1900)),
+            (
+                "10-runners-log",
+                runners {
+                    $0.runnersPage.log = (
+                        2,
+                        [
+                            "09:41:12 probe codex ok (0.88.0)", "09:56:40 run #422 claimed CIT-49",
+                            "09:58:03 lease heartbeat missed ×3 → runner_lost #422",
+                            "10:01:00 probe claude: not logged in (exit 1)",
+                            "10:01:00 engine claude work paused on this runner",
+                            "12:11:00 probe claude: not logged in (exit 1)",
+                        ]
+                    )
+                }, window
+            ),
+            ("10-runners-relogin", runners { $0.runnersPage.relogin = 2 }, window),
+            (
+                "10-runners-relogin-waiting",
+                runners {
+                    $0.runnersPage.relogin = 2
+                    $0.runnersPage.reloginWaiting = true
+                }, window
+            ),
+            ("10-runners-add-1", adding(step: 0), window),
+            ("10-runners-add-2", adding(step: 1), window),
+            ("10-runners-add-3-wait", adding(step: 2), window),
+            (
+                "10-runners-add-3-joined",
+                adding(step: 2) {
+                    var joined = registered.runner
+                    joined.status = "online"
+                    joined.lastSeenAt = CompanyFixture.now
+                    joined.slots = 4
+                    joined.harnesses = ["claude": "2.1.296", "codex": "0.88.0", "opencode": "1.4.2"]
+                    joined.logins = [
+                        RunnerLoginInfo(dir: "claude", harness: "claude", state: "logged_in"),
+                        RunnerLoginInfo(dir: "codex", harness: "codex", state: "logged_out"),
+                    ]
+                    $0.runnersPage.runners.insert(joined, at: 0)
+                }, window
+            ),
+        ]
     }
 }

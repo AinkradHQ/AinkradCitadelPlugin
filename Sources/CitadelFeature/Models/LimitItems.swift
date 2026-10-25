@@ -33,21 +33,52 @@ final class LimitsPage {
     var auditKind = ""
     /// The Skills section's versions; `nil` until it first opens.
     var skills: [SkillInfo]?
+    /// The row the CLI card speaks for (a click selects it), and the one that just changed (it flashes).
+    var selected: String?
+    var flashed: String?
+    /// The audit log's actor chip (`all`, `you`, `agents`, `system`) and search, both filtering the loaded rows.
+    var auditActor = "all"
+    var auditSearch = ""
 }
 
-/// Company settings' sections (⚙ next to the switcher): only those the API backs — no members or notifications
-/// route exists yet, so neither is listed.
+/// Company settings' sections (⚙ next to the switcher), in the prototype's order; Skills is the plugin's own.
 enum CompanySettingsSection: String, CaseIterable, Hashable {
-    case general, devices, accounts, limits, skills, audit
+    case general, devices, accounts, limits, notifications, skills, audit
 
     var title: String {
         switch self {
         case .general: "General"
-        case .devices: "Devices"
-        case .accounts: "Account assignment"
+        case .devices: "Members & devices"
+        case .accounts: "Accounts"
         case .limits: "Limits"
+        case .notifications: "Notifications"
         case .skills: "Skills"
         case .audit: "Audit log"
+        }
+    }
+
+    /// The hero's line under the title.
+    var subtitle: String {
+        switch self {
+        case .general: "Company identity, CEO and defaults for new agents"
+        case .devices: "Who can act for this company, and the devices holding keys"
+        case .accounts: "Pool accounts this company may use — usage is attributed per company"
+        case .limits: "Every quota and threshold, and where it is overridden"
+        case .notifications: "Only what needs you — not every run event"
+        case .skills: "What runs are given — the latest version of a name wins"
+        case .audit: "Who changed what, before → after, and how"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: "gearshape"
+        case .devices: "person.2"
+        case .accounts: "key"
+        case .limits: "gauge.with.needle"
+        case .notifications: "bell"
+        case .skills: "sparkles"
+        case .audit: "doc.text"
         }
     }
 }
@@ -141,7 +172,7 @@ extension LimitsPage {
 
     /// The rows the filters and the search leave, by group; the rest past the main rows is "more" (shown when
     /// open, filtered or searched).
-    func sections(_ companyID: Int64) -> (groups: [(String, [LimitRow])], more: [LimitRow]) {
+    func sections(_ companyID: Int64, expandAll: Bool = false) -> (groups: [(String, [LimitRow])], more: [LimitRow]) {
         let query = search.trimmingCharacters(in: .whitespaces)
         let kept = rows.filter { row in
             switch filter {
@@ -154,7 +185,7 @@ extension LimitsPage {
             query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)
                 || $0.setting.key.localizedCaseInsensitiveContains(query)
         }
-        let expanded = showsMore || filter != .all || !query.isEmpty
+        let expanded = expandAll || showsMore || filter != .all || !query.isEmpty
         var groups: [(String, [LimitRow])] = []
         for group in LimitNames.groups {
             let rows = kept.filter {

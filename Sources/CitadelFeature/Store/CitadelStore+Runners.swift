@@ -1,3 +1,4 @@
+import AinkradAppKit
 import Foundation
 
 /// Screen 10: runners, their disk and their limits (`runner:<id>`, decision #57), pushed by runner events.
@@ -34,10 +35,16 @@ extension CitadelStore {
     func wakeRunner(_ runner: Int64, when: String) {
         guard let server, let page = model?.runnersPage else { return }
         page.failures[runner] = nil
+        page.waking.insert(runner)
         Task {
+            defer { page.waking.remove(runner) }
             switch await server.wake(runner: runner, when: when) {
             case .success(let info):
                 if let index = page.runners.firstIndex(where: { $0.id == runner }) { page.runners[index] = info }
+                toast(
+                    AinkradRichToast(
+                        title: "Wake sent to \(info.name)", body: "Its queued work starts when it connects.",
+                        status: .success))
             case .failure(let answer):
                 let name = page.runners.first { $0.id == runner }?.name ?? "the runner"
                 page.failures[runner] = ActionFailure(
@@ -55,6 +62,7 @@ extension CitadelStore {
             switch await server.registerRunner(name: name, tags: tags) {
             case .success(let registered):
                 page.registered = registered
+                page.addStep = 1
                 await reloadRunners(model, server: server)
             case .failure(let answer):
                 page.registerFailure = ActionFailure(
@@ -67,15 +75,31 @@ extension CitadelStore {
     func setDrained(_ runner: RunnerInfo, _ drained: Bool) {
         runnerChange(
             runner, drained ? "Couldn't drain \(runner.name)" : "Couldn't undrain \(runner.name)",
-            outcome: drained ? "It still takes work." : "It stays drained."
+            outcome: drained ? "It still takes work." : "It stays drained.",
+            done: { info in
+                self.toast(
+                    AinkradRichToast(
+                        title: drained ? "\(info.name) draining" : "\(info.name) back online",
+                        body: drained ? "Running jobs finish; nothing new is claimed." : "Claiming work again.",
+                        status: drained ? .warning : .success,
+                        actions: [AinkradRichToastAction("Undo") { self.setDrained(info, !drained) }]))
+            }
         ) { await $0.drain(runner: runner.id, drained) }
     }
 
     /// "Keep awake while jobs queue": the Mac's Power Nap preference.
     func setPowerNap(_ runner: RunnerInfo, _ enabled: Bool) {
-        runnerChange(runner, "Couldn't change \(runner.name)'s Power Nap", outcome: "Its preference is unchanged.") {
-            await $0.setPowerNap(runner: runner.id, enabled)
-        }
+        runnerChange(
+            runner, "Couldn't change \(runner.name)'s Power Nap", outcome: "Its preference is unchanged.",
+            done: { info in
+                self.toast(
+                    AinkradRichToast(
+                        title: enabled
+                            ? "\(info.name) stays awake while jobs queue" : "\(info.name) may sleep again",
+                        body: enabled ? "Power Nap wakes it for queued jobs." : nil, status: .success,
+                        actions: [AinkradRichToastAction("Undo") { self.setPowerNap(info, !enabled) }]))
+            }
+        ) { await $0.setPowerNap(runner: runner.id, enabled) }
     }
 
     /// "Remove runner…" (after its confirm): its key stops working and the card goes.
@@ -90,6 +114,10 @@ extension CitadelStore {
             } else {
                 page.runners.removeAll { $0.id == runner.id }
                 page.disk[runner.id] = nil
+                toast(
+                    AinkradRichToast(
+                        title: "\(runner.name) removed",
+                        body: "Key revoked · queued jobs only it could take go back to Why stuck"))
                 await reloadRunners(model, server: server)
             }
         }
@@ -111,7 +139,7 @@ extension CitadelStore {
 
     /// An action answered with the runner: its card updates; a refusal shows on it.
     private func runnerChange(
-        _ runner: RunnerInfo, _ title: String, outcome: String,
+        _ runner: RunnerInfo, _ title: String, outcome: String, done: @escaping (RunnerInfo) -> Void = { _ in },
         _ send: @escaping (CitadelServer) async -> Result<RunnerInfo, ServerAnswer>
     ) {
         guard let server, let page = model?.runnersPage else { return }
@@ -120,6 +148,7 @@ extension CitadelStore {
             switch await send(server) {
             case .success(let info):
                 if let index = page.runners.firstIndex(where: { $0.id == runner.id }) { page.runners[index] = info }
+                done(info)
             case .failure(let answer):
                 page.failures[runner.id] = ActionFailure(title: title, answer: answer, outcome: outcome)
             }
@@ -129,9 +158,18 @@ extension CitadelStore {
     /// ↺: back to the server's value.
     func resetRunnerLimit(_ runner: Int64, key: String) {
         guard let server, let page = model?.runnersPage else { return }
+        let before = page.settings[runner]?[key]
         Task {
             if let updated = await server.resetSetting(scope: "runner:\(runner)", key: key) {
                 page.settings[runner, default: [:]][key] = updated
+                let name = page.runners.first { $0.id == runner }?.name ?? "the runner"
+                toast(
+                    AinkradRichToast(
+                        title: "\(LimitNames.name(key)) reset on \(name)",
+                        body: "Now inherits the server default (\(updated.text)) · audited",
+                        actions: before.map { old in
+                            [AinkradRichToastAction("Undo") { self.setRunnerLimit(runner, key: key, text: old.text) }]
+                        } ?? []))
             }
         }
     }
