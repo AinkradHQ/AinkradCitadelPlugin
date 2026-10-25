@@ -254,7 +254,7 @@ private struct QuickReply: View {
 }
 
 /// A rounded chip on a hero (`.rq-hm .chip`): h24, r7, 11 pt; tappable ones brighten on hover.
-struct HeroChip<Label: View>: View {
+struct ThreadHeroChip<Label: View>: View {
     var action: (() -> Void)?
     @ViewBuilder var label: () -> Label
     @State private var hovering = false

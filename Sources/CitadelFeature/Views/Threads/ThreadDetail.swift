@@ -71,24 +71,24 @@ struct ThreadDetail: View {
                     AinkradFlowLayout(spacing: skin.size.s6) {
                         GlowStatePill(text: word, tint: tint)
                         if let agent {
-                            HeroChip(action: { store.open(.agent(agent.id)) }) {
+                            ThreadHeroChip(action: { store.open(.agent(agent.id)) }) {
                                 AgentFigure(agent: agent, model: model, size: skin.size.s16)
                                 Text(agent.nameDotRoleLabel)
                             }
-                            HeroChip {
+                            ThreadHeroChip {
                                 Text("\(AgentLook.harnessName(agent.harness)) ·")
                                 Text(agent.model).citadelFont("t11", mono: true)
                             }
                         }
                         if let requirement {
-                            HeroChip(action: { openRequirement(requirement) }) {
+                            ThreadHeroChip(action: { openRequirement(requirement) }) {
                                 Text(requirement.key).citadelFont("t11", mono: true).foregroundStyle(
                                     theme.accentSecondary)
                                 Text(requirement.title).lineLimit(1)
                             }
                         }
                         if let run = liveRun {
-                            HeroChip(action: { store.open(.run(run.id)) }) {
+                            ThreadHeroChip(action: { store.open(.run(run.id)) }) {
                                 Circle().fill(theme.accentSecondary).frame(width: skin.size.s6, height: skin.size.s6)
                                 Text(
                                     "run #\(run.id) · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "\(Fmt.tokens(run.tokens)) tok")"

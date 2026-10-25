@@ -42,19 +42,19 @@ struct RequirementHero: View {
                     AinkradFlowLayout(spacing: skin.size.s6) {
                         GlowStatePill(text: RequirementLook.label(requirement.state), tint: tint)
                         if let project {
-                            HeroChip {
+                            ThreadHeroChip {
                                 Image(systemName: "folder").citadelFont("t10")
                                 Text(project.name)
                             }
                         }
                         if let owner {
-                            HeroChip(action: { store.open(.agent(owner.id)) }) {
+                            ThreadHeroChip(action: { store.open(.agent(owner.id)) }) {
                                 AgentFigure(agent: owner, model: model, size: skin.size.s16)
                                 Text("with \(owner.name) · \(owner.roleLabel)")
                             }
                         }
                         if let eta = requirement.eta ?? plan?.eta, requirement.state != "done" {
-                            HeroChip { Text("ETA \(Fmt.eta(eta))") }
+                            ThreadHeroChip { Text("ETA \(Fmt.eta(eta))") }
                         }
                         busy
                     }

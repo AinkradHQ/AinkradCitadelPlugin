@@ -192,7 +192,7 @@ struct RequirementPlanView: View {
             Text("On this plan").citadelFont("t11", weight: "semibold").foregroundStyle(skin.color(skin.text.muted))
                 .frame(height: skin.size.s32)
             ForEach(ids.compactMap { model.agent($0) }) { agent in
-                HeroChip(action: { store.open(.agent(agent.id)) }) {
+                ThreadHeroChip(action: { store.open(.agent(agent.id)) }) {
                     AgentFigure(agent: agent, model: model, size: skin.size.s22)
                     Text(agent.name).citadelFont("t12", weight: "semibold")
                     PointsPill(points: plan.allTasks.filter { $0.assigneeAgentID == agent.id }.count)
