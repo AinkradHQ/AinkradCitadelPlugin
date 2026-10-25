@@ -14,6 +14,7 @@ struct AccountCard: View {
     @State private var hovering = false
     @State private var editingPlan = false
     @State private var planDraft = ""
+    @State private var confirmingRemove = false
 
     private var page: AccountsPage { model.accountsPage }
     private var health: PoolAccount.Health { page.health(of: account) }
@@ -65,6 +66,7 @@ struct AccountCard: View {
             }
         ])
         .ainkradPanelModal(isPresented: $editingPlan, contentWidth: skin.size.s440) { planForm }
+        .ainkradPanelModal(isPresented: $confirmingRemove, contentWidth: skin.size.s440) { removeForm }
     }
 
     private var head: some View {
@@ -224,7 +226,7 @@ struct AccountCard: View {
 
     private var actions: some View {
         let height = skin.size.s30
-        return HStack(spacing: skin.size.s6) {
+        return AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
             if health == .disabled {
                 AinkradDockButton("Resume", systemImage: "play.fill", tone: .primary, height: height) {
                     store.setAccountPaused(account, false)
@@ -243,6 +245,34 @@ struct AccountCard: View {
             }
             AinkradDockButton("Limits", systemImage: "gauge.with.dots.needle.33percent", height: height) {
                 open(.limits(account.id))
+            }
+            AinkradDockButton(
+                "Remove", systemImage: "trash", tone: .danger,
+                isEnabled: store.serverSupports(minor: CitadelStore.structureMinor), height: height
+            ) {
+                confirmingRemove = true
+            }
+            .help(store.help(ready: "Remove it from the pool"))
+        }
+    }
+
+    /// "Remove account": gone from the pool with its assignments and limits; the server refuses while runs used it.
+    private var removeForm: some View {
+        VStack(alignment: .leading, spacing: skin.size.s12) {
+            Text("Remove \(account.label)?").citadelFont("t15", weight: "semibold")
+            Text(
+                "It leaves the pool with its company assignments and limits. If runs used it, the server refuses — pause it instead."
+            )
+            .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).fixedSize(
+                horizontal: false, vertical: true)
+            HStack(spacing: skin.size.s8) {
+                Spacer()
+                AinkradButton(title: "Cancel", style: .ghost) { confirmingRemove = false }.fixedSize()
+                AinkradButton(title: "Remove", style: .danger) {
+                    store.removeAccount(account)
+                    confirmingRemove = false
+                }
+                .fixedSize()
             }
         }
     }
