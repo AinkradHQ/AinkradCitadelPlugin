@@ -30,7 +30,9 @@ struct RepositoriesGroup: View {
             AinkradReorderList(
                 items: Binding(get: { repos }, set: { store.reorderRepos(project: project.id, $0) })
             ) { repo in
-                RepoCard(store: store, repo: repo, stack: repo.isPrimary ? page.profiles[project.id]?.stack : nil)
+                RepoCard(
+                    store: store, repo: repo, project: project.id,
+                    stack: repo.isPrimary ? page.profiles[project.id]?.stack : nil)
             }
             declared.padding(.top, skin.size.s8)
         }
@@ -86,6 +88,7 @@ private struct DeclaredRow: View {
 private struct RepoCard: View {
     let store: CitadelStore
     let repo: RepoInfo
+    let project: Int64
     let stack: String?
     @State private var confirmsRemove = false
     @Environment(\.ainkradSkin) private var skin
@@ -134,21 +137,8 @@ private struct RepoCard: View {
             }
             HStack(alignment: .top, spacing: skin.size.s6) {
                 ForEach(repo.commands, id: \.label) { command in
-                    VStack(alignment: .leading, spacing: skin.size.s2) {
-                        Text(skin.labelCased(command.label)).citadelFont("t9_5", weight: "semibold")
-                            .foregroundStyle(skin.color(skin.text.muted))
-                        Text(command.command ?? "— none").citadelFont("t11", mono: true)
-                            .foregroundStyle(skin.color(command.command == nil ? skin.text.faint : skin.text.primary))
-                            .lineLimit(1).truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s4)
-                            .background(
-                                skin.color(skin.palette.black).opacity(skin.opacity.o30),
-                                in: RoundedRectangle(cornerRadius: skin.size.s4)
-                            )
-                            .help(command.command ?? "")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    CommandField(
+                        store: store, repo: repo, project: project, label: command.label, value: command.command)
                 }
             }
         }
@@ -158,6 +148,52 @@ private struct RepoCard: View {
             message: "Its worktrees are removed with it. Citadel refuses while an open issue still touches it.",
             confirmTitle: "Remove", isDestructive: true
         ) { store.removeRepo(repo) }
+    }
+}
+
+/// One command input: edited in place, saved on Return (`updateRepo`), the border flashing green once saved.
+private struct CommandField: View {
+    let store: CitadelStore
+    let repo: RepoInfo
+    let project: Int64
+    let label: String
+    let value: String?
+    @State private var text = ""
+    @State private var saved = false
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: skin.size.s2) {
+            Text(skin.labelCased(label)).citadelFont("t9_5", weight: "semibold").foregroundStyle(
+                skin.color(skin.text.muted))
+            AinkradTextField(text: $text, placeholder: "none").compact().monospaced().onSubmit(commit)
+                .overlay(
+                    RoundedRectangle(cornerRadius: skin.size.s9, style: .continuous)
+                        .strokeBorder(skin.color(skin.palette.success).opacity(saved ? skin.opacity.o60 : 0))
+                )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { text = value ?? "" }
+        .onChange(of: value) { _, new in text = new ?? "" }
+    }
+
+    private func commit() {
+        let next = text.trimmingCharacters(in: .whitespaces)
+        guard next != (value ?? "") else { return }
+        var edited = repo
+        switch label {
+        case "Build": edited.build = next.isEmpty ? nil : next
+        case "Test": edited.test = next.isEmpty ? nil : next
+        case "Lint": edited.lint = next.isEmpty ? nil : next
+        default: edited.format = next.isEmpty ? nil : next
+        }
+        store.saveCommands(edited, project: project, label: label) { ok in
+            saved = ok
+            Task {
+                try? await Task.sleep(for: .milliseconds(900))
+                saved = false
+            }
+        }
     }
 }
 

@@ -202,6 +202,7 @@ final class SweepTests: XCTestCase {
         all += Self.settingsShots(stage)
         all += Self.runnersShots(stage)
         all += Self.approvalsShots(stage)
+        all += Self.projectsShots(stage)
         return all
     }
 

@@ -235,6 +235,7 @@ extension CitadelStore {
         case .thread(let requirement): await reloadThread(requirement, model: model, server: server)
         case .artifacts: await reloadArtifacts(model, server: server)
         case .profile(let project): await reloadProfile(project, model: model, server: server)
+        case .projectWork(let project): await reloadWork(project, model: model, server: server)
         case .settings: await reloadSettings(model, server: server)
         case .runners: await reloadRunners(model, server: server)
         }

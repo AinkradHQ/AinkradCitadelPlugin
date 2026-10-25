@@ -36,6 +36,69 @@ final class ProjectsPage {
     var history: [Int64: [ProfileChangeInfo]] = [:]
     /// Each project's knowledge entries (API minor 16), oldest first, once its Knowledge group first loads.
     var knowledge: [Int64: [KnowledgeInfo]] = [:]
+    /// The project page open over the list (`#/projects/<KEY>`); `nil` is the list.
+    var openProject: Int64?
+    var tab: ProjectTab = .overview
+    /// The configuration drawer's tab, or the work item it shows; `nil` is closed.
+    var drawer: ProjectDrawer?
+    /// Each opened project's work: issues, epics, sprints, velocity, capacity, flow.
+    var work: [Int64: ProjectWork] = [:]
+    /// The Board and Backlog toolbar.
+    var filter = WorkFilter()
+    /// The item drawer's runs and activity, per issue.
+    var itemRuns: [Int64: [RunInfo]] = [:]
+    var itemActivity: [Int64: [AuditLine]] = [:]
+}
+
+enum ProjectTab: String, CaseIterable, Hashable, Sendable {
+    case overview, board, backlog, sprints, timeline, reports
+
+    var title: String { rawValue.capitalized }
+    var icon: String {
+        switch self {
+        case .overview: "square.grid.2x2"
+        case .board: "rectangle.split.3x1"
+        case .backlog: "line.3.horizontal"
+        case .sprints: "clock"
+        case .timeline: "text.alignleft"
+        case .reports: "chart.bar"
+        }
+    }
+}
+
+enum ConfigTab: String, CaseIterable, Hashable, Sendable {
+    case teams, repos, rules, runtime, limits, docs, context
+
+    var title: String { rawValue.capitalized }
+    var icon: String {
+        switch self {
+        case .teams: "person.2"
+        case .repos: "arrow.triangle.branch"
+        case .rules: "checklist"
+        case .runtime: "server.rack"
+        case .limits: "gauge.with.needle"
+        case .docs: "doc"
+        case .context: "eye"
+        }
+    }
+}
+
+enum ProjectDrawer: Hashable, Sendable {
+    case config(ConfigTab)
+    case item(Int64)
+}
+
+/// The Board / Backlog toolbar: type, epic, and the board's grouping.
+struct WorkFilter: Equatable, Sendable {
+    /// `nil` is All.
+    var kind: String?
+    var epic: Int64?
+    /// `none`, `epic`, `agent`.
+    var group = "none"
+
+    func apply(_ items: [WorkItem]) -> [WorkItem] {
+        items.filter { (kind == nil || $0.kind == kind) && (epic == nil || $0.epicID == epic) }
+    }
 }
 
 /// One git repo of a project (decision #51).

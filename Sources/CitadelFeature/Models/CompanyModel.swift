@@ -29,6 +29,8 @@ enum Reload: Hashable, Sendable {
     case artifacts
     /// A project's profile and repos (screen 14).
     case profile(Int64)
+    /// An opened project's work: issues, sprints, epics (the project page's tabs).
+    case projectWork(Int64)
     /// Scoped settings (screens 10, 14, 15, 16).
     case settings
     /// Runners and their disk (screen 10).
@@ -229,7 +231,8 @@ final class CompanyModel {
         case "setting": return [.settings]
         case "runner": return [.runners]
         case "project": return entity.map { [.profile($0)] } ?? []
-        case "sprint": return [.sprint]
+        case "sprint":
+            return Set<Reload>([.sprint]).union(projectsPage.work.keys.map { Reload.projectWork($0) })
         case "pr":
             guard let entity, kind == nil || kind == "issue" else { return [] }
             var reloads: Set<Reload> = [.issueFresh(entity)]
@@ -240,6 +243,9 @@ final class CompanyModel {
         case "account": return [.accounts, .settings]
         case "issue":
             var reloads: Set<Reload> = [.stuck]
+            if let project = details["project_id"].flatMap(Int64.init), projectsPage.work[project] != nil {
+                reloads.insert(.projectWork(project))
+            }
             // Every issue event names its project (API minor 9): one in the active sprint's project moves Home's
             // sprint count.
             if let project = details["project_id"].flatMap(Int64.init), let sprint,
