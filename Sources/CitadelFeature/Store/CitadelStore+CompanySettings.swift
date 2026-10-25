@@ -1,10 +1,44 @@
+import AinkradAppKit
 import Foundation
 
 /// Company settings' Devices, Account assignment and Audit log sections; a refusal becomes `actionFailure`.
 extension CitadelStore {
     func loadDevices() {
         guard let server, let page = model?.limitsPage else { return }
-        Task { page.devices = await server.devices() ?? page.devices ?? [] }
+        Task {
+            page.devices = await server.devices() ?? page.devices ?? []
+            notePairedDevice()
+        }
+    }
+
+    /// "Pair a device": asks for a code and opens the drawer on it (API minor 18); the device list is read again
+    /// while it waits, and the new device appears in it.
+    func startPairing() {
+        guard serverSupports(minor: Self.trancheBMinor), let server, let page = model?.limitsPage else { return }
+        page.pairing = PairingSession(code: nil, knownDevices: Set((page.devices ?? []).map(\.id)))
+        loadDevices()
+        Task {
+            switch await server.startPairing() {
+            case .success(let code):
+                page.pairing?.code = code
+                actionFailure = nil
+            case .failure(let answer):
+                page.pairing = nil
+                actionFailure = ActionFailure(
+                    title: "Couldn't start pairing", answer: answer, outcome: "No code was made.")
+            }
+        }
+    }
+
+    /// The drawer's poll: a device that was not in the list when the code was made is the one that paired.
+    func notePairedDevice() {
+        guard let page = model?.limitsPage, let session = page.pairing, session.paired == nil else { return }
+        guard let device = page.devices?.first(where: { !session.knownDevices.contains($0.id) && $0.revokedAt == nil })
+        else { return }
+        page.pairing?.paired = device
+        toast(
+            AinkradRichToast(
+                title: "\(device.name) paired", body: "It receives approvals as push notifications.", status: .success))
     }
 
     /// Revokes a device's key: that device can no longer reach the server.

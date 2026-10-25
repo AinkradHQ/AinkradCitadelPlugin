@@ -253,6 +253,8 @@ struct AddRunnerDrawer: View {
 /// The radar (`ar-radar`): three rings pinging out 0.8 s apart around the device, and what it waits for.
 struct RadarWait: View {
     let title: String
+    var hint = "Run the command on the machine — this updates by itself."
+    var symbol = "server.rack"
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
     @State private var ping = false
@@ -271,7 +273,7 @@ struct RadarWait: View {
                                 : skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 2.4))
                                     .repeatForever(autoreverses: false).delay(Double(index) * 0.8), value: ping)
                 }
-                Image(systemName: "server.rack").citadelFont("t21").foregroundStyle(blue)
+                Image(systemName: symbol).citadelFont("t21").foregroundStyle(blue)
                     .frame(width: skin.size.s56, height: skin.size.s56)
                     .background(
                         blue.opacity(skin.opacity.o14),
@@ -279,7 +281,7 @@ struct RadarWait: View {
             }
             .frame(width: skin.size.s150, height: skin.size.s150)
             Text(title).citadelFont("t14", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-            Text("Run the command on the machine — this updates by itself.").citadelFont("t12")
+            Text(hint).citadelFont("t12")
                 .foregroundStyle(skin.color(skin.text.faint))
         }
         .frame(maxWidth: .infinity)

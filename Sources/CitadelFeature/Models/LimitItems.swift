@@ -27,6 +27,8 @@ final class LimitsPage {
     var refused: [String: String] = [:]
     /// The Devices section's keys and the Audit log's entries; `nil` until the section first opens.
     var devices: [DeviceInfo]?
+    /// The Pair a device drawer, once asked for (API minor 18).
+    var pairing: PairingSession?
     var auditLog: [AuditLine]?
     /// The audit log's next page (older rows); `nil` on the last. Its action-prefix filter, `""` for all.
     var auditNext: Int64?

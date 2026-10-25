@@ -39,6 +39,8 @@ enum Reload: Hashable, Sendable {
     case presets
     /// The roles (API minor 18).
     case roles
+    /// The device keys (a pairing finished).
+    case devices
 }
 
 /// The selected company as the screens read it, kept current by the event stream.
@@ -76,6 +78,8 @@ final class CompanyModel {
     var roles: [RoleInfo] = []
     /// Each agent's server-side stats once read (API minor 18): the agent page, the Org peek.
     var agentStats: [Int64: Schemas.AgentStats] = [:]
+    /// The company's notification preferences once read (API minor 18).
+    var notifications: NotificationPrefs?
     var accountUse: [AccountUseInfo] = []
     /// The period the cost data is for; `nil` until the Cost screen first loads.
     var costPeriod: CostPeriod?
@@ -240,6 +244,7 @@ final class CompanyModel {
         case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
         case "chain_preset": return [.presets, .org]
         case "role": return [.roles]
+        case "device": return [.devices]
         case "budget": return [.costs]
         case "requirement":
             var reloads: Set<Reload> = [.requirements, .questions]

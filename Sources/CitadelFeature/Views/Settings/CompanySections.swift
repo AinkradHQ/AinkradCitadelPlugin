@@ -2,7 +2,7 @@ import AinkradAppKit
 import SwiftUI
 
 /// Company settings › Members & devices: the owner, and every device key as a card — never the key itself — with
-/// Revoke confirmed in place. Pairing and invites wait for the server.
+/// Revoke confirmed in place. Pairing with a code is the server's from API minor 18; invites still wait for it.
 struct DevicesSection: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -14,8 +14,13 @@ struct DevicesSection: View {
     var body: some View {
         SettingsScroll {
             SettingsHero(section: .devices) {
-                AinkradDockButton("Pair a device", systemImage: "plus", tone: .primary, isEnabled: false) {}
-                    .help("Pairing with a code needs the server's pairing flow — use citadel key create meanwhile")
+                AinkradDockButton(
+                    "Pair a device", systemImage: "plus", tone: .primary,
+                    isEnabled: store.serverSupports(minor: CitadelStore.trancheBMinor)
+                ) { store.startPairing() }
+                .help(
+                    store.help(
+                        minor: CitadelStore.trancheBMinor, ready: "A six-character code the new device types in"))
             }
             SettingsCard(title: "Members") {
                 memberRow(
@@ -56,6 +61,12 @@ struct DevicesSection: View {
             }
         }
         .onAppear { store.loadDevices() }
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { page.pairing != nil }, set: { if !$0 { page.pairing = nil } }),
+            inset: skin.size.s34
+        ) {
+            PairDeviceDrawer(store: store, model: model, close: { page.pairing = nil })
+        }
     }
 
     private func initials(_ name: String) -> String {

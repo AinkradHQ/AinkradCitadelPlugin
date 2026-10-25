@@ -10,6 +10,24 @@ struct DeviceInfo: Identifiable, Equatable, Sendable {
     var revokedAt: Date?
 }
 
+/// A code to type on a new device, and when it stops working.
+struct PairingCode: Equatable, Sendable {
+    var code: String
+    var expiresAt: Date
+
+    /// `K7Q-2MX`: the six characters in two groups of three, as the prototype shows them.
+    var tiles: [String] {
+        Array(code.uppercased()).map(String.init).enumerated().flatMap { index, ch in index == 3 ? ["-", ch] : [ch] }
+    }
+}
+
+/// The Pair a device drawer: the code asked for, the keys that existed then, and the device that appeared since.
+struct PairingSession: Equatable, Sendable {
+    var code: PairingCode?
+    var knownDevices: Set<Int64>
+    var paired: DeviceInfo?
+}
+
 /// One audited change: what happened (`issue.in_review`), to what, by whom, when.
 struct AuditLine: Identifiable, Equatable, Sendable {
     var id: Int64 { seq }
@@ -48,6 +66,15 @@ extension CitadelServer {
                     id: $0.id, name: $0.name, createdAt: $0.createdAt, lastUsedAt: $0.lastUsedAt,
                     revokedAt: $0.revokedAt)
             }
+        }
+    }
+
+    /// A pairing code, good once for five minutes (API minor 18): a new device sends it with a name to join.
+    func startPairing() async -> Result<PairingCode, ServerAnswer> {
+        await attempt({ try await scoped(to: nil).client.startPairing() }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            let pairing = try ok.body.json
+            return PairingCode(code: pairing.code, expiresAt: pairing.expiresAt)
         }
     }
 

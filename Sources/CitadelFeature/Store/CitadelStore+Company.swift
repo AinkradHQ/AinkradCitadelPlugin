@@ -246,6 +246,9 @@ extension CitadelStore {
         case .runners: await reloadRunners(model, server: server)
         case .presets: await reloadChainPresets(model, server: server)
         case .roles: await reloadRoles(model, server: server)
+        case .devices:
+            if model.limitsPage.devices != nil { loadDevices() }
+            notePairedDevice()
         }
     }
 
