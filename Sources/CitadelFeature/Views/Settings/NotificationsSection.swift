@@ -44,9 +44,9 @@ struct NotificationsSection: View {
             SettingsCard(title: "Quiet hours") {
                 SettingsRow(label: "Mute pushes", hint: "drag the bar or type the times") {
                     ServerSoonChip()
-                    ValPill(text: "22:00", isEditable: false)
+                    AinkradValuePill(text: "22:00") { _ in }.editable(false)
                     Text("to").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-                    ValPill(text: "07:30", isEditable: false)
+                    AinkradValuePill(text: "07:30") { _ in }.editable(false)
                     AinkradToggle(isOn: .constant(false)).disabled(true)
                 }
                 SettingsRow(label: "Break through for", hint: "still pushes during quiet hours") {

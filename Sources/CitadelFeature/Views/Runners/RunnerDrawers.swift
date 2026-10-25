@@ -145,10 +145,10 @@ struct RunnerHero: View {
 
     var body: some View {
         let look = RunnerLook(runner: runner)
-        DrawerHero(
+        AinkradDrawerHero(
             tint: look.tint(skin), title: runner.name, subtitle: look.line(now: Date()),
-            pill: (look.state, look.tint(skin))
-        ) { DeviceTile(look: look, size: skin.size.s56) }
+            leading: { DeviceTile(look: look, size: skin.size.s56) },
+            trailing: { AinkradStatePill(text: look.state, tint: look.tint(skin), dot: true) })
     }
 }
 

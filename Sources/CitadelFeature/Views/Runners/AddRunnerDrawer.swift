@@ -76,7 +76,7 @@ struct AddRunnerDrawer: View {
     private func preview(tint: Color) -> some View {
         let draft = page.addDraft
         let tags = draft.allTags.isEmpty ? "no tags" : draft.allTags.joined(separator: " · ")
-        return DrawerHero(
+        return AinkradDrawerHero(
             tint: tint, title: draft.trimmedName.isEmpty ? "—" : draft.trimmedName,
             subtitle: "\(machine.title) · \(tags)"
         ) {
@@ -93,10 +93,10 @@ struct AddRunnerDrawer: View {
 
     @ViewBuilder private var machineStep: some View {
         @Bindable var page = page
-        DrawerSection(title: "Name", hint: "how it shows up everywhere") {
+        AinkradDrawerSection(title: "Name", hint: "how it shows up everywhere") {
             AinkradTextField(text: $page.addDraft.name, placeholder: "hetzner-3").monospaced()
         }
-        DrawerSection(title: "Machine") {
+        AinkradDrawerSection(title: "Machine") {
             HStack(spacing: skin.size.s8) {
                 ForEach(AddRunnerDraft.machines, id: \.id) { option in
                     SettingsChoiceCard(
@@ -116,11 +116,11 @@ struct AddRunnerDrawer: View {
                 }
             }
         }
-        DrawerSection(title: "Parallel slots", hint: "the runner reports its own when it connects") {
+        AinkradDrawerSection(title: "Parallel slots", hint: "the runner reports its own when it connects") {
             Text("Set on the machine: each runner reports how many runs it holds at once.")
                 .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
         }
-        DrawerSection(title: "Tags", hint: "jobs route by tag") {
+        AinkradDrawerSection(title: "Tags", hint: "jobs route by tag") {
             AinkradFlowLayout(spacing: skin.size.s8) {
                 ForEach(AddRunnerDraft.tagChoices, id: \.tag) { choice in tagChip(choice.tag, choice.title) }
             }
@@ -163,10 +163,12 @@ struct AddRunnerDrawer: View {
     @ViewBuilder private var installStep: some View {
         if let registered = page.registered {
             let command = store.address.map { registered.command(server: $0.origin) } ?? registered.key
-            DrawerSection(title: "Run this on \(registered.runner.name)", hint: "the key rides in the environment") {
+            AinkradDrawerSection(
+                title: "Run this on \(registered.runner.name)", hint: "the key rides in the environment"
+            ) {
                 CommandStrip(command: command.replacingOccurrences(of: " \\\n  ", with: " "))
             }
-            DrawerSection {
+            AinkradDrawerSection {
                 HStack(spacing: skin.size.s14) {
                     Image(systemName: "key").citadelFont("t21").foregroundStyle(skin.color(skin.palette.accentPrimary))
                         .frame(width: skin.size.s64, height: skin.size.s64)

@@ -231,7 +231,7 @@ struct GeneralSection: View {
             }
             SettingsRow(label: "Monthly budget", hint: "per new agent · warn at 80%") {
                 ServerSoonChip()
-                ValPill(text: "—", isEditable: false)
+                AinkradValuePill(text: "—") { _ in }.editable(false)
                 AinkradDockButton("Limits") { store.model?.limitsPage.section = .limits }
             }
         }

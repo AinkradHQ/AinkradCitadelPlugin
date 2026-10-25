@@ -73,7 +73,7 @@ struct RunnerCard: View {
                 Text(subtitle).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
             }
             Spacer(minLength: skin.size.s8)
-            StatePillBox(text: look.state, tint: look.tint(skin)).transition(.opacity).id(look.state)
+            AinkradStatePill(text: look.state, tint: look.tint(skin), dot: true).transition(.opacity).id(look.state)
         }
     }
 
@@ -324,17 +324,17 @@ struct RunnerCard: View {
                         HStack(spacing: skin.size.s5) {
                             Text(titles[setting.key] ?? setting.key).citadelFont("t11").foregroundStyle(
                                 skin.color(skin.text.muted))
-                            ValPill(
-                                text: setting.text, help: "\(setting.bounds) · Return sets it on this runner",
-                                validate: setting.accepts,
-                                commit: { store.setRunnerLimit(runner.id, key: setting.key, text: $0) },
-                                onRefuse: { refuse($0, setting) })
-                            SettingsScopeChip(
+                            AinkradValuePill(
+                                text: setting.text, help: "\(setting.bounds) · Return sets it on this runner"
+                            ) { store.setRunnerLimit(runner.id, key: setting.key, text: $0) }
+                            .validating(setting.accepts, onRefuse: { refuse($0, setting) })
+                            AinkradScopeChip(
                                 text: set
                                     ? "runner · server \(page.serverSettings[setting.key]?.text ?? "")" : "server",
-                                isOverridden: set,
-                                help: set ? "Set on this runner" : "Server default · runners are server-wide",
-                                reset: set ? { store.resetRunnerLimit(runner.id, key: setting.key) } : nil)
+                                overridden: set,
+                                reset: set ? { store.resetRunnerLimit(runner.id, key: setting.key) } : nil
+                            )
+                            .tooltip(set ? "Set on this runner" : "Server default · runners are server-wide")
                         }
                     }
                 }

@@ -24,7 +24,7 @@ struct RunnerOverview: View {
     private func tile<Content: View>(
         _ icon: String, _ title: String, trailing: String? = nil, @ViewBuilder content: () -> Content
     ) -> some View {
-        BentoTile(padding: skin.size.s15) {
+        AinkradBentoTile(padding: skin.size.s15) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(spacing: skin.size.s8) {
                     Image(systemName: icon).citadelFont("t12").foregroundStyle(skin.color(skin.palette.accentPrimary))

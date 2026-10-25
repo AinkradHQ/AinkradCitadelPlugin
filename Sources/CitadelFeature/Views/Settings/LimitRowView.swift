@@ -30,7 +30,7 @@ struct LimitRowView: View {
             }
             .frame(minWidth: skin.size.s140, maxWidth: .infinity, alignment: .leading)
             VStack(spacing: skin.size.s2) {
-                DragGauge(
+                AinkradDragGauge(
                     value: Double(setting.value), range: Double(row.setting.min)...Double(row.setting.max),
                     step: Double(Self.step(row.setting)), mark: Double(row.setting.value), tint: tint,
                     isEnabled: row.company != nil, label: row.name,
@@ -82,23 +82,25 @@ struct LimitRowView: View {
         if let company = row.company {
             let set = company.isSet(at: scope)
             HStack(spacing: skin.size.s6) {
-                ValPill(
+                AinkradValuePill(
                     text: preview.map { ScopedSetting.format($0, unit: company.unit) } ?? company.text,
-                    help: "Click to edit · \(company.bounds)",
-                    validate: { page.check(company, $0) },
-                    commit: { text in
-                        if let parsed = company.parse(text) { store.commitLimit(company, scope: scope, value: parsed) }
-                    },
+                    help: "Click to edit · \(company.bounds)"
+                ) { text in
+                    if let parsed = company.parse(text) { store.commitLimit(company, scope: scope, value: parsed) }
+                }
+                .validating(
+                    { page.check(company, $0) },
                     onRefuse: { text in
                         store.toast(
                             AinkradRichToast(
                                 title: "Refused: \(text.isEmpty ? "empty" : text) is outside \(company.bounds)",
                                 body: "Values are validated against the bounds — never clamped.", status: .danger))
                     })
-                SettingsScopeChip(
-                    text: set ? "company" : company.sourceKind, isOverridden: set,
-                    help: set ? "Set for this company" : "Inherited from the \(company.sourceKind)",
-                    reset: set ? { store.resetLimitWithToast(company, scope: scope) } : nil)
+                AinkradScopeChip(
+                    text: set ? "company" : company.sourceKind, overridden: set,
+                    reset: set ? { store.resetLimitWithToast(company, scope: scope) } : nil
+                )
+                .tooltip(set ? "Set for this company" : "Inherited from the \(company.sourceKind)")
                 if let refused = page.refused[row.id] {
                     Text(refused).citadelFont("t10").foregroundStyle(status.danger).lineLimit(1)
                 }

@@ -89,34 +89,42 @@ struct RunnersView: View {
 private struct RunnerDrawers: ViewModifier {
     let store: CitadelStore
     let page: RunnersPage
+    @Environment(\.ainkradSkin) private var skin
 
     func body(content: Content) -> some View {
         let logRunner = page.runners.first { $0.id == page.log?.runner }
         let reloginRunner = page.runners.first { $0.id == page.relogin }
+        let logOpen = Binding(get: { page.log != nil }, set: { if !$0 { page.log = nil } })
+        let reloginOpen = Binding(get: { page.relogin != nil }, set: { if !$0 { page.relogin = nil } })
+        let addOpen = Binding(get: { page.adding }, set: { if !$0 { closeAdd() } })
         content
-            .insetDrawer(
-                isPresented: Binding(get: { page.log != nil }, set: { if !$0 { page.log = nil } }),
-                crumb: ["Runners", "\(logRunner?.name ?? "Runner") · log"]
-            ) {
-                if let logRunner { RunnerLogDrawer(page: page, runner: logRunner, lines: page.log?.lines ?? []) }
-            } foot: {
-                EmptyView()
+            .ainkradFloatingDrawer(isPresented: logOpen, top: skin.size.s62) {
+                AinkradDrawerPanel(
+                    style: .form, isTranslucent: true, onClose: { logOpen.wrappedValue = false },
+                    header: { AinkradDrawerCrumb(["Runners", "\(logRunner?.name ?? "Runner") · log"]) },
+                    content: {
+                        if let logRunner {
+                            RunnerLogDrawer(page: page, runner: logRunner, lines: page.log?.lines ?? [])
+                        }
+                    })
             }
-            .insetDrawer(
-                isPresented: Binding(get: { page.relogin != nil }, set: { if !$0 { page.relogin = nil } }),
-                crumb: ["Runners", "Re-login on \(reloginRunner?.name ?? "runner")"]
-            ) {
-                if let reloginRunner { RunnerReloginDrawer(page: page, runner: reloginRunner) }
-            } foot: {
-                if let reloginRunner { ReloginFoot(page: page, runner: reloginRunner) }
+            .ainkradFloatingDrawer(isPresented: reloginOpen, top: skin.size.s62) {
+                AinkradDrawerPanel(
+                    style: .form, isTranslucent: true, onClose: { reloginOpen.wrappedValue = false },
+                    header: { AinkradDrawerCrumb(["Runners", "Re-login on \(reloginRunner?.name ?? "runner")"]) },
+                    content: {
+                        if let reloginRunner { RunnerReloginDrawer(page: page, runner: reloginRunner) }
+                    },
+                    footer: {
+                        if let reloginRunner { ReloginFoot(page: page, runner: reloginRunner) }
+                    })
             }
-            .insetDrawer(
-                isPresented: Binding(get: { page.adding }, set: { if !$0 { closeAdd() } }),
-                crumb: ["Runners", "Add a runner"]
-            ) {
-                AddRunnerDrawer(store: store, page: page)
-            } foot: {
-                AddRunnerFoot(store: store, page: page, close: closeAdd)
+            .ainkradFloatingDrawer(isPresented: addOpen, top: skin.size.s62) {
+                AinkradDrawerPanel(
+                    style: .form, isTranslucent: true, onClose: { addOpen.wrappedValue = false },
+                    header: { AinkradDrawerCrumb(["Runners", "Add a runner"]) },
+                    content: { AddRunnerDrawer(store: store, page: page) },
+                    footer: { AddRunnerFoot(store: store, page: page, close: closeAdd) })
             }
     }
 

@@ -77,7 +77,7 @@ struct NewCompanyResourceSteps: View {
                     Text(Fmt.tokens(total)).citadelFont("t24", weight: "bold", mono: true)
                         .foregroundStyle(skin.color(skin.text.primary)).frame(
                             minWidth: skin.size.s90, alignment: .leading)
-                    DragGauge(
+                    AinkradDragGauge(
                         value: Double(total) / Self.millions, range: 10...500, step: 10,
                         mark: Double(warn) / Self.millions,
                         tint: blue, label: "Company monthly budget",
