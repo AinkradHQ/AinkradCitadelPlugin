@@ -53,6 +53,10 @@ final class CompanyModel {
     var comments: [Int64: [CommentInfo]] = [:]
     /// Each project's average velocity over its last sprints (points).
     var velocity: [Int64: Double] = [:]
+    /// Each project's last sprints' completed points, oldest first (the approvals sprint KPI's sparkline).
+    var velocitySeries: [Int64: [Int]] = [:]
+    /// Each issue's worktree diff per repo, as its last run measured it (the merge approval's PR cards).
+    var issueDiffs: [Int64: [RepoDiffInfo]] = [:]
     /// Runners online now, for the sidebar's "3/4".
     var runnersOnline = 0
     /// The Cost screen's period: its issues, its days (oldest first), this company's account use.
