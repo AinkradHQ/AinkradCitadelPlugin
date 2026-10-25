@@ -50,11 +50,19 @@ final class CitadelStore {
     /// After a first-run connect the card stays up as "Connected" until Open Home.
     var hasOpenedHome: Bool
     /// The window's main pane shows Settings.
-    var isShowingSettings = false
+    var isShowingSettings = false {
+        willSet { if newValue != isShowingSettings { navDirection = .fade } }
+        didSet { recordRoute() }
+    }
     /// The ⌘K search panel is open.
     var isSearching = false
+    /// What ⌘K opens with typed in (a deep link, a sweep shot); empty normally.
+    var searchSeed = ""
     /// The New requirement sheet is open (Home dock, ⌘N, ⌘K action).
     var isComposingRequirement = false
+    /// The company menu (⌘⇧O) and the keyboard sheet (?) are open.
+    var isSwitchingCompany = false
+    var isShowingShortcuts = false
     /// The window's toasts (top-right), shown after an action lands.
     let toasts = AinkradRichToastCenter()
 
@@ -63,8 +71,20 @@ final class CitadelStore {
     var userName: String?
     var apiMinor: Int?
     /// The sidebar's screen, and the agent or run opened from it (screens 04 and 05).
-    var screen: Screen = .home
-    var detail: Detail?
+    var screen: Screen = .home {
+        willSet { if newValue != screen { navDirection = .fade } }
+        didSet { recordRoute() }
+    }
+    var detail: Detail? {
+        willSet { if let newValue, newValue != detail { navDirection = .push } }
+        didSet { recordRoute() }
+    }
+    /// How the next screen change animates, and the back/forward history (⌘[ ⌘]).
+    var navDirection: NavDirection = .fade
+    var history: [Route] = []
+    var historyIndex = -1
+    @ObservationIgnored var isTravelling = false
+    @ObservationIgnored var routePending = false
     /// The approval open in the inbox (06) and the agent thread open on screen 07; `nil` is the first.
     var selectedApproval: Int64?
     var selectedThread: ThreadKey?

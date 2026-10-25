@@ -164,6 +164,13 @@ final class SweepTests: XCTestCase {
         let wide = CGSize(width: 1280, height: 800)
         var all: [(String, CitadelStore, CGSize)] = shots.map { ($0.0, $0.1, small) }
         all.append(("02-home", company(.home), CGSize(width: 1400, height: 1060)))
+        let search = company(.home)
+        search.isSearching = true
+        all.append(("01-search", search, CGSize(width: 1400, height: 900)))
+        let searchQuery = company(.home)
+        searchQuery.isSearching = true
+        searchQuery.searchSeed = "kes"
+        all.append(("01-search-query", searchQuery, CGSize(width: 1400, height: 900)))
         all.append(("03-org", company(.org), wide))
         all.append(("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), wide))
         all.append(

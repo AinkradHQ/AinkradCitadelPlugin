@@ -6,7 +6,6 @@ import SwiftUI
 /// card, its mark with a live dot, "4 working · 8 need you", and the menu of companies on this server.
 struct CompanySwitcher: View {
     @Bindable var store: CitadelStore
-    @State private var isOpen = false
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -14,7 +13,7 @@ struct CompanySwitcher: View {
     var body: some View {
         if let company = store.company {
             card(company)
-                .ainkradPopover(isPresented: $isOpen) { menu(current: company) }
+                .ainkradPopover(isPresented: $store.isSwitchingCompany) { menu(current: company) }
         }
     }
 
@@ -22,7 +21,7 @@ struct CompanySwitcher: View {
         let tint = CompanyLook.color(company, skin: skin)
         let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
         return AinkradTapArea {
-            isOpen.toggle()
+            store.isSwitchingCompany.toggle()
         } label: {
             HStack(spacing: skin.size.s10) {
                 CompanyMark(company: company, size: skin.size.s34, live: (store.model?.busyAgents ?? 0) > 0)
@@ -37,13 +36,13 @@ struct CompanySwitcher: View {
                 .layoutPriority(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down").citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(hovering || isOpen ? skin.text.primary : skin.text.muted))
+                    .foregroundStyle(skin.color(hovering || store.isSwitchingCompany ? skin.text.primary : skin.text.muted))
                     .frame(width: skin.size.s22, height: skin.size.s26)
                     .background(
                         RoundedRectangle(cornerRadius: skin.size.s7, style: .continuous)
                             .fill(
                                 skin.color(
-                                    .palette("foreground", hovering || isOpen ? skin.opacity.o10 : skin.opacity.o05))))
+                                    .palette("foreground", hovering || store.isSwitchingCompany ? skin.opacity.o10 : skin.opacity.o05))))
             }
             .padding(skin.size.s8)
             .background {
@@ -67,7 +66,7 @@ struct CompanySwitcher: View {
             }
             .overlay(
                 shape.strokeBorder(
-                    tint.opacity(isOpen ? skin.opacity.o60 : hovering ? skin.opacity.o50 : skin.opacity.o28),
+                    tint.opacity(store.isSwitchingCompany ? skin.opacity.o60 : hovering ? skin.opacity.o50 : skin.opacity.o28),
                     lineWidth: 1)
             )
             .shadow(color: skin.color(.palette("black", skin.opacity.o25)), radius: skin.size.s10, y: skin.size.s6)
@@ -120,7 +119,7 @@ struct CompanySwitcher: View {
                         : nil,
                     hint: index < 9 ? "⌘\(index + 1)" : nil, checked: company.id == current.id
                 ) {
-                    isOpen = false
+                    store.isSwitchingCompany = false
                     if company.id != current.id { store.select(company: company.id) }
                 }
             }
@@ -129,7 +128,7 @@ struct CompanySwitcher: View {
                 leading: AnyView(GlyphTile(icon: "gearshape", size: skin.size.s32)), title: "Company settings",
                 detail: current.name
             ) {
-                isOpen = false
+                store.isSwitchingCompany = false
                 store.isShowingSettings = true
             }
         }

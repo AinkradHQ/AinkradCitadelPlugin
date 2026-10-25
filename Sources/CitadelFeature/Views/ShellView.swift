@@ -20,16 +20,34 @@ struct ShellView: View {
                     OfflineBar(store: store).padding(.top, skin.size.s10)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                if store.isShowingSettings {
-                    CompanySettingsView(store: store)
-                } else {
-                    content.environment(\.citadelOffline, isOffline ? Offline(store: store, crumb: offlineCrumb) : nil)
+                ZStack {
+                    Group {
+                        if store.isShowingSettings {
+                            CompanySettingsView(store: store)
+                        } else {
+                            content.environment(
+                                \.citadelOffline, isOffline ? Offline(store: store, crumb: offlineCrumb) : nil)
+                        }
+                    }
+                    .id(store.route)
+                    .transition(store.navDirection.transition(skin, reduceMotion: reduceMotion))
                 }
+                .animation(skin.animation(skin.motion.present), value: store.route)
+                .clipped()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .overlay(alignment: .bottom) { failureBanner }
             .overlay(alignment: .topTrailing) { AinkradRichToastStack(center: store.toasts) }
         }
+        .background { ShellShortcuts(store: store) }
+        .overlay {
+            if store.isSearching, let model = store.model {
+                Spotlight(store: store, model: model, query: store.searchSeed)
+            }
+        }
+        .animation(
+            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "spring", response: 0.32, damping: 0.8)),
+            value: store.isSearching)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
     }
@@ -68,8 +86,6 @@ struct ShellView: View {
             }
         } else if let model = store.model, model.isLoaded {
             screenView(model)
-                .id(store.detail.map { "\($0)" } ?? store.screen.rawValue)
-                .transition(.opacity)
         } else if !isOffline {
             VStack(spacing: 0) {
                 PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
