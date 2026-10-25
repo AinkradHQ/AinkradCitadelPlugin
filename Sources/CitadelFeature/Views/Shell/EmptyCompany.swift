@@ -67,7 +67,7 @@ struct NoAgentsView: View {
             .padding(.vertical, skin.size.s14)
         }
         .scrollIndicators(.never)
-        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s440) {
+        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s860 + skin.size.s72) {
             ProposeAgentSheet(store: store, model: model, isPresented: $proposing)
         }
         .ainkradConfirmDialog(
