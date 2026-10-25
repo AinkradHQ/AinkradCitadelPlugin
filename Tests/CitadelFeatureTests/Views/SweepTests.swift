@@ -25,7 +25,7 @@ final class SweepTests: XCTestCase {
         Self.registerHostFonts()
         try FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
 
-        for (theme, skin) in [("neon", AinkradSkin.standard), ("glass", glass)] {
+        for (theme, skin) in [("glass", glass)] {  // Liquid Glass only (Ahmed, 2026-10-24)
             let hostTheme = HostTheme(HostThemeTokens(skin: skin))
             hostTheme.updateStatusColors(
                 HostStatusColors(
@@ -41,7 +41,9 @@ final class SweepTests: XCTestCase {
                             Self.sheet(name, store)
                         }
                         .frame(width: size.width, height: size.height)
-                        .background(skin.color(skin.palette.background))
+                        // As the host draws it: the window's glass fill over the workspace sky.
+                        .background(skin.color(skin.palette.background).opacity(SettingsDocument.defaultSurfaceOpacity))
+                        .background(SweepBackdrop())
                         .ainkradSkin(skin)
                         // As the host: Exo 2 under Neon, the system face under Glass.
                         .environment(
@@ -86,6 +88,7 @@ final class SweepTests: XCTestCase {
                 $0.agentCount = 18
                 $0.phase = .connected
                 $0.streamStatus = .live
+                $0.userName = "Ahmed"
                 let model = CompanyFixture.model()
                 stage(model)
                 $0.model = model
@@ -160,7 +163,7 @@ final class SweepTests: XCTestCase {
         // The mockups' window sizes (Designs/citadel/base.css `.window`, and each screen's override).
         let wide = CGSize(width: 1280, height: 800)
         var all: [(String, CitadelStore, CGSize)] = shots.map { ($0.0, $0.1, small) }
-        all.append(("02-home", company(.home), CGSize(width: 1280, height: 900)))
+        all.append(("02-home", company(.home), CGSize(width: 1400, height: 1060)))
         all.append(("03-org", company(.org), wide))
         all.append(("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), wide))
         all.append(
@@ -255,5 +258,26 @@ enum LiveCapture {
         try capture.run()
         capture.waitUntilExit()
         XCTAssertEqual(capture.terminationStatus, 0, "no capture for \(url.lastPathComponent)")
+    }
+}
+
+/// The prototype page's sky (`base.css` body): three soft colour fields over near-black, standing in for the host's
+/// blurred workspace behind a translucent pane.
+struct SweepBackdrop: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color(red: 0.02, green: 0.027, blue: 0.047)
+                RadialGradient(
+                    colors: [Color(red: 0.145, green: 0.388, blue: 0.922).opacity(0.35), .clear],
+                    center: UnitPoint(x: 0.15, y: 0.1), startRadius: 0, endRadius: geo.size.width * 0.55)
+                RadialGradient(
+                    colors: [Color(red: 0.063, green: 0.725, blue: 0.506).opacity(0.25), .clear],
+                    center: UnitPoint(x: 0.85, y: 0.8), startRadius: 0, endRadius: geo.size.width * 0.45)
+                RadialGradient(
+                    colors: [Color(red: 0.659, green: 0.333, blue: 0.969).opacity(0.25), .clear],
+                    center: UnitPoint(x: 0.7, y: 0.2), startRadius: 0, endRadius: geo.size.width * 0.38)
+            }
+        }
     }
 }

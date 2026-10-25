@@ -51,6 +51,17 @@ final class CitadelStore {
     var hasOpenedHome: Bool
     /// The window's main pane shows Settings.
     var isShowingSettings = false
+    /// The ⌘K search panel is open.
+    var isSearching = false
+    /// The New requirement sheet is open (Home dock, ⌘N, ⌘K action).
+    var isComposingRequirement = false
+    /// The window's toasts (top-right), shown after an action lands.
+    let toasts = AinkradRichToastCenter()
+
+    func toast(_ toast: AinkradRichToast) { toasts.show(toast) }
+    /// Who the key acts as (`/me` user), for Home's greeting; the server's API minor, for Connect.
+    var userName: String?
+    var apiMinor: Int?
     /// The sidebar's screen, and the agent or run opened from it (screens 04 and 05).
     var screen: Screen = .home
     var detail: Detail?
@@ -214,6 +225,8 @@ final class CitadelStore {
             let companies = me.companies
             guard !Task.isCancelled else { return }
             serverVersion = me.version
+            userName = me.userName
+            apiMinor = me.apiMinor
             catchUpTotal = cursor.map { Int(max(0, me.latestSeq - $0)) }
             latency = ContinuousClock.now - started
             // Accepted: only now does the key reach the secret store.

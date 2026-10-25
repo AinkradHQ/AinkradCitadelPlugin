@@ -1,14 +1,6 @@
 {
-  "originHash" : "f2ad67e5a61dfa0b6c3586b53c2d5d3f1d4f202513e9c08bf349c554113291fd",
+  "originHash" : "0ec3d3dee2c8aa99de0d6e5a75a28c681a39460d96abad830aae1fd9732e1ead",
   "pins" : [
-    {
-      "identity" : "ainkradappkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AinkradHQ/AinkradAppKit",
-      "state" : {
-        "revision" : "141d5b80468a5aa43e688c2716e1cc715b17564f"
-      }
-    },
     {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",

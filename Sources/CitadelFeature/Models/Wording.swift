@@ -4,6 +4,11 @@ import Foundation
 /// The names screens build from parts, said once: never "Product Owner (Product Owner)", "CEO · CEO",
 /// "Sprint WRK WRK Sprint 1" or "1 departments".
 enum Wording {
+    /// "Sprint CIT S4" → "CIT S4" (the prototype says "sprint CIT S4").
+    static func sprintName(_ title: String) -> String {
+        title.hasPrefix("Sprint ") ? String(title.dropFirst("Sprint ".count)) : title
+    }
+
     /// "3 agents", "1 department", "2 companies" (`plural` for an irregular one).
     static func count(_ n: some BinaryInteger, _ singular: String, plural: String? = nil) -> String {
         "\(n) \(n == 1 ? singular : plural ?? singular + "s")"

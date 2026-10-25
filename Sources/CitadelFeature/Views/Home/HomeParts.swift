@@ -1,217 +1,249 @@
 import AinkradAppKit
 import SwiftUI
 
-/// "Live runs": one card per running run — the agent's figure, the issue, the tool call happening now (breathing
-/// while it runs), and tokens against the run's cap with the warn mark. Click opens the live transcript.
-struct LiveRunStrip: View {
+/// "Live runs": a card per run in flight (prototype `runsLiveCard`), or the idle strip when nothing runs.
+struct LiveRunsSection: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s10) {
-            TileHead(title: "Live runs", action: "All runs →") { store.screen = .runs }
-            HStack(alignment: .top, spacing: skin.size.s10) {
-                ForEach(model.liveRuns.prefix(4)) { run in
-                    RunCard(run: run, model: model) { store.open(.run(run.id)) }.frame(maxWidth: .infinity)
+            SectionHead(title: "Live runs", count: "\(model.liveRuns.count)", link: "All runs →") {
+                store.screen = .runs
+            }
+            .padding(.horizontal, skin.size.s2)
+            if model.liveRuns.isEmpty {
+                idle
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: skin.size.s260), spacing: skin.size.s12)],
+                    spacing: skin.size.s12
+                ) {
+                    ForEach(model.liveRuns) { run in LiveRunCard(store: store, model: model, run: run) }
                 }
-                ForEach(0..<max(0, 4 - model.liveRuns.count), id: \.self) { _ in
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
+            }
+        }
+    }
+
+    /// `● Idle · last run #426 Rook on CIT-61 ended 11:32   [Runs →]`.
+    private var idle: some View {
+        let last = (model.companyRuns ?? []).first { !$0.isLive }
+        return BentoTile(padding: skin.size.s12) {
+            HStack(spacing: skin.size.s8) {
+                Circle().fill(skin.color(skin.text.faint)).frame(width: skin.size.s7, height: skin.size.s7)
+                Text("Idle").citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
+                if let last {
+                    let who = model.agent(last.agentID)?.name ?? "an agent"
+                    let on = model.issue(last.issueID).map { " on \($0.key)" } ?? ""
+                    let at = (last.endedAt ?? last.queuedAt).formatted(date: .omitted, time: .shortened)
+                    Text("· last run #\(last.id) \(who)\(on) ended \(at)").citadelFont("t12")
+                        .foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
                 }
+                Spacer(minLength: skin.size.s8)
+                AinkradDockButton("Runs") { store.screen = .runs }
             }
         }
     }
 }
 
-struct RunCard: View {
-    let run: RunInfo
+/// One live run: agent figure, name, role and runner, its state; the issue; the live console line; tokens
+/// against the cap; elapsed and cost; the two actions that fit its state.
+struct LiveRunCard: View {
+    let store: CitadelStore
     let model: CompanyModel
-    let open: () -> Void
+    let run: RunInfo
+    @State private var hovering = false
+    @State private var nudging = false
+    @State private var nudge = ""
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    private var agent: AgentInfo? { model.agent(run.agentID) }
+    private var waiting: ApprovalInfo? { model.waitingApproval(run: run.id) }
+    private var state: (word: String?, tone: NeedsItem.Tone?) { model.cardState(of: run) }
+
+    private var colors: (Color, Color) {
+        switch state.tone {
+        case .warning?: (status.warning, status.warning)
+        case .danger?: (status.danger, status.danger)
+        default:
+            (
+                agent?.palette.lightColor ?? skin.color(skin.palette.accentSecondary),
+                agent?.palette.deepColor ?? skin.color(skin.palette.accentPrimary)
+            )
+        }
+    }
 
     var body: some View {
-        let state = model.cardState(of: run)
-        AinkradCard(onTap: open) {
-            VStack(alignment: .leading, spacing: skin.size.s4) {
-                HStack(spacing: skin.size.s8) {
-                    if let agent = model.agent(run.agentID) {
-                        AgentFigure(agent: agent, model: model, size: skin.size.s24)
-                    }
-                    Text(model.agent(run.agentID)?.name ?? "Agent").citadelFont("t13", weight: "semibold")
-                        .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
-                    Spacer(minLength: skin.size.s4)
-                    if let word = state.word {
-                        AinkradBadge(text: word, status: state.tone == .danger ? .danger : .warning)
-                    } else {
-                        Text(Fmt.age(Date().timeIntervalSince(run.startedAt ?? run.queuedAt)))
-                            .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
-                    }
-                }
-                issueLine.lineLimit(1).padding(.top, skin.size.s2)
-                toolLine(state.word)
-                AinkradBudgetBar(
-                    label: "Run tokens", value: Double(run.tokens), limit: Double(model.runCap ?? 0),
-                    warnFraction: model.warnFraction, showsHardLimit: false,
-                    tone: state.tone == .warning ? .warning : nil
-                )
-                .padding(.top, skin.size.s4)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s18, style: .continuous)
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            header
+            issueLine
+            console
+            AinkradBudgetBar(
+                label: "Run tokens", value: Double(run.tokens), limit: Double(model.runCap ?? max(run.tokens, 1)),
+                warnFraction: model.warnFraction, showsHardLimit: false, tone: state.tone == .warning ? .warning : nil)
+            numbers
+            actions
         }
-        .rim(state.tone?.chartTone)
+        .padding(skin.size.s14)
+        .background {
+            ZStack(alignment: .topTrailing) {
+                shape.fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: colors.0.opacity(skin.opacity.o14), location: 0),
+                            .init(color: skin.color(.palette("background", skin.opacity.o90)), location: 0.55),
+                            .init(color: colors.1.opacity(skin.opacity.o10), location: 1),
+                        ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                RadialGradient(
+                    colors: [colors.0.opacity(skin.opacity.o20), .clear], center: .topTrailing, startRadius: 0,
+                    endRadius: skin.size.s160
+                )
+                .clipShape(shape)
+            }
+        }
+        .overlay(shape.strokeBorder(colors.0.opacity(hovering ? skin.opacity.o40 : skin.opacity.o25), lineWidth: 1))
+        .shadow(
+            color: skin.color(.palette("black", hovering ? skin.opacity.o35 : skin.opacity.o25)), radius: skin.size.s16,
+            y: skin.size.s12
+        )
+        .offset(y: hovering && !reduceMotion ? -skin.size.s3 : 0)
+        .contentShape(shape)
+        .onHover { hovering = $0 }
+        .animation(
+            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.75)), value: hovering
+        )
+        .onTapGesture { store.open(.run(run.id)) }
+        .ainkradPanelModal(isPresented: $nudging, contentWidth: skin.size.s420) { nudgeSheet }
     }
 
-    private var issueLine: Text {
+    private var header: some View {
+        HStack(spacing: skin.size.s10) {
+            if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s40, isActive: true) }
+            VStack(alignment: .leading, spacing: skin.size.s1) {
+                Text(agent?.name ?? "Agent").citadelFont("t13", weight: "bold").foregroundStyle(
+                    skin.color(skin.text.primary))
+                (Text(agent?.role ?? "")
+                    + Text(run.runnerID.flatMap { model.runners[$0] }.map { " · \($0)" } ?? "")
+                    .font(skin.font(AinkradFontToken(sizeKey: "t11", mono: "family"))))
+                    .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+            }
+            Spacer(minLength: skin.size.s4)
+            switch state.tone {
+            case .warning?: StatePill(text: "waiting on you", tint: status.warning)
+            case .danger?: StatePill(text: "stalling", tint: status.danger)
+            default: StatePill(text: "running", tint: skin.color(skin.palette.accentSecondary), dot: true)
+            }
+        }
+    }
+
+    private var issueLine: some View {
         let issue = model.issue(run.issueID)
-        return Text(issue.map { "\($0.key) " } ?? "").foregroundStyle(theme.accentSecondary)
-            .font(skin.font(AinkradFontToken(sizeKey: "t11", mono: "family")))
-            + Text(issue?.title ?? model.runTitle(run)).foregroundStyle(skin.color(skin.text.primary))
+        return
+            (Text(issue.map { "\($0.key) " } ?? "").font(
+                skin.font(AinkradFontToken(sizeKey: "t12", weight: "bold", mono: "family"))
+            )
+            .foregroundStyle(skin.color(skin.palette.accentSecondary))
+            + Text(issue?.title ?? model.runTitle(run)).foregroundStyle(skin.color(skin.text.primary)))
+            .citadelFont("t13", weight: "medium")
+            .lineLimit(2)
+            .frame(minHeight: skin.size.s34, alignment: .topLeading)
     }
 
-    @ViewBuilder private func toolLine(_ word: String?) -> some View {
-        let waiting = model.waitingApproval(run: run.id)
+    private var console: some View {
         let silent = Date().timeIntervalSince(run.lastProgressAt ?? run.startedAt ?? run.queuedAt)
-        Group {
+        return Group {
             if let waiting {
                 Text(
                     "⌁ asks to \(ToolLine.line(waiting.fields).isEmpty ? "run a tool" : ToolLine.line(waiting.fields))"
                 )
-                .foregroundStyle(skin.color(skin.text.muted))
-            } else if word == "stalled" {
-                Text("⏸ silent \(Int(silent / 60))m · watchdog at \(Int((model.stallAfter ?? 0) / 60))m")
+                .foregroundStyle(status.warning)
+            } else if state.tone == .danger {
+                Text("⏸ silent \(Fmt.age(silent)) · watchdog at \(Int((model.stallAfter ?? 0) / 60))m")
                     .foregroundStyle(status.danger)
             } else {
                 Text("▸ \(model.toolNow[run.id] ?? run.state)").foregroundStyle(skin.color(skin.text.muted))
                     .breathing(run.state == "running")
             }
         }
-        .citadelFont("t10_5", mono: true)
+        .citadelFont("t11", mono: true)
         .lineLimit(1)
         .truncationMode(.tail)
+        .padding(.horizontal, skin.size.s10)
+        .frame(maxWidth: .infinity, minHeight: skin.size.s30, alignment: .leading)
+        .background(
+            skin.color(.palette("black", skin.opacity.o28)),
+            in: RoundedRectangle(cornerRadius: skin.size.s9, style: .continuous))
     }
-}
 
-/// "What needs you now": each row with its one obvious action inline; the chevron opens the detail.
-struct NeedsYouTile: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
-    @Environment(\.ainkradReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let items = model.needsItems()
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                TileHead(title: "What needs you now", action: "Open inbox →") { store.screen = .approvals }
-                if items.isEmpty {
-                    Text("Nothing needs you. Agents ask here when they do.")
-                        .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-                }
-                VStack(alignment: .leading, spacing: skin.size.s2) {
-                    ForEach(items) { item in
-                        row(item).transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                }
-                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: items.map(\.id))
+    private var numbers: some View {
+        HStack(spacing: skin.size.s8) {
+            Text("\(Fmt.tokens(run.tokens)) / \(model.runCap.map(Fmt.tokens) ?? "—")")
+            Spacer(minLength: skin.size.s4)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text("⏱ \(Fmt.age(context.date.timeIntervalSince(run.startedAt ?? run.queuedAt)))")
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Text(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")
+                .foregroundStyle(run.costMicros == nil ? status.warning : skin.color(skin.text.primary))
         }
+        .citadelFont("t11", mono: true)
+        .foregroundStyle(skin.color(skin.text.muted))
     }
 
-    private func row(_ item: NeedsItem) -> some View {
-        AinkradListRow(
-            onTap: { perform(item.action, chevron: true) },
-            leading: {
-                AinkradBadge(text: item.glyph, tint: tint(item.tone))
-            }, title: item.title, subtitle: item.subtitle.isEmpty ? nil : item.subtitle,
-            trailing: {
-                switch item.action {
-                case .approve(_, let title):
-                    AinkradButton(title: title, style: .primary) { perform(item.action, chevron: false) }
-                        .compact().fixedSize()
-                case .openScreen(_, let title):
-                    AinkradButton(title: title, style: .secondary) { perform(item.action, chevron: false) }
-                        .secondaryAccent().compact().fixedSize()
-                case .openRun:
-                    AinkradButton(title: "Open run", style: .secondary) { perform(item.action, chevron: false) }
-                        .secondaryAccent().compact().fixedSize()
-                case .review:
-                    AinkradButton(title: "Review", style: .secondary) { perform(item.action, chevron: false) }
-                        .secondaryAccent().compact().fixedSize()
+    @ViewBuilder private var actions: some View {
+        let height = skin.size.s30
+        HStack(spacing: skin.size.s8) {
+            if let waiting {
+                AinkradDockButton("Deny", height: height, fillsWidth: true) { store.decide(waiting, approve: false) }
+                AinkradDockButton("Allow once", tone: .primary, height: height, fillsWidth: true) {
+                    store.decide(waiting, approve: true)
+                    store.toast(
+                        AinkradRichToast(
+                            title: "Allowed once", body: agent.map { "\($0.name) continues" }, status: .success))
                 }
-            })
-    }
-
-    private func perform(_ action: NeedsItem.Action, chevron: Bool) {
-        switch action {
-        case .approve(let approval, _):
-            if chevron {
-                store.selectedApproval = approval.id
-                store.screen = .approvals
+            } else if state.tone == .danger {
+                AinkradDockButton("Stop", tone: .danger, height: height, fillsWidth: true) { store.stop(run: run.id) }
+                AinkradDockButton("Nudge \(agent?.name ?? "")", tone: .primary, height: height, fillsWidth: true) {
+                    nudge = "You've been quiet for a while — post where you are and what's blocking you."
+                    nudging = true
+                }
             } else {
-                store.decide(approval, approve: true)
+                AinkradDockButton("Stop", height: height, fillsWidth: true) { store.stop(run: run.id) }
+                AinkradDockButton("Transcript", height: height, fillsWidth: true) { store.open(.run(run.id)) }
             }
-        case .openRun(let run): store.open(.run(run))
-        case .openScreen(let screen, _): store.screen = screen
-        case .review(let id):
-            store.selectedApproval = id
-            store.screen = .approvals
         }
     }
 
-    private func tint(_ tone: NeedsItem.Tone) -> Color {
-        switch tone {
-        case .accent: theme.accentPrimary
-        case .warning: status.warning
-        case .danger: status.danger
-        }
-    }
-}
-
-/// Spend: priced / unpriced / subscription (an unpriced run is never $0), then the budgets closest to their line.
-struct SpendTile: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                TileHead(title: "Spend today", action: "Cost →") { store.screen = .cost }
-                // The server reports spend to date; an hourly series for the day is not served yet.
-                AinkradLineChart(title: "Spend today", series: [], emptyMessage: "No hourly spend from the server yet")
-                    .frame(height: skin.size.s70)
-                if let spend = model.spend {
-                    SpendSplitBar(spend: spend)
-                    Text(
-                        "To date: priced \(Fmt.dollars(micros: spend.costMicros)) · Unpriced \(Wording.count(spend.unpricedRuns, "run")) · Subscription \(Fmt.tokens(spend.subscriptionTokens)) tok"
-                    )
-                    .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
-                }
-                Text(skin.labelCased("Budgets near the line")).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted)).padding(.top, skin.size.s6)
-                ForEach(model.budgets.sorted { $0.fraction > $1.fraction }.prefix(3)) { budget in
-                    HStack(spacing: skin.size.s12) {
-                        Text("\(budget.label) · \(budget.period)").citadelFont("t12")
-                            .foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
-                        Spacer(minLength: skin.size.s8)
-                        AinkradBudgetBar(
-                            label: budget.label, value: Double(budget.spent), limit: Double(budget.cap),
-                            warnFraction: budget.warnFraction, showsHardLimit: false
-                        )
-                        .frame(width: skin.size.s150)
+    private var nudgeSheet: some View {
+        VStack(alignment: .leading, spacing: skin.size.s14) {
+            HStack(spacing: skin.size.s12) {
+                if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s44, isActive: true) }
+                Text("Nudge \(agent?.name ?? "the agent")").citadelFont("t15", weight: "semibold")
+            }
+            AinkradTextArea(text: $nudge, placeholder: "Message")
+                .frame(minHeight: skin.size.s80)
+            Text("Delivered at its next turn · resets the watchdog").citadelFont("t11").foregroundStyle(
+                skin.color(skin.text.faint))
+            HStack {
+                Spacer()
+                AinkradButton(title: "Cancel", style: .ghost) { nudging = false }.fixedSize()
+                AinkradButton(title: "Send ↵", style: .primary) {
+                    let name = agent?.name ?? "The agent"
+                    store.message(run: run.id, nudge) {
+                        store.toast(
+                            AinkradRichToast(
+                                title: "Nudged \(name)", body: "Delivered at its next turn", status: .success))
                     }
+                    nudging = false
                 }
-                if model.budgets.isEmpty {
-                    Text("No budgets set").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-                }
+                .fixedSize()
+                .keyboardShortcut(.return, modifiers: [])
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .padding(skin.size.s4)
     }
 }
 

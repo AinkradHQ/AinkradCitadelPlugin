@@ -19,7 +19,6 @@ struct RootView: View {
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.showsConnectCard)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.tokens.background)
         .foregroundStyle(theme.tokens.foreground)
         .ainkradHostTheme(theme)
         .task { store.start() }

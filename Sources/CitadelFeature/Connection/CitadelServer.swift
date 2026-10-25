@@ -48,7 +48,9 @@ struct CitadelServer: Sendable {
         switch output {
         case .ok(let ok):
             guard let me = try? ok.body.json else { throw .status(200) }
-            return ServerIdentity(companies: me.companies, version: me.versions.server, latestSeq: me.latestSeq)
+            return ServerIdentity(
+                companies: me.companies, version: me.versions.server, latestSeq: me.latestSeq, userName: me.user.name,
+                apiMinor: Int(me.versions.api.minor))
         case .unauthorized: throw .rejected
         case .undocumented(let status, _): throw .status(status)
         default: throw .status(0)
@@ -125,6 +127,9 @@ struct ServerIdentity: Sendable {
     /// The server's version, `0.1.0`.
     let version: String
     let latestSeq: Int64
+    /// The user the key acts as ("Ahmed"), for Home's greeting.
+    var userName: String?
+    var apiMinor: Int?
 }
 
 /// A page of `GET /events`.

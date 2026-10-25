@@ -28,6 +28,7 @@ struct ShellView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .overlay(alignment: .bottom) { failureBanner }
+            .overlay(alignment: .topTrailing) { AinkradRichToastStack(center: store.toasts) }
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)

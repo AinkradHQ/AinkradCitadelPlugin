@@ -74,6 +74,8 @@ final class CompanyModel {
     var issueCosts: [Int64: IssueCost] = [:]
     /// Spend since local midnight, summed over the day's issues.
     var spendToday: IssueCost?
+    /// Today's spend per hour since local midnight (Home's spend line).
+    var hourSpend: [DaySpend] = []
     var accounts: [Int64: AccountInfo] = [:]
     var runners: [Int64: String] = [:]
     /// `run.token_cap`, `run.stall_after_secs`, `budget.warn_percent`, `breaker.loop_threshold`.

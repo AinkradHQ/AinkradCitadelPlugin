@@ -249,6 +249,12 @@ extension CitadelStore {
         model.spendToday = IssueCost(
             issueID: 0, tokens: costs.map(\.tokens).reduce(0, +), costMicros: costs.map(\.costMicros).reduce(0, +),
             runs: costs.map(\.runs).reduce(0, +), unpricedRuns: costs.map(\.unpricedRuns).reduce(0, +))
+        // Home's hourly spend line and its recent-activity timeline.
+        let midnight = Calendar.current.startOfDay(for: Date())
+        model.hourSpend = await server.spendSeries(company: model.companyID, bucket: "hour", since: midnight) ?? []
+        if model.companyRuns == nil, let runs = await server.companyRuns(company: model.companyID, limit: 30) {
+            model.companyRuns = runs
+        }
     }
 
     private func apply(spend: SpendInfo, budgets: [Schemas.BudgetStanding], to model: CompanyModel) {
