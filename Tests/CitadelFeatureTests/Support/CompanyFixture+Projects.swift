@@ -68,6 +68,7 @@ extension CompanyFixture {
         model.projectsPage.itemRuns[42] = [
             run(418, agent: 4, issue: 42, minutes: 4.2, tokens: 82_400, harness: "codex", model: "gpt-5.5")
         ]
+        trancheB1Projects(model)
     }
 
     static func projectPage(tab: ProjectTab, drawer: ProjectDrawer? = nil) -> (CompanyModel) -> Void {

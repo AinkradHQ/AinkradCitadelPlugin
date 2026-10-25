@@ -93,7 +93,7 @@ final class SweepTests: XCTestCase {
                 $0.phase = .connected
                 $0.streamStatus = .live
                 $0.userName = "Ahmed"
-                $0.apiMinor = 17
+                $0.apiMinor = 18
                 let model = CompanyFixture.model()
                 stage(model)
                 $0.model = model

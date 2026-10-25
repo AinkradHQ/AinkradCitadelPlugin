@@ -70,7 +70,7 @@ final class WireEighteenIssueTests: XCTestCase {
         store.setPriority(before, level: "urgent", project: 1)
         _ = try await Wire17.sent("PATCH", "/api/v1/issues/42")
         await eventually { (try? self.item(model)) == before }
-        XCTAssertNil(try item(model).priorityLevel)
+        XCTAssertEqual(try item(model).priorityLevel, "high", "the fixture level comes back")
     }
 
     func testAnOlderServerGetsNoIssueEditAndKeepsItsFlag() async throws {

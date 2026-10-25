@@ -71,8 +71,10 @@ struct ProjectsRunnersSection: View {
                 step: step
             )
             .fixedSize()
-            Text("\(value)\(unit)").citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(
-                skin.color(skin.text.primary))
+            if !unit.isEmpty {
+                Text(unit.trimmingCharacters(in: .whitespaces)).citadelFont("t12").foregroundStyle(
+                    skin.color(skin.text.muted))
+            }
             Spacer(minLength: 0)
         }
     }

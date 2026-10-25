@@ -47,6 +47,7 @@ extension CompanyFixture {
                 eta: "2026-10-29"),
             requirement(7, "Org chart + hiring flow", "done", owner: 1, points: 21, done: 21, ago: 5 * 86_400),
         ]
+        trancheB1Requirements(model)
         model.approvals.append(
             ApprovalInfo(
                 id: 30, kind: "plan_approval", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil,

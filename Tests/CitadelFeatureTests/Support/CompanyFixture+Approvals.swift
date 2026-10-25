@@ -149,5 +149,6 @@ extension CompanyFixture {
                 repair: "rewake", lastRepair: "rewake", lastRepairAt: now.addingTimeInterval(-7_200),
                 since: now.addingTimeInterval(-86_400)),
         ]
+        trancheB1Stuck(model)
     }
 }
