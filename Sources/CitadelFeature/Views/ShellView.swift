@@ -64,7 +64,8 @@ struct ShellView: View {
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
-        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.model?.artifactsPage.quickLookID)
+        .animation(
+            reduceMotion ? nil : skin.animation(skin.motion.present), value: store.model?.artifactsPage.quickLookID)
     }
 
     /// Mockup 11 G away from the inbox (which shows it in place of the approval): what the server refused, said

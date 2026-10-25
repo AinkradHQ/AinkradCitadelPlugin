@@ -136,7 +136,11 @@ private struct ArtifactDoc: View {
         .foregroundStyle(skin.color(skin.text.muted))
         .frame(maxWidth: size == .quickLook ? skin.size.s860 * 0.884 : .infinity, alignment: .leading)
         .padding(.horizontal, isMini ? skin.size.s14 : size == .drawer ? skin.size.s18 : skin.size.s28)
-        .padding(.top, size == .card ? skin.size.s38 : size == .sibling ? skin.size.s8 : size == .drawer ? skin.size.s16 : skin.size.s28)
+        .padding(
+            .top,
+            size == .card
+                ? skin.size.s38 : size == .sibling ? skin.size.s8 : size == .drawer ? skin.size.s16 : skin.size.s28
+        )
         .padding(.bottom, isMini ? skin.size.s10 : size == .drawer ? skin.size.s16 : skin.size.s28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: size == .quickLook ? .top : .topLeading)
     }
@@ -181,7 +185,8 @@ private struct ArtifactDoc: View {
     private func inlineTokens(_ text: String) -> Text {
         var out = Text("")
         var rest = Substring(text)
-        let pattern = /(\*\*[^*]+\*\*)|(`[^`]+`)|(lease-expired\.png|lease-renewed\.png|\.p8|time-sensitive|active|@ainkrad\.io)/
+        let pattern =
+            /(\*\*[^*]+\*\*)|(`[^`]+`)|(lease-expired\.png|lease-renewed\.png|\.p8|time-sensitive|active|@ainkrad\.io)/
         while let match = rest.firstMatch(of: pattern) {
             out = out + Text(String(rest[rest.startIndex..<match.range.lowerBound]))
             let piece = String(rest[match.range])
