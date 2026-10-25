@@ -185,7 +185,7 @@ struct ActivityTile: View {
                 id: "a\(approval.id)", glyph: approval.status == "approved" ? "✓" : "✕",
                 tint: approval.status == "approved" ? status.success : status.danger,
                 title: model.summary(approval).title,
-                detail: "\(approval.status) by you", at: approval.expiresAt ?? .distantPast
+                detail: "\(approval.status) by you", at: approval.decidedAt ?? .distantPast
             ) {
                 store.selectedApproval = approval.id
                 store.screen = .approvals

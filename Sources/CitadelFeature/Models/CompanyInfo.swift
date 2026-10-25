@@ -127,6 +127,9 @@ struct ApprovalInfo: Identifiable, Equatable, Sendable {
     var issueID: Int64?
     var requestedBy: Int64
     var expiresAt: Date?
+    /// When it was asked and answered (API minor 17); nil from an older server.
+    var createdAt: Date? = nil
+    var decidedAt: Date? = nil
     /// The payload's flat string and number fields (`name`, `key`, `title`, `tool`, `run`, `points`, …).
     var fields: [String: String]
     /// `pending`, `approved`, `rejected`, `expired`.

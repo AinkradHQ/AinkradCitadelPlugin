@@ -179,6 +179,7 @@ extension CompanyModel {
         var decided = approval
         decided.status = approved ? "approved" : "rejected"
         decided.reply = reply
+        decided.decidedAt = Date()
         answeredApprovals.removeAll { $0.id == approval.id }
         answeredApprovals.insert(decided, at: 0)
     }
@@ -336,5 +337,17 @@ extension CompanyModel {
         case .runners: return runners.isEmpty ? nil : AinkradNavCount("\(runnersOnline)/\(runners.count)")
         case .home, .artifacts, .cost: return nil
         }
+    }
+}
+
+extension ApprovalInfo {
+    /// "asked 12m ago", or nil when the server (API minor < 17) did not say.
+    func askedAgo(now: Date = Date()) -> String? {
+        createdAt.map { "asked \(Fmt.age(now.timeIntervalSince($0))) ago" }
+    }
+
+    /// "4m ago" for an answered approval, or nil without `decided_at`.
+    func decidedAgo(now: Date = Date()) -> String? {
+        decidedAt.map { "\(Fmt.age(now.timeIntervalSince($0))) ago" }
     }
 }

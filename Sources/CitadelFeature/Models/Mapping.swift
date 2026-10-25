@@ -141,7 +141,8 @@ extension ApprovalInfo {
         self.init(
             id: approval.id, kind: approval.kind.word, agentID: approval.agentId, issueID: approval.issueId,
             requestedBy: approval.requestedBy, expiresAt: approval.expiresAt,
-            fields: fields, status: approval.status.word, reply: approval.reply,
+            createdAt: approval.createdAt, decidedAt: approval.decidedAt, fields: fields, status: approval.status.word,
+            reply: approval.reply,
             sprintID: approval.sprintId, lists: lists)
     }
 }

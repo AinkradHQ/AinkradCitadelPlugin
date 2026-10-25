@@ -51,9 +51,11 @@ struct ApprovalDetail: View {
     private var hero: some View {
         let state =
             isPending
-            ? HeroState(text: "waiting on you", tint: kind.tint(skin))
+            ? HeroState(
+                text: ["waiting on you", approval.askedAgo()].compactMap { $0 }.joined(separator: " · "),
+                tint: kind.tint(skin))
             : HeroState(
-                text: "\(approval.status) by you",
+                text: ["\(approval.status) by you", approval.decidedAgo()].compactMap { $0 }.joined(separator: " · "),
                 tint: approval.status == "approved"
                     ? skin.color(skin.palette.success) : skin.color(skin.palette.warning))
         return ApprovalHero(

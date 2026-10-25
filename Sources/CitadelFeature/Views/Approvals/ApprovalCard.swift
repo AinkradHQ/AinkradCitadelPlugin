@@ -96,11 +96,15 @@ struct ApprovalCard: View {
 
     private func subtitle(_ summary: ApprovalSummary) -> String {
         guard answered else {
-            return approval.kind == "permission_escalation"
+            let line =
+                approval.kind == "permission_escalation"
                 ? "permission escalation · run is waiting" : summary.subtitle
+            return [line, approval.askedAgo()].compactMap { $0 }.joined(separator: " · ")
         }
-        return [approval.status == "approved" ? "approved by you" : "\(approval.status) by you", approval.reply]
-            .compactMap { $0 }.joined(separator: " · ")
+        return [
+            approval.status == "approved" ? "approved by you" : "\(approval.status) by you", approval.decidedAgo(),
+            approval.reply,
+        ].compactMap { $0 }.joined(separator: " · ")
     }
 
     /// The card's type label: "Sprint commit", "PR merge", "Budget overrun", "Hire", "Permission".
