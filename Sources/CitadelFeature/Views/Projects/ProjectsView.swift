@@ -44,7 +44,10 @@ struct ProjectsView: View {
                     alignment: .leading, spacing: skin.size.s14
                 ) {
                     ForEach(Array(model.projects.enumerated()), id: \.element.id) { index, project in
-                        ProjectCard(facts: ProjectFacts(project: project, model: model), order: index) {
+                        ProjectCard(
+                            facts: ProjectFacts(project: project, model: model, hasTrancheB: store.hasTrancheB),
+                            order: index
+                        ) {
                             store.openProject(project.id)
                         }
                     }

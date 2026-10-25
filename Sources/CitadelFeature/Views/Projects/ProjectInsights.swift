@@ -2,8 +2,8 @@ import AinkradAppKit
 import SwiftUI
 
 /// The Timeline tab (`quest-plan.js` `qTimeline`): epics as roadmap bars over weeks with a today line, then a card
-/// per epic. The server keeps no epic dates (MISSING `Epic.starts_on/ends_on`), so a bar spans the sprints its
-/// issues sit in; an epic with no sprinted issue has no bar.
+/// per epic. A bar runs over the epic's own dates (API minor 18); without them it spans the sprints its issues sit
+/// in, and an epic with neither has no bar.
 struct ProjectTimeline: View {
     let store: CitadelStore
     let facts: ProjectFacts
@@ -20,7 +20,10 @@ struct ProjectTimeline: View {
         let spans = work.epics.map { epic -> Span in
             let sprints = Set(work.items.filter { $0.epicID == epic.id }.compactMap(\.sprintID))
             let mine = work.sprints.filter { sprints.contains($0.id) }
-            return Span(epic: epic, start: mine.compactMap(\.startsOn).min(), end: mine.compactMap(\.endsOn).max())
+            let own = facts.hasTrancheB
+            return Span(
+                epic: epic, start: (own ? epic.startsOn : nil) ?? mine.compactMap(\.startsOn).min(),
+                end: (own ? epic.endsOn : nil) ?? mine.compactMap(\.endsOn).max())
         }
         let starts = spans.compactMap(\.start) + [Date()]
         let ends = spans.compactMap(\.end) + [Date()]
@@ -69,9 +72,10 @@ struct ProjectTimeline: View {
         let work = facts.work
         let progress = work.progress(epic.id)
         let tint = ProjectLook.epicTint(epic.id, in: work, skin: skin)
-        // The requirement its issues serve, when they all serve one (MISSING `Epic.requirement_id`).
+        // The requirement it serves (API minor 18), else the one its issues all serve.
         let reqs = Set(work.items.filter { $0.epicID == epic.id }.compactMap(\.requirementID))
-        let requirement = reqs.count == 1 ? facts.model.requirements.first { $0.id == reqs.first } : nil
+        let requirementID = (facts.hasTrancheB ? epic.requirementID : nil) ?? (reqs.count == 1 ? reqs.first : nil)
+        let requirement = requirementID.flatMap { id in facts.model.requirements.first { $0.id == id } }
         return AinkradBentoTile(onTap: { facts.page.filter.epic = epic.id }) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(spacing: skin.size.s8) {
@@ -309,7 +313,9 @@ struct ProjectReports: View {
     }
 
     private func mix(_ items: [WorkItem]) -> some View {
-        let kinds = ["story", "task", "bug", "subtask"]
+        let kinds =
+            facts.hasTrancheB
+            ? ["story", "task", "bug", "chore", "spike", "subtask"] : ["story", "task", "bug", "subtask"]
         return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Work mix") {

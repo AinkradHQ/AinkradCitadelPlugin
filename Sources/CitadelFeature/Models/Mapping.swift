@@ -200,7 +200,9 @@ extension StuckInfo {
         self.init(
             kind: stuck.kind.word, issueID: stuck.issueId, agentID: stuck.agentId, reason: stuck.reason,
             action: stuck.action, repair: stuck.repair.word, lastRepair: stuck.lastRepair?.action,
-            lastRepairAt: stuck.lastRepair?.at, since: stuck.stuckSince)
+            lastRepairAt: stuck.lastRepair?.at, since: stuck.stuckSince, runID: stuck.runId,
+            usualSecs: stuck.usualSecs.map(Int.init),
+            trail: (stuck.trail ?? []).map { TrailInfo(at: $0.at, what: $0.what) })
     }
 }
 
@@ -210,7 +212,7 @@ extension RequirementInfo {
             id: requirement.id, key: requirement.key, title: requirement.title, state: requirement.state.word,
             ownerAgentID: requirement.ownerAgentId, points: Int(tree?.points ?? 0),
             donePoints: Int(tree?.donePoints ?? 0), percentDone: Int(tree?.percentDone ?? 0), eta: tree?.eta,
-            createdAt: requirement.createdAt)
+            createdAt: requirement.createdAt, pausedAt: requirement.pausedAt)
     }
 }
 

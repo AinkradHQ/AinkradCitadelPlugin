@@ -198,8 +198,14 @@ extension CitadelStore {
             if let runs = await server.issueRuns(company: model.companyID, issue: id) {
                 model.projectsPage.itemRuns[id] = runs
             }
-            if let activity = await server.issueActivity(id) { model.projectsPage.itemActivity[id] = activity }
+            if let activity = await activity(of: id, server: server) { model.projectsPage.itemActivity[id] = activity }
         }
+    }
+
+    /// What was done to an issue: its own activity list from API minor 18, else the audit log filtered to it.
+    func activity(of issue: Int64, server: CitadelServer) async -> [AuditLine]? {
+        hasTrancheB
+            ? await server.issueActivityLog(issue) : await server.issueActivity(issue)
     }
 
     func assign(_ item: WorkItem, to agent: Int64, project: Int64) {
@@ -248,7 +254,7 @@ extension CitadelStore {
             case .success(let posted):
                 let woke = posted.wokeAgentID.flatMap { model?.agents[$0]?.name }
                 toast(AinkradRichToast(title: "Comment posted", body: woke.map { "\($0) is woken." }, status: .success))
-                if let activity = await server.issueActivity(item.id) {
+                if let activity = await activity(of: item.id, server: server) {
                     model?.projectsPage.itemActivity[item.id] = activity
                 }
             case .failure(let answer):
@@ -297,7 +303,7 @@ extension CitadelStore {
 
     // MARK: - Helpers
 
-    private func update(_ item: Int64, in project: Int64, _ change: (inout WorkItem) -> Void) {
+    func update(_ item: Int64, in project: Int64, _ change: (inout WorkItem) -> Void) {
         guard let page = model?.projectsPage, let index = page.work[project]?.items.firstIndex(where: { $0.id == item })
         else { return }
         change(&page.work[project, default: ProjectWork()].items[index])

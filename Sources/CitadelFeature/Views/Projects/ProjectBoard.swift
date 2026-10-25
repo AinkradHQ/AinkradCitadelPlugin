@@ -171,7 +171,7 @@ struct WorkCard: View {
                     if item.isBlocked {
                         Text("⚑").citadelFont("t11").foregroundStyle(skin.color(skin.palette.danger)).help("Blocked")
                     }
-                    PriorityBars(high: item.priority)
+                    PriorityBars(level: item.level)
                 }
                 Text(item.title).citadelFont("t12_5", weight: "medium")
                     .foregroundStyle(skin.color(item.isDone ? skin.text.muted : skin.text.primary))
@@ -223,7 +223,9 @@ struct WorkToolbar<Trailing: View>: View {
         AinkradFlowLayout(spacing: skin.size.s8, lineSpacing: skin.size.s8) {
             SegStrip(
                 options: [("all", "All")]
-                    + ["story", "task", "bug", "subtask"].map { ($0, ProjectLook.kind($0, skin: skin).title) },
+                    + (facts.hasTrancheB
+                    ? ["story", "task", "bug", "chore", "spike", "subtask"] : ["story", "task", "bug", "subtask"])
+                    .map { ($0, ProjectLook.kind($0, skin: skin).title) },
                 selection: page.filter.kind ?? "all", chip: { $0 == "all" ? nil : $0 }
             ) { page.filter.kind = $0 == "all" ? nil : $0 }
             if !facts.work.epics.isEmpty {

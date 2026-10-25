@@ -36,8 +36,9 @@ enum RequirementLook {
         }
     }
 
-    /// A project's two hero colours, by its place in the company's list (the server stores no project colour).
+    /// A project's two hero colours: the stored ones (API minor 18), else by its place in the company's list.
     static func colors(project: Int64?, model: CompanyModel) -> (Color, Color) {
+        if let stored = ProjectIdentity.pair(model.projects.first { $0.id == project }?.color) { return stored }
         let palettes: [AinkradFigurePalette] = [.neonTide, .ultraviolet, .ember, .aurora, .orchid]
         let index = model.projects.sorted { $0.id < $1.id }.firstIndex { $0.id == project } ?? 0
         let palette = palettes[index % palettes.count]

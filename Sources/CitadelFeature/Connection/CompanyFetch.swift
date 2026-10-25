@@ -139,9 +139,7 @@ extension CitadelServer {
     func projects(company: Int64) async -> [ProjectInfo]? {
         await read("listProjects") {
             guard case .ok(let ok) = try await client.listProjects(path: .init(id: company)) else { return nil }
-            return try ok.body.json.map {
-                ProjectInfo(id: $0.id, key: $0.key, name: $0.name, teamID: $0.teamId, mode: $0.mode.word)
-            }
+            return try ok.body.json.map(ProjectInfo.init)
         }
     }
 

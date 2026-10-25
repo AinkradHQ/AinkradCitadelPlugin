@@ -2,8 +2,9 @@ import AinkradAppKit
 import SwiftUI
 
 /// The work-item drawer (`quest-item.js`): status steps, the live strip, the fields (assignee, estimate, sprint,
-/// epic), the description, the runs, the activity and a comment box. The title, description, type, 5-level
-/// priority and acceptance criteria have no server write yet (MISSING `PATCH /issues/{id}`), so they read only.
+/// epic), the description, the acceptance criteria, the runs, the activity and a comment box. From API minor 18
+/// the title, description, type, 5-level priority and criteria are edited here (`PATCH /issues/{id}`); an older
+/// server shows them read-only.
 struct WorkItemPanel: View {
     let store: CitadelStore
     let facts: ProjectFacts
@@ -17,12 +18,12 @@ struct WorkItemPanel: View {
         if let item = facts.work.items.first(where: { $0.id == itemID }) {
             VStack(alignment: .leading, spacing: skin.size.s14) {
                 top(item)
-                Text(item.title).citadelFont("t20", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-                    .fixedSize(horizontal: false, vertical: true)
+                ProjectsItemTitle(store: store, item: item, project: facts.project.id)
                 steps(item)
                 if let run = item.checkoutRunID { live(item, run: run) }
                 fields(item)
-                description(item)
+                ProjectsItemDescription(store: store, item: item, project: facts.project.id)
+                ProjectsItemCriteria(store: store, item: item, project: facts.project.id)
                 runs(item)
                 activity(item)
             }
@@ -123,19 +124,8 @@ struct WorkItemPanel: View {
                     }
                 }
             }
-            field("Priority") {
-                HStack(spacing: skin.size.s8) {
-                    PriorityBars(high: item.priority)
-                    Text(item.priority ? "High" : "Normal").citadelFont("t12").foregroundStyle(
-                        skin.color(skin.text.primary))
-                    if !item.priority {
-                        AinkradButton(title: "Raise to High", style: .ghost) {
-                            store.prioritize(item, project: project)
-                        }
-                        .borderless().secondaryAccent().compact().fixedSize()
-                    }
-                }
-            }
+            field("Priority") { ProjectsItemPriorityRow(store: store, item: item, project: project) }
+            if store.hasTrancheB { field("Type") { ProjectsItemKindRow(store: store, item: item, project: project) } }
             field("Estimate") {
                 HStack(spacing: skin.size.s6) {
                     ForEach([1, 2, 3, 5, 8, 13], id: \.self) { points in
@@ -203,24 +193,6 @@ struct WorkItemPanel: View {
         }
     }
 
-    private func description(_ item: WorkItem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("¶ Description").citadelFont("t11", weight: "semibold").foregroundStyle(
-                    skin.color(skin.text.muted))
-                Spacer()
-                Text("agents read this first").citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
-            }
-            .padding(.horizontal, skin.size.s12).frame(height: skin.size.s36)
-            .background(skin.color(.palette("foreground", skin.opacity.o05)))
-            Text(item.body.isEmpty ? "No description yet." : item.body).citadelFont("t12_5", mono: true)
-                .foregroundStyle(skin.color(item.body.isEmpty ? skin.text.faint : skin.text.primary))
-                .frame(maxWidth: .infinity, minHeight: skin.size.s90, alignment: .topLeading).padding(skin.size.s12)
-        }
-        .background(skin.color(.palette("black", skin.opacity.o28)))
-        .clipShape(RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
-    }
-
     private func runs(_ item: WorkItem) -> some View {
         let runs = page.itemRuns[item.id] ?? []
         return VStack(alignment: .leading, spacing: skin.size.s6) {
@@ -260,7 +232,7 @@ struct WorkItemPanel: View {
             ForEach(lines) { line in
                 HStack(spacing: skin.size.s8) {
                     Text(
-                        "\(line.actor) \(line.action.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: ".", with: " "))"
+                        "\(who(line.actor)) \(line.action.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: ".", with: " "))"
                     )
                     .citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                     Spacer(minLength: skin.size.s8)
@@ -277,6 +249,14 @@ struct WorkItemPanel: View {
                     comment.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
+    }
+
+    /// "agent:3" as the agent's name.
+    private func who(_ actor: String) -> String {
+        guard actor.hasPrefix("agent:"), let id = Int64(actor.dropFirst("agent:".count)),
+            let agent = facts.model.agents[id]
+        else { return actor }
+        return agent.name
     }
 
     private func send(_ item: WorkItem) {

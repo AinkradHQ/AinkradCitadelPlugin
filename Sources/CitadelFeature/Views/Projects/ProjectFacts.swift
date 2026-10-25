@@ -7,6 +7,8 @@ import SwiftUI
 struct ProjectFacts {
     let project: ProjectInfo
     let model: CompanyModel
+    /// The server speaks API minor 18: chore / spike, 5-level priority, project identity and the rest show.
+    var hasTrancheB = false
 
     var page: ProjectsPage { model.projectsPage }
     var work: ProjectWork { page.work[project.id] ?? ProjectWork() }

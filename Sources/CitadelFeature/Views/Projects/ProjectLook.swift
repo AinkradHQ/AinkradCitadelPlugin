@@ -1,9 +1,9 @@
 import AinkradAppKit
 import SwiftUI
 
-/// A project's look (prototype `project-board.js` `PROJ_COL`, `project-new.js` `PN_ICONS` / `PN_COLS`). The server
-/// stores no icon or colour yet (MISSING `Project.icon/color`), so both follow the project's place in the list:
-/// CIT cyan→blue, the next violet, the next amber→rose, as the prototype seeds them.
+/// A project's look (prototype `project-board.js` `PROJ_COL`, `project-new.js` `PN_ICONS` / `PN_COLS`): the icon and
+/// colour the server stores (API minor 18). Without them (an older server, or none chosen) both follow the
+/// project's place in the list: CIT cyan→blue, the next violet, the next amber→rose, as the prototype seeds them.
 @MainActor
 enum ProjectLook {
     static let glyphs = ["⛫", "▭", "✎", "◈", "⚙", "◐", "✦", "▤", "⌁", "☁", "⚑", "♫"]
@@ -16,16 +16,19 @@ enum ProjectLook {
     }
 
     static func tint(_ project: ProjectInfo, in model: CompanyModel) -> (Color, Color) {
+        if let stored = ProjectIdentity.pair(project.color) { return stored }
         let pair = pairs[index(project, in: model) % pairs.count]
         return (pair.lightColor, pair.deepColor)
     }
 
     static func glyph(_ project: ProjectInfo, in model: CompanyModel) -> String {
-        glyphs[index(project, in: model) % glyphs.count]
+        if let icon = project.icon { return icon }
+        return glyphs[index(project, in: model) % glyphs.count]
     }
 
-    /// An epic's colour: the server has none yet (MISSING `Epic.color`), so it follows the epic's order.
+    /// An epic's colour: the one the server stores (API minor 18), else it follows the epic's order.
     static func epicTint(_ epic: Int64?, in work: ProjectWork, skin: AinkradSkin) -> Color {
+        if let stored = ProjectIdentity.color(work.epic(epic)?.color) { return stored }
         let colors = [
             skin.color(skin.palette.accentSecondary), skin.color(skin.palette.accentViolet),
             skin.color(skin.palette.success), skin.color(skin.palette.warning), skin.color(skin.palette.accentPrimary),
@@ -187,15 +190,31 @@ struct ItemKindChip: View {
     }
 }
 
-/// `▮▮▮` priority bars: the server's flag reads as High; without it, one faint bar.
+/// `▮▮▮` priority bars (`QPRIO`): urgent red ▮▮▮▮, high amber ▮▮▮, medium blue ▮▮, low slate ▮, none faint ▮.
 struct PriorityBars: View {
-    let high: Bool
+    let level: String
     @Environment(\.ainkradSkin) private var skin
 
+    /// An older server's flag only: High, or the one faint bar.
+    init(high: Bool) { level = high ? "high" : "low" }
+    init(level: String) { self.level = level }
+
+    static let levels = ["none", "low", "medium", "high", "urgent"]
+
+    static func title(_ level: String) -> String { level.prefix(1).uppercased() + level.dropFirst() }
+
     var body: some View {
-        Text(high ? "▮▮▮" : "▮").citadelFont("t8").tracking(-1)
-            .foregroundStyle(high ? skin.color(skin.palette.warning) : skin.color(skin.text.faint))
-            .help(high ? "High priority" : "Normal priority")
+        let bars = ["urgent": 4, "high": 3, "medium": 2][level] ?? 1
+        let tint: Color =
+            switch level {
+            case "urgent": skin.color(skin.palette.danger)
+            case "high": skin.color(skin.palette.warning)
+            case "medium": skin.color(skin.palette.accentPrimary)
+            case "low": skin.color(skin.text.muted)
+            default: skin.color(skin.text.faint)
+            }
+        Text(String(repeating: "▮", count: bars)).citadelFont("t8").tracking(-1).foregroundStyle(tint)
+            .help("\(Self.title(level)) priority")
     }
 }
 

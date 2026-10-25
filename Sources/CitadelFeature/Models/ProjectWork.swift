@@ -3,6 +3,13 @@ import Foundation
 
 extension Schemas.IssueKind: OpenWord {}
 extension Schemas.EpicStatus: OpenWord {}
+extension Schemas.PriorityLevel: OpenWord {}
+
+/// One acceptance criterion of an issue (API minor 18).
+struct CriterionInfo: Equatable, Sendable {
+    var text: String
+    var done = false
+}
 
 /// One work item of a project as the board, backlog and item drawer read it (`listProjectIssues`).
 struct WorkItem: Identifiable, Equatable, Sendable {
@@ -12,10 +19,14 @@ struct WorkItem: Identifiable, Equatable, Sendable {
     var projectID: Int64
     /// `backlog`, `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`.
     var state: String
-    /// `story`, `task`, `bug`, `subtask` (the server has no chore / spike yet).
+    /// `story`, `task`, `bug`, `chore`, `spike`, `subtask` (chore and spike from API minor 18).
     var kind = "task"
-    /// The server's one priority flag; the board reads it as High.
+    /// The server's priority flag; an older server has no more than this, and the board reads it as High.
     var priority = false
+    /// `none`, `low`, `medium`, `high`, `urgent` (API minor 18); `nil` from an older server.
+    var priorityLevel: String?
+    /// Acceptance criteria (API minor 18), in order.
+    var criteria: [CriterionInfo] = []
     var points: Int?
     var epicID: Int64?
     var sprintID: Int64?
@@ -25,6 +36,9 @@ struct WorkItem: Identifiable, Equatable, Sendable {
     var rank: Double = 0
     var body = ""
     var labels: [String] = []
+
+    /// The level the bars show: the stored one, else the flag's (High, or the one faint bar).
+    var level: String { priorityLevel ?? (priority ? "high" : "low") }
 
     var isBlocked: Bool { state == "blocked" }
     var isDone: Bool { state == "done" }
@@ -47,6 +61,12 @@ struct EpicInfo: Identifiable, Equatable, Sendable {
     var key: String
     var title: String
     var status: String
+    /// `#rrggbb` (API minor 18).
+    var color: String?
+    var startsOn: Date?
+    var endsOn: Date?
+    /// The requirement it serves (API minor 18).
+    var requirementID: Int64?
 }
 
 /// A sprint with its dates and goal.
@@ -163,12 +183,17 @@ extension WorkItem {
             kind: issue.kind.word, priority: issue.priority, points: issue.points.map(Int.init), epicID: issue.epicId,
             sprintID: issue.sprintId, ownerAgentID: owner, requirementID: issue.requirementId,
             checkoutRunID: issue.checkoutRunId, rank: issue.rank, body: issue.body, labels: issue.labels.map(\.name))
+        priorityLevel = issue.priorityLevel.map(\.word).nonEmpty
+        criteria = (issue.criteria ?? []).map { CriterionInfo(text: $0.text, done: $0.done ?? false) }
     }
 }
 
 extension EpicInfo {
     init(_ epic: Schemas.Epic) {
-        self.init(id: epic.id, key: epic.key, title: epic.title, status: epic.status.word)
+        self.init(
+            id: epic.id, key: epic.key, title: epic.title, status: epic.status.word, color: epic.color,
+            startsOn: epic.startsOn.flatMap(ProjectLogic.day), endsOn: epic.endsOn.flatMap(ProjectLogic.day),
+            requirementID: epic.requirementId)
     }
 }
 

@@ -88,9 +88,7 @@ extension CitadelServer {
             key: key, mode: .init(value1: .init(rawValue: mode), value2: mode), name: name, teamId: team)
         return await attempt({ try await client.createProject(path: .init(id: company), body: .json(body)) }) {
             guard case .ok(let ok) = $0 else { return nil }
-            let project = try ok.body.json
-            return ProjectInfo(
-                id: project.id, key: project.key, name: project.name, teamID: project.teamId, mode: project.mode.word)
+            return ProjectInfo(try ok.body.json)
         }
     }
 

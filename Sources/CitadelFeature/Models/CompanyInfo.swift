@@ -193,6 +193,17 @@ struct StuckInfo: Equatable, Sendable {
     var lastRepairAt: Date?
     /// Since when it has not moved (`stuck_since`), for the card's age.
     var since: Date? = nil
+    /// The run it is about, how long such work usually takes and what happened, as the server tells it (API
+    /// minor 18); nil and empty from an older server.
+    var runID: Int64? = nil
+    var usualSecs: Int? = nil
+    var trail: [TrailInfo] = []
+}
+
+/// One step of a stuck issue's evidence trail.
+struct TrailInfo: Equatable, Sendable {
+    var at: Date
+    var what: String
 }
 
 struct RequirementInfo: Identifiable, Equatable, Sendable {
@@ -209,6 +220,8 @@ struct RequirementInfo: Identifiable, Equatable, Sendable {
     var eta: String?
     /// When you asked for it (the list's age).
     var createdAt: Date? = nil
+    /// When it was paused (API minor 18); `nil` while it runs.
+    var pausedAt: Date? = nil
 }
 
 struct BudgetInfo: Identifiable, Equatable, Sendable {
@@ -250,6 +263,21 @@ struct ProjectInfo: Identifiable, Equatable, Sendable {
     var teamID: Int64?
     /// `scrum` or `kanban`.
     var mode: String
+    /// A symbol or emoji, and `#rrggbb` (API minor 18); `nil` falls back to the project's place in the list.
+    var icon: String? = nil
+    var color: String? = nil
+    /// Where the uploaded logo is read from, when it has one (API minor 18).
+    var logoURL: String? = nil
+    /// Every team on it, the owner (`teamID`) first (API minor 18); empty from an older server.
+    var teamIDs: [Int64] = []
+    /// Runtime limits, stored and shown (API minor 18).
+    var runnerTags: [String] = []
+    var maxParallelRuns: Int? = nil
+    var runTimeoutSecs: Int? = nil
+    var worktreeKeepDays: Int? = nil
+
+    /// The owner first, then the others; the owner alone from an older server.
+    var allTeamIDs: [Int64] { teamIDs.isEmpty ? teamID.map { [$0] } ?? [] : teamIDs }
 }
 
 struct SprintInfo: Equatable, Sendable {

@@ -166,7 +166,7 @@ private struct BacklogRow: View {
                 }
                 Spacer(minLength: skin.size.s8)
                 if item.isBlocked { Text("⚑").citadelFont("t11").foregroundStyle(skin.color(skin.palette.danger)) }
-                PriorityBars(high: item.priority)
+                PriorityBars(level: item.level)
                 StateTag(state: item.state == "blocked" ? "in_progress" : item.state)
                 if let agent = item.ownerAgentID.flatMap({ facts.model.agents[$0] }) {
                     AgentFigure(agent: agent, model: facts.model, size: skin.size.s20)
