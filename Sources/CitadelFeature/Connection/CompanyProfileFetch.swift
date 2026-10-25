@@ -1,16 +1,16 @@
 import CitadelClient
 import Foundation
 
-/// Company settings › General: the profile fields the API stores today (name, kind).
+/// Company settings › General: the profile the API stores (name, kind, and from minor 17 colour, time zone, working
+/// hours and days) and the logo.
 extension CitadelServer {
-    /// Renames the company and/or changes its kind (`updateCompany`); absent fields stay.
-    func updateCompany(_ id: Int64, name: String?, kind: Components.Schemas.CompanyKind.Value1Payload?) async
-        -> ServerAnswer?
-    {
-        await act {
-            try await scoped(to: nil).client.updateCompany(
-                path: .init(id: id),
-                body: .json(.init(kind: kind.map { .init(value1: $0) }, name: name)))
-        }
+    /// Changes the company's profile (`updateCompany`); absent fields stay.
+    func updateCompany(_ id: Int64, _ change: Components.Schemas.CompanyChange) async -> ServerAnswer? {
+        await act { try await scoped(to: nil).client.updateCompany(path: .init(id: id), body: .json(change)) }
+    }
+
+    /// Removes the company's uploaded logo (`resetCompanyLogo`): its colour and initial show again.
+    func resetLogo(company id: Int64) async -> ServerAnswer? {
+        await act { try await scoped(to: nil).client.resetCompanyLogo(path: .init(id: id)) }
     }
 }

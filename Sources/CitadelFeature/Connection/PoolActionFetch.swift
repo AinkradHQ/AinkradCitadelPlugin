@@ -60,6 +60,28 @@ extension CitadelServer {
         }
     }
 
+    /// "Probe now" (API minor 17): the runner looks at itself; it answers with its fresh state, or `409` when it is
+    /// offline or too old ("runner too old").
+    func probe(runner: Int64) async -> Result<RunnerInfo, ServerAnswer> {
+        do {
+            switch try await scoped(to: nil).client.probeRunner(path: .init(id: runner)) {
+            case .ok(let ok): return .success(RunnerInfo(try ok.body.json))
+            case .badRequest(let r): return .failure(.refusal(400, try? r.body.json))
+            case .unauthorized: return .failure(.refusal(401, nil))
+            case .forbidden(let r): return .failure(.refusal(403, try? r.body.json))
+            case .notFound(let r): return .failure(.refusal(404, try? r.body.json))
+            case .conflict(let r): return .failure(.refusal(409, try? r.body.json))
+            case .tooManyRequests: return .failure(.refusal(429, nil))
+            case .badGateway(let r): return .failure(.refusal(502, try? r.body.json))
+            case .gatewayTimeout(let r): return .failure(.refusal(504, try? r.body.json))
+            case .internalServerError(let r): return .failure(.refusal(500, try? r.body.json))
+            case .undocumented(let status, _): return .failure(.refusal(status, nil))
+            }
+        } catch {
+            return .failure(ServerAnswer(status: 0, code: "unreachable", message: error.localizedDescription))
+        }
+    }
+
     /// "Remove runner…": its key stops working.
     func removeRunner(_ runner: Int64) async -> ServerAnswer? {
         await act { try await scoped(to: nil).client.removeRunner(path: .init(id: runner)) }

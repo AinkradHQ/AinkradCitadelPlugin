@@ -5,22 +5,30 @@ import Foundation
 /// Company settings' writes with their toasts: the profile (General) and limits set by the gauge or the value pill,
 /// each with Undo where the server can take it back.
 extension CitadelStore {
-    /// "Save changes": the name and kind the API stores; `done(true)` once saved.
+    /// "Save changes": the profile General edits; `done(true)` once saved. An older server stores only the name
+    /// and kind, so the rest is left out for it.
     func saveCompany(
-        name: String, kind: Components.Schemas.CompanyKind.Value1Payload, undoable: Bool = true,
+        _ change: Components.Schemas.CompanyChange, undoable: Bool = true,
         done: @escaping @MainActor (Bool) -> Void = { _ in }
     ) {
         guard let server, let company else { return done(false) }
-        let before = (company.name, company.kind.value1 ?? .own)
+        let before = Self.profile(of: company)
+        var sent = change
+        if !serverSupports(minor: Self.structureMinor) {
+            sent.color = nil
+            sent.timezone = nil
+            sent.workDays = nil
+            sent.workEnd = nil
+            sent.workStart = nil
+        }
         Task {
-            if let answer = await server.updateCompany(company.id, name: name, kind: kind) {
+            if let answer = await server.updateCompany(company.id, sent) {
                 actionFailure = ActionFailure(
                     title: "Couldn't save \(company.name)", answer: answer, outcome: "Nothing was changed.")
                 return done(false)
             }
             if let index = companies.firstIndex(where: { $0.id == company.id }) {
-                companies[index].name = name
-                companies[index].kind = .init(value1: kind)
+                companies[index].apply(sent)
             }
             done(true)
             toast(
@@ -29,10 +37,17 @@ extension CitadelStore {
                     actions: undoable
                         ? [
                             AinkradRichToastAction("Undo") {
-                                self.saveCompany(name: before.0, kind: before.1, undoable: false)
+                                self.saveCompany(before, undoable: false)
                             }
                         ] : []))
         }
+    }
+
+    /// The profile as a change that puts it back.
+    private static func profile(of company: Components.Schemas.Company) -> Components.Schemas.CompanyChange {
+        .init(
+            color: company.color, kind: company.kind, name: company.name, timezone: company.timezone,
+            workDays: company.workDays, workEnd: company.workEnd, workStart: company.workStart)
     }
 
     /// A limit set from its gauge or value pill: the row flashes and a toast offers Undo (back to the old value, or
@@ -88,5 +103,18 @@ extension CitadelStore {
             try? await Task.sleep(for: .seconds(1.7))
             if page.flashed == key { page.flashed = nil }
         }
+    }
+}
+
+extension Components.Schemas.Company {
+    /// Takes over the fields a change sets; absent ones stay.
+    mutating func apply(_ change: Components.Schemas.CompanyChange) {
+        if let name = change.name { self.name = name }
+        if let kind = change.kind { self.kind = kind }
+        if let color = change.color { self.color = color }
+        if let timezone = change.timezone { self.timezone = timezone }
+        if let workDays = change.workDays { self.workDays = workDays }
+        if let workEnd = change.workEnd { self.workEnd = workEnd }
+        if let workStart = change.workStart { self.workStart = workStart }
     }
 }

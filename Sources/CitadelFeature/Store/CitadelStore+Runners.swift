@@ -53,6 +53,23 @@ extension CitadelStore {
         }
     }
 
+    /// "Probe now" (API minor 17): the runner's card takes its fresh state; a refusal ("runner too old") is a toast.
+    func probeRunner(_ runner: RunnerInfo) {
+        guard let server, let page = model?.runnersPage, !page.probing.contains(runner.id) else { return }
+        page.probing.insert(runner.id)
+        Task {
+            defer { page.probing.remove(runner.id) }
+            switch await server.probe(runner: runner.id) {
+            case .success(let info):
+                if let index = page.runners.firstIndex(where: { $0.id == runner.id }) { page.runners[index] = info }
+            case .failure(let answer):
+                toast(
+                    AinkradRichToast(
+                        title: "Couldn't probe \(runner.name)", body: answer.message, status: .danger))
+            }
+        }
+    }
+
     /// "+ Add runner": registers it; the sheet then shows its key and start command once.
     func registerRunner(name: String, tags: [String]) {
         guard let server, let model else { return }

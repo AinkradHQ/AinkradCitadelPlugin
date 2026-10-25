@@ -1,9 +1,9 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Company settings › Audit log (`settings.js` Audit): who changed what, before → after, as a timeline. The type
-/// chips filter on the server (action prefix, paged with Load more); the actor chips and the search filter the rows
-/// loaded so far. Click a row for its before → after.
+/// Company settings › Audit log (`settings.js` Audit): who changed what, before → after, as a timeline. The type and
+/// actor chips filter on the server (action prefix and `actor`, paged with Load more); an older server gets the actor
+/// chips filtering the rows loaded so far. The search filters those rows. Click a row for its before → after.
 struct AuditLogSection: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -34,7 +34,10 @@ struct AuditLogSection: View {
                 AinkradFlowLayout(spacing: skin.size.s8, lineSpacing: skin.size.s8) {
                     ForEach([("all", "Everyone"), ("you", "You"), ("agents", "Agents"), ("system", "System")], id: \.0)
                     { id, title in
-                        FilterChip(title: title, isOn: page.auditActor == id) { page.auditActor = id }
+                        FilterChip(title: title, isOn: page.auditActor == id) {
+                            page.auditActor = id
+                            if store.serverSupports(minor: CitadelStore.structureMinor) { store.loadAuditLog() }
+                        }
                     }
                     Color.clear.frame(width: skin.size.s2, height: skin.size.s2)
                     ForEach(Self.kinds, id: \.prefix) { kind in
@@ -72,21 +75,24 @@ struct AuditLogSection: View {
         .onAppear { store.loadAuditLog() }
     }
 
-    /// The loaded rows the actor chip and the search leave.
+    /// The loaded rows the search leaves, and on an older server the actor chip too (the server filters it from 17).
     private var shown: [AuditLine] {
         let query = page.auditSearch.trimmingCharacters(in: .whitespaces)
+        let filtersActors = !store.serverSupports(minor: CitadelStore.structureMinor)
         return (page.auditLog ?? []).filter { line in
-            let actorOK: Bool =
-                switch page.auditActor {
-                case "you": line.actor == "you"
-                case "agents": line.actor.hasPrefix("agent:")
-                case "system": line.actor != "you" && !line.actor.hasPrefix("agent:")
-                default: true
-                }
-            guard actorOK else { return false }
+            guard !filtersActors || actorShown(line) else { return false }
             guard !query.isEmpty else { return true }
             let text = ([line.action, line.actor, line.entity ?? ""] + line.details.values).joined(separator: " ")
             return text.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func actorShown(_ line: AuditLine) -> Bool {
+        switch page.auditActor {
+        case "you": line.actor == "you"
+        case "agents": line.actor.hasPrefix("agent:")
+        case "system": line.actor != "you" && !line.actor.hasPrefix("agent:")
+        default: true
         }
     }
 }

@@ -23,16 +23,18 @@ extension CitadelStore {
         ) { await $0.setAccount(account.id, assigned: assigned, company: company) }
     }
 
-    /// The audit log's newest page, with the section's filter.
+    /// The audit log's newest page, with the section's filters: the type chip's prefix and, from API minor 17, the
+    /// actor chip's kind (an older server gets every actor and the section filters them).
     func loadAuditLog() {
         guard let server, let page = model?.limitsPage else { return }
         let kind = page.auditKind
+        let actor = auditActorParameter(page)
         Task {
-            guard let (lines, next) = await server.auditLog(kind: kind) else {
+            guard let (lines, next) = await server.auditLog(kind: kind, actor: actor) else {
                 page.auditLog = page.auditLog ?? []
                 return
             }
-            guard kind == page.auditKind else { return }
+            guard kind == page.auditKind, actor == auditActorParameter(page) else { return }
             page.auditLog = lines
             page.auditNext = next
         }
@@ -42,12 +44,24 @@ extension CitadelStore {
     func loadMoreAudit() {
         guard let server, let page = model?.limitsPage, let before = page.auditNext else { return }
         let kind = page.auditKind
+        let actor = auditActorParameter(page)
         Task {
-            guard let (lines, next) = await server.auditLog(before: before, kind: kind), kind == page.auditKind,
-                page.auditNext == before
+            guard let (lines, next) = await server.auditLog(before: before, kind: kind, actor: actor),
+                kind == page.auditKind, actor == auditActorParameter(page), page.auditNext == before
             else { return }
             page.auditLog = (page.auditLog ?? []) + lines
             page.auditNext = next
+        }
+    }
+
+    /// The actor chip as the API's `actor` (`user`, `agent`, `system`); nil for everyone, and for an older server.
+    private func auditActorParameter(_ page: LimitsPage) -> String? {
+        guard serverSupports(minor: Self.structureMinor) else { return nil }
+        return switch page.auditActor {
+        case "you": "user"
+        case "agents": "agent"
+        case "system": "system"
+        default: nil
         }
     }
 

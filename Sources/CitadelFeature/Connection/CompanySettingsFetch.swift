@@ -65,12 +65,15 @@ extension CitadelServer {
     }
 
     /// A page of the company's audit log (API minor 16), newest first: rows below `before` (the previous page's
-    /// `next`), only actions starting with `kind` when set. `next` is absent on the last page.
-    func auditLog(before: Int64? = nil, kind: String? = nil) async -> (lines: [AuditLine], next: Int64?)? {
+    /// `next`), only actions starting with `kind` when set, only rows by `actor` (`user`, `agent`, `system`; API minor
+    /// 17) when set. `next` is absent on the last page.
+    func auditLog(before: Int64? = nil, kind: String? = nil, actor: String? = nil) async -> (
+        lines: [AuditLine], next: Int64?
+    )? {
         await read("listAudit") {
             guard
                 case .ok(let ok) = try await client.listAudit(
-                    query: .init(before: before, limit: 100, kind: kind.nonEmpty))
+                    query: .init(before: before, limit: 100, kind: kind.nonEmpty, actor: actor.nonEmpty))
             else { return nil }
             let page = try ok.body.json
             return (page.items.map(AuditLine.init), page.nextBefore)

@@ -35,6 +35,8 @@ final class RunnersPage {
     var addDraft = AddRunnerDraft()
     /// Runners a "Wake now" is in flight for (the button spins).
     var waking: Set<Int64> = []
+    /// Runners a "Probe now" is in flight for.
+    var probing: Set<Int64> = []
     /// The card a fleet chip just focused (it flashes).
     var flashed: Int64?
 
@@ -118,6 +120,9 @@ struct RunnerInfo: Identifiable, Equatable, Sendable {
     /// The admin's Power Nap preference ("Keep awake while jobs queue"), and the one the runner says it holds.
     var powerNap: Bool? = nil
     var powerNapApplied: Bool? = nil
+    /// Its platform as its hello said it (`macos`, `linux`, `windows`; `aarch64`, `x86_64`), API minor 17.
+    var os: String? = nil
+    var arch: String? = nil
 
     /// The pill's word: `asleep` for a sleeping Mac, else the server's status.
     var state: String { status == "offline" && asleep ? "asleep" : status }
@@ -314,7 +319,7 @@ extension RunnerInfo {
                     offered: $0.offered, reason: $0.reason)
             },
             slots: runner.slots.map(Int.init), uptimeSecs: runner.uptimeSecs, reportedAt: runner.reportedAt,
-            powerNap: runner.powerNap, powerNapApplied: runner.powerNapApplied)
+            powerNap: runner.powerNap, powerNapApplied: runner.powerNapApplied, os: runner.os, arch: runner.arch)
     }
 }
 

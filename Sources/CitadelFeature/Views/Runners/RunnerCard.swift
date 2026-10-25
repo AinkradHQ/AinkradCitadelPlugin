@@ -70,12 +70,18 @@ struct RunnerCard: View {
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 Text(runner.name).citadelFont("t15", weight: "semibold", mono: true)
                     .foregroundStyle(skin.color(skin.text.primary))
-                Text(look.line(now: Date())).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(
-                    1)
+                Text(subtitle).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
             }
             Spacer(minLength: skin.size.s8)
             StatePillBox(text: look.state, tint: look.tint(skin)).transition(.opacity).id(look.state)
         }
+    }
+
+    /// Its state line, then the platform it reported ("macos · aarch64") once it has.
+    private var subtitle: String {
+        let platform = [runner.os, runner.arch].compactMap { $0 }.joined(separator: " · ")
+        let line = look.line(now: Date())
+        return platform.isEmpty ? line : "\(line) · \(platform)"
     }
 
     // MARK: Why
@@ -351,10 +357,19 @@ struct RunnerCard: View {
                 body: "Values are validated against the bounds — never clamped.", status: .danger))
     }
 
-    /// Drain / Stop draining, the log and remove (Pause and Probe wait for the server).
+    /// Probe now (API minor 17, on a newer server only), drain / stop draining, the log and remove (Pause waits for
+    /// the server).
     private var actions: some View {
         let drained = runner.drainedAt != nil
+        let probing = page.probing.contains(runner.id)
         return HStack(spacing: skin.size.s6) {
+            if store.serverSupports(minor: CitadelStore.structureMinor) {
+                AinkradDockButton(
+                    probing ? "Probing…" : "Probe now", systemImage: "waveform.path.ecg", isEnabled: !probing,
+                    height: skin.size.s30
+                ) { store.probeRunner(runner) }
+                .help("Asks the runner to look at itself now: its harness versions and logins are read again")
+            }
             AinkradDockButton(
                 drained ? "Stop draining" : "Drain", systemImage: "arrow.down.to.line",
                 tone: drained ? .warning : .plain,
