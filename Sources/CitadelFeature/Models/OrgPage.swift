@@ -1,3 +1,4 @@
+import AinkradAppKit
 import Foundation
 import Observation
 
@@ -53,7 +54,7 @@ final class OrgPage {
     /// The last Structure tab shown (remembered, `APP.stTab`).
     var structureTab: StructureTab = .departments
     /// The chart's camera; kept while the screen is open, re-fit on resize until the person moves it.
-    var camera = PanZoomCamera()
+    var camera = AinkradPanZoomCamera()
     var drawer: Drawer?
     /// The skill selected in the drawer's Skills section.
     var selectedSkill: String?

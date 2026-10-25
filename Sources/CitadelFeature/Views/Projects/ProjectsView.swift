@@ -137,9 +137,9 @@ private struct ProjectCard: View {
             }
             Spacer(minLength: skin.size.s8)
             if let active = facts.active, facts.isScrum {
-                StatePill(text: "Sprint \(active.name)", tint: skin.color(skin.palette.accentSecondary))
+                AinkradStatePill(text: "Sprint \(active.name)", tint: skin.color(skin.palette.accentSecondary))
             } else {
-                StatePill(text: facts.isScrum ? "No sprint" : "Kanban", tint: skin.color(skin.text.muted))
+                AinkradStatePill(text: facts.isScrum ? "No sprint" : "Kanban", tint: skin.color(skin.text.muted))
             }
         }
     }

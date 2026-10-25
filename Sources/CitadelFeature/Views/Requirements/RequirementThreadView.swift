@@ -167,14 +167,14 @@ struct RequirementThreadView: View {
 
     private var composer: some View {
         let asker: AgentInfo? = if case .question(let q) = target { model.agent(q.agentID) } else { nil }
-        return ConversationComposer(
+        return AinkradConversationComposer(
             text: $draft, placeholder: placeholder, isTargeted: asker != nil, hint: hint, onAttach: attach,
             onSend: send,
             toRow: {
                 if case .question(let q) = target, let asker {
                     HStack(spacing: skin.size.s8) {
                         Text("To").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                        ComposerToChip(label: "\(asker.name) · \(q.issueKey) question") {
+                        AinkradComposerChip(label: "\(asker.name) · \(q.issueKey) question") {
                             page.targetCleared = true
                         } avatar: {
                             AgentFigure(agent: asker, model: model, size: skin.size.s18)

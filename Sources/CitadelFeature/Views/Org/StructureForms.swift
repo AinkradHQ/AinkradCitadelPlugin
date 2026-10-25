@@ -15,9 +15,9 @@ struct PersonCard: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        ChoiceCard(isOn: isOn, height: skin.size.s54, action: pick) {
+        AinkradChoiceCard(isOn: isOn, height: skin.size.s54, action: pick) {
             AgentFigure(agent: agent, model: model, size: skin.size.s30)
-            CardText(title: agent.name, caption: line)
+            AinkradChoiceText(title: agent.name, caption: line)
         }
     }
 }
@@ -38,19 +38,20 @@ struct TeamSheet: View {
     var body: some View {
         let current = model.departments.flatMap(\.teams).first { $0.id == team }
         let shown = (key.isEmpty ? String(name.prefix(3)) : key).uppercased()
-        SheetFrame(
+        AinkradSheetFrame(
             tile: shown.isEmpty ? "NEW" : shown, title: current == nil ? "New team" : "Edit team",
             line: "A team sits in a department, works one project, and has one lead."
         ) {
             field("Name") { AinkradTextField(text: $name, placeholder: "Payments") }
             field("Department") {
-                CardGrid(columns: 2) {
+                AinkradCardGrid(columns: 2) {
                     ForEach(model.departments) { item in
                         let head = model.head(of: item)
-                        ChoiceCard(isOn: item.id == department, height: skin.size.s56, action: { department = item.id })
-                        {
+                        AinkradChoiceCard(
+                            isOn: item.id == department, height: skin.size.s56, action: { department = item.id }
+                        ) {
                             InitialTile(letter: item.name, side: skin.size.s32)
-                            CardText(
+                            AinkradChoiceText(
                                 title: item.name, caption: head.map { "head \($0.name) · \($0.role)" } ?? "no head yet")
                         }
                     }
@@ -62,7 +63,7 @@ struct TeamSheet: View {
                     Text("No agents in this department yet — hire one, then make them lead.").citadelFont("t12")
                         .foregroundStyle(skin.color(skin.text.faint))
                 } else {
-                    CardGrid(columns: 4) {
+                    AinkradCardGrid(columns: 4) {
                         ForEach(pool) { agent in
                             PersonCard(model: model, agent: agent, line: agent.role, isOn: agent.id == lead) {
                                 lead = agent.id
@@ -87,7 +88,7 @@ struct TeamSheet: View {
                 }
             }
             field("Cadence") {
-                CardGrid(columns: 2) {
+                AinkradCardGrid(columns: 2) {
                     cadence("Sprint", "Time-boxed sprints the PO plans with the lead", "clock", on: sprint) {
                         sprint = true
                     }
@@ -156,9 +157,9 @@ struct TeamSheet: View {
     private func cadence(_ title: String, _ blurb: String, _ symbol: String, on: Bool, pick: @escaping () -> Void)
         -> some View
     {
-        ChoiceCard(isOn: on, height: skin.size.s64, action: pick) {
-            CardGlyph(glyph: symbol, isOn: on)
-            CardText(title: title, caption: blurb, wraps: true)
+        AinkradChoiceCard(isOn: on, height: skin.size.s64, action: pick) {
+            AinkradChoiceGlyph(symbol, isOn: on)
+            AinkradChoiceText(title: title, caption: blurb, wraps: true)
         }
     }
 }
@@ -176,14 +177,14 @@ struct DepartmentSheet: View {
 
     var body: some View {
         let current = model.departments.first { $0.id == department }
-        SheetFrame(
+        AinkradSheetFrame(
             tile: String((name.isEmpty ? "D" : name).prefix(1)).uppercased(),
             title: current.map { "Edit \($0.name)" } ?? "New department",
             line: "A department groups teams under one head manager, who reports to the CEO."
         ) {
             field("Name") { AinkradTextField(text: $name, placeholder: "Sales") }
             field("Head manager") {
-                CardGrid(columns: 4) {
+                AinkradCardGrid(columns: 4) {
                     ForEach(pool(current)) { agent in
                         PersonCard(model: model, agent: agent, line: line(agent), isOn: agent.id == head) {
                             head = agent.id
@@ -262,7 +263,7 @@ struct RoleSheet: View {
 
     var body: some View {
         let current = role.flatMap(HireCatalog.role)
-        SheetFrame(
+        AinkradSheetFrame(
             tile: symbol, symbol: true, title: current.map { "Edit \($0.name)" } ?? "New role",
             line: "A role is a template — new agents in it start with these defaults."
         ) {
@@ -271,9 +272,9 @@ struct RoleSheet: View {
                 field("Purpose") { AinkradTextField(text: $purpose, placeholder: "Audits code and dependencies") }
             }
             field("Icon") {
-                CardGrid(columns: 9) {
+                AinkradCardGrid(columns: 9) {
                     ForEach(Self.symbols, id: \.self) { item in
-                        ChoiceCard(isOn: item == symbol, height: skin.size.s50, action: { symbol = item }) {
+                        AinkradChoiceCard(isOn: item == symbol, height: skin.size.s50, action: { symbol = item }) {
                             Image(systemName: item).citadelFont("t15").frame(maxWidth: .infinity)
                                 .foregroundStyle(
                                     item == symbol ? skin.color(skin.palette.white) : skin.color(skin.text.muted))
@@ -325,7 +326,7 @@ private struct FormSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s8) {
-            GroupLabel(title: label)
+            AinkradGroupLabel(title: label)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)

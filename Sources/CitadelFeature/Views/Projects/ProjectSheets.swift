@@ -34,27 +34,27 @@ struct NewProjectSheet: View {
                 AinkradTextField(text: $key, placeholder: "CIT").monospaced()
             }
             AinkradFormRow(title: "Cadence") {
-                PickGrid(columns: 2) {
-                    PickCard(
-                        isOn: mode == "scrum", minHeight: skin.size.s64, vertical: true, action: { mode = "scrum" }
+                AinkradCardGrid(columns: 2) {
+                    AinkradChoiceCard(
+                        isOn: mode == "scrum", minHeight: skin.size.s64, axis: .vertical, action: { mode = "scrum" }
                     ) {
-                        PickText(title: "Sprints", caption: "Plan, commit, burn down")
+                        AinkradChoiceText(title: "Sprints", caption: "Plan, commit, burn down")
                     }
-                    PickCard(
-                        isOn: mode == "kanban", minHeight: skin.size.s64, vertical: true, action: { mode = "kanban" }
+                    AinkradChoiceCard(
+                        isOn: mode == "kanban", minHeight: skin.size.s64, axis: .vertical, action: { mode = "kanban" }
                     ) {
-                        PickText(title: "Kanban", caption: "A continuous flow, no sprints")
+                        AinkradChoiceText(title: "Kanban", caption: "A continuous flow, no sprints")
                     }
                 }
             }
             if !teams.isEmpty {
                 AinkradFormRow(title: "Team") {
-                    PickGrid(columns: 2) {
+                    AinkradCardGrid(columns: 2) {
                         ForEach(teams, id: \.team.id) { entry in
-                            PickCard(
+                            AinkradChoiceCard(
                                 isOn: team == entry.team.id, minHeight: skin.size.s46, action: { team = entry.team.id }
                             ) {
-                                PickText(
+                                AinkradChoiceText(
                                     title: entry.team.name,
                                     caption: "\(entry.department) · \(entry.team.seats.count) agents")
                             }

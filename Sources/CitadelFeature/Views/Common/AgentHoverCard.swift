@@ -38,7 +38,7 @@ struct AgentHoverCard: View {
                             + Text(" · \(Fmt.age(Date().timeIntervalSince(live.startedAt ?? live.queuedAt)))"))
                             .citadelFont("t11", mono: true)
                     } else {
-                        StatePill(
+                        AinkradStatePill(
                             text: model.orgLine(agent).text.components(separatedBy: " · ").last ?? "idle",
                             tint: tint(OrgBucket(agent)))
                     }

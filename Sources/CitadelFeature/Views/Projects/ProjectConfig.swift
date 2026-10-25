@@ -44,15 +44,15 @@ struct ConfigTeams: View {
 
     var body: some View {
         ConfigSection(title: "Teams on this project", subtitle: "the owner plans sprints with the PO") {
-            PickGrid(columns: 2, spacing: skin.size.s16) {
+            AinkradCardGrid(columns: 2, spacing: skin.size.s16) {
                 ForEach(facts.model.departments) { department in
                     ForEach(department.teams) { team in
                         let isOwner = team.id == facts.project.teamID
-                        PickCard(
+                        AinkradChoiceCard(
                             isOn: isOwner, minHeight: skin.size.s80,
                             action: { store.setTeam(team, project: facts.project) }
                         ) {
-                            PickCheck(isOn: isOwner)
+                            AinkradCheckBox(isOn: isOwner)
                             VStack(alignment: .leading, spacing: skin.size.s3) {
                                 HStack(spacing: skin.size.s6) {
                                     Text(team.name).citadelFont("t12_5", weight: "semibold").foregroundStyle(
@@ -94,15 +94,15 @@ struct ConfigRules: View {
                 title: "Definition of done",
                 subtitle: "\(profile.definitionOfDone.count) rules · QA checks every issue against them"
             ) {
-                PickGrid(columns: 2) {
+                AinkradCardGrid(columns: 2) {
                     ForEach(profile.definitionOfDone, id: \.self) { rule in
-                        ToggleCard(title: rule, isOn: true) {
+                        AinkradToggleCard(title: rule, isOn: true) {
                             store.updateProfile(
                                 project: id,
                                 Schemas.ProfilePatch(definitionOfDone: profile.definitionOfDone.filter { $0 != rule }))
                         }
                     }
-                    PickCard(isAdd: true, minHeight: skin.size.s46) {
+                    AinkradChoiceCard(isAdd: true, minHeight: skin.size.s46) {
                         AinkradTextField(text: $draft, placeholder: "Add a rule — e.g. Docs updated").compact()
                             .onSubmit(add)
                         AinkradButton(title: "Add", style: .secondary) { add() }.compact().fixedSize()
@@ -110,7 +110,7 @@ struct ConfigRules: View {
                 }
             }
             ConfigSection(title: "Branches & merging", subtitle: "the same rules in every repo") {
-                PickGrid(columns: 3) {
+                AinkradCardGrid(columns: 3) {
                     kv("PR base", "each repo's default branch")
                     kv("Branch name", profile.branchPattern, mono: true)
                     kv("Protected", profile.protectedBranches.joined(separator: " · "), mono: true)
@@ -147,7 +147,7 @@ struct ConfigRules: View {
                     ],
                     selected: profile.permissionMode
                 ) { store.updateProfile(project: id, .init(permissionMode: .init(value1: .init(rawValue: $0)))) }
-                ToggleCard(title: "Network access without asking", isOn: profile.network == "on") {
+                AinkradToggleCard(title: "Network access without asking", isOn: profile.network == "on") {
                     store.updateProfile(
                         project: id,
                         .init(network: .init(value1: .init(rawValue: profile.network == "on" ? "ask" : "on"))))
@@ -181,12 +181,12 @@ struct ConfigRules: View {
     private func choices(_ options: [(String, String, String)], selected: String, pick: @escaping (String) -> Void)
         -> some View
     {
-        PickGrid(columns: options.count) {
+        AinkradCardGrid(columns: options.count) {
             ForEach(options, id: \.0) { option in
-                PickCard(
-                    isOn: selected == option.0, minHeight: skin.size.s64, vertical: true, action: { pick(option.0) }
+                AinkradChoiceCard(
+                    isOn: selected == option.0, minHeight: skin.size.s64, axis: .vertical, action: { pick(option.0) }
                 ) {
-                    PickText(title: option.1, caption: option.2)
+                    AinkradChoiceText(title: option.1, caption: option.2)
                 }
             }
         }

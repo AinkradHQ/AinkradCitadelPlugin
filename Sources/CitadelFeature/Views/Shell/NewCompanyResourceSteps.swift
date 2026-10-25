@@ -24,7 +24,7 @@ struct NewCompanyResourceSteps: View {
             line: "Its colour everywhere it appears. The figure animates by state, so you can read it at a glance.")
         field("Colour · \(palette.name)") { PaletteGrid(selection: $draft.palette) }
         field("In every state") {
-            CardGrid(columns: 4, spacing: skin.size.s10) {
+            AinkradCardGrid(columns: 4, spacing: skin.size.s10) {
                 ForEach(
                     [
                         (AinkradFigureState.idle, "Idle"), (.thinking, "Planning"), (.working, "Working"),
@@ -122,16 +122,16 @@ struct NewCompanyResourceSteps: View {
             Text("The pool has no accounts yet — add some in Accounts, then assign them from Company settings.")
                 .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
         }
-        CardGrid(columns: 2) {
+        AinkradCardGrid(columns: 2) {
             ForEach(pool) { account in
                 let on = draft.accounts.contains(account.id)
-                ChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(account.id) }) {
+                AinkradChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(account.id) }) {
                     HarnessTag(harness: account.harness, size: skin.size.s28)
-                    CardText(
+                    AinkradChoiceText(
                         title: account.label,
                         caption: account.planTier ?? (account.billing == "metered" ? "API key" : "Subscription"),
                         mono: true)
-                    CheckBox(isOn: on)
+                    AinkradCheckBox(isOn: on)
                 }
             }
         }
@@ -215,7 +215,7 @@ struct NewCompanyResourceSteps: View {
 
     private func group<Content: View>(_ title: String, @ViewBuilder _ rows: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: skin.size.s6) {
-            GroupLabel(title: title)
+            AinkradGroupLabel(title: title)
             rows()
         }
     }

@@ -20,7 +20,7 @@ struct BreakdownCard: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s12) {
                 Text("Breakdown").citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
                 AinkradGlideTabs(
@@ -99,9 +99,10 @@ struct BreakdownCard: View {
             let top = items.map(\.weight).max() ?? 1
             let totalMicros = items.count
             HStack(alignment: .center, spacing: skin.size.s16) {
-                SegmentDonut(
+                AinkradSegmentDonut(
                     segments: items.enumerated().map {
-                        DonutSegment(id: $0.offset, value: $0.element.weight, color: palette[$0.offset % palette.count])
+                        AinkradDonutSegment(
+                            id: $0.offset, value: $0.element.weight, color: palette[$0.offset % palette.count])
                     }, diameter: skin.size.s124, lineWidth: skin.size.s16
                 ) {
                     VStack(spacing: 0) {
@@ -153,7 +154,7 @@ struct BreakdownCard: View {
                 .contentShape(Rectangle())
             }
             .ainkradHoverLift(0, cornerRadius: skin.size.s4)
-            FillTrack(fraction: item.weight / max(top, 1), fill: AnyShapeStyle(item.warns ? amber : color))
+            AinkradFillTrack(fraction: item.weight / max(top, 1), fill: AnyShapeStyle(item.warns ? amber : color))
                 .frame(maxWidth: .infinity)
             Text(item.amount).citadelFont("t11", mono: true)
                 .foregroundStyle(item.warns ? amber : skin.color(skin.text.muted))
@@ -179,11 +180,11 @@ struct BreakdownCard: View {
                                 skin.color(skin.text.primary)
                             )
                             .lineLimit(1)
-                            StatePill(text: subscription ? "sub" : "API $", tint: tint)
+                            AinkradStatePill(text: subscription ? "sub" : "API $", tint: tint)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    FillTrack(fraction: Double(use.tokens) / max(top, 1), fill: AnyShapeStyle(tint)).frame(
+                    AinkradFillTrack(fraction: Double(use.tokens) / max(top, 1), fill: AnyShapeStyle(tint)).frame(
                         maxWidth: .infinity)
                     Text("\(Fmt.tokens(use.tokens)) tok").citadelFont("t11", mono: true)
                         .foregroundStyle(skin.color(skin.text.muted)).frame(width: skin.size.s70, alignment: .trailing)
@@ -217,14 +218,15 @@ struct PerTaskCard: View {
 
     var body: some View {
         let top = Double(model.costTasks.map(\.tokens).max() ?? 1)
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s6) {
                 HStack(alignment: .firstTextBaseline, spacing: skin.size.s8) {
                     Text("Per task").citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
                     Text(period == .today ? "today" : "this \(period.rawValue)").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
                     Spacer()
-                    MiniSegment(options: [(.tokens, "Tokens"), (.time, "Time"), (.dollars, "$")], selection: $sort)
+                    AinkradMiniSegment(
+                        options: [(.tokens, "Tokens"), (.time, "Time"), (.dollars, "$")], selection: $sort)
                 }
                 if model.costTasks.isEmpty {
                     Text("No runs in this period").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
@@ -267,7 +269,7 @@ private struct TaskRow: View {
                 Text(task.title).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: skin.size.s8) {
-                    FillTrack(
+                    AinkradFillTrack(
                         fraction: Double(task.tokens) / max(top, 1),
                         fill: AnyShapeStyle(
                             LinearGradient(

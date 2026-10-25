@@ -79,7 +79,7 @@ struct RunRail: View {
                     rateChip(model.cost(run).word)
                 }
             }
-            LegendBar(segments: RunMix.tokens(run, skin: skin))
+            AinkradLegendBar(segments: RunMix.tokens(run, skin: skin))
         }
     }
 
@@ -200,7 +200,7 @@ struct RunRail: View {
         if !stages.rows.isEmpty {
             RunPanel(padding: skin.size.s12) {
                 RunCardHead(title: "Startup", value: stages.total.map { String(format: "%.1f s to first token", $0) })
-                LegendBar(segments: RunMix.stages(stages, skin: skin))
+                AinkradLegendBar(segments: RunMix.stages(stages, skin: skin))
             }
         }
     }

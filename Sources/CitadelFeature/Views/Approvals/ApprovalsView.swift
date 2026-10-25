@@ -50,7 +50,7 @@ struct ApprovalsView: View {
                 .frame(width: skin.size.s64, height: skin.size.s64)
                 .background(green.opacity(skin.opacity.o18), in: RoundedRectangle(cornerRadius: skin.size.s18))
                 .overlay(RoundedRectangle(cornerRadius: skin.size.s18).strokeBorder(green.opacity(skin.opacity.o30)))
-                .riseIn(delay: 0.1, distance: skin.size.s12)
+                .ainkradRiseIn(delay: 0.1, distance: skin.size.s12)
             Text("Nothing waits on you").citadelFont("t14", weight: "semibold")
                 .foregroundStyle(skin.color(skin.text.primary))
             Text(
@@ -82,7 +82,7 @@ struct ApprovalsView: View {
                     }
                     let answered = model.answeredApprovals.filter(filter.matches)
                     if !answered.isEmpty {
-                        SectionHead(title: "Answered today", count: "\(answered.count)")
+                        AinkradSectionHead(title: "Answered today", count: "\(answered.count)")
                             .padding(.top, skin.size.s10).padding(.horizontal, skin.size.s2)
                         ForEach(Array(answered.enumerated()), id: \.element.id) { index, approval in
                             card(approval, index: items.count + index, answered: true)

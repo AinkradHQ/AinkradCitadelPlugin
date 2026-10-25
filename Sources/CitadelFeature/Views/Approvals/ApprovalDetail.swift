@@ -27,7 +27,7 @@ struct ApprovalDetail: View {
                 .padding(.bottom, skin.size.s6)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s12) {
-                    if !isPending { decided.riseIn() }
+                    if !isPending { decided.ainkradRiseIn() }
                     ApprovalBody(
                         store: store, model: model, approval: approval, newCap: $newCap, scope: $scope,
                         isPending: isPending)

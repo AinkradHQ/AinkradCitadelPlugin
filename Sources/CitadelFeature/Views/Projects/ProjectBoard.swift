@@ -141,7 +141,7 @@ private struct BoardColumn: View {
         .padding(.top, skin.size.s8)
         .padding(.bottom, skin.size.s10)
         .frame(maxWidth: .infinity, minHeight: skin.size.s120, alignment: .top)
-        .dropZone { id in
+        .ainkradDropZone { id in
             guard let id = Int64(id), let item = facts.work.items.first(where: { $0.id == id }) else { return false }
             store.moveItem(item, to: column, project: facts.project)
             return true

@@ -115,7 +115,7 @@ struct DrawerSettings: View {
             SandboxCards(selection: $sandbox)
             RunnerTagCards(model: model, selection: $tags)
             Text("Reports to").citadelFont("t11", weight: "medium").foregroundStyle(skin.color(skin.text.muted))
-            CardGrid(columns: 4) {
+            AinkradCardGrid(columns: 4) {
                 ForEach(bosses) { person in
                     PersonCard(model: model, agent: person, line: model.title(of: person), isOn: boss == person.id) {
                         boss = person.id

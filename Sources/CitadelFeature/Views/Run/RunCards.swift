@@ -49,7 +49,7 @@ struct KpiTile<Value: View>: View {
 
     var body: some View {
         HStack(spacing: skin.size.s10) {
-            IconTile(systemName: icon, tint: tint, size: skin.size.s32, radius: skin.size.s10)
+            AinkradIconTile(systemName: icon, tint: tint, size: skin.size.s32, radius: skin.size.s10)
             VStack(alignment: .leading, spacing: 0) {
                 value.citadelFont("t15", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
                     .lineLimit(1)
@@ -125,7 +125,7 @@ struct ContextIcon: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        IconTile(
+        AinkradIconTile(
             systemName: systemName, tint: tint, size: compact ? skin.size.s26 : skin.size.s32,
             radius: compact ? skin.size.s8 : skin.size.s10)
     }

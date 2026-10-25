@@ -115,10 +115,10 @@ struct StuckView: View {
     @ViewBuilder private func section(_ title: String, _ items: [StuckInfo], offset: Int) -> some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                SectionHead(title: title, count: "\(items.count)")
+                AinkradSectionHead(title: title, count: "\(items.count)")
                 ForEach(Array(items.enumerated()), id: \.element.cardID) { index, item in
                     StuckCard(store: store, model: model, stuck: item)
-                        .riseIn(delay: Double(offset + index) * 0.06)
+                        .ainkradRiseIn(delay: Double(offset + index) * 0.06)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
@@ -149,7 +149,7 @@ struct StuckView: View {
                 .frame(width: skin.size.s64, height: skin.size.s64)
                 .background(green.opacity(skin.opacity.o18), in: RoundedRectangle(cornerRadius: skin.size.s18))
                 .overlay(RoundedRectangle(cornerRadius: skin.size.s18).strokeBorder(green.opacity(skin.opacity.o30)))
-                .riseIn(delay: 0.1, distance: skin.size.s12)
+                .ainkradRiseIn(delay: 0.1, distance: skin.size.s12)
             Text("Every issue has a moving next actor").citadelFont("t14", weight: "semibold")
                 .foregroundStyle(skin.color(skin.text.primary))
             Text("The engine checks every 30 s. Anything that stops moving shows up here with the reason.")

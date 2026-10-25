@@ -145,11 +145,11 @@ struct NewCompanyHarnessCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 4) {
+        AinkradCardGrid(columns: 4) {
             ForEach(HireCatalog.harnesses, id: \.self) { harness in
-                ChoiceCard(isOn: selection == harness, height: skin.size.s54, action: { selection = harness }) {
+                AinkradChoiceCard(isOn: selection == harness, height: skin.size.s54, action: { selection = harness }) {
                     HarnessTag(harness: harness, size: skin.size.s26)
-                    CardText(
+                    AinkradChoiceText(
                         title: AgentLook.harnessName(harness),
                         caption: "\(pool.filter { $0.harness == harness }.count) in pool")
                 }
@@ -170,18 +170,18 @@ struct NewCompanyTagCards: View {
     ]
 
     var body: some View {
-        CardGrid(columns: large ? 2 : 4) {
+        AinkradCardGrid(columns: large ? 2 : 4) {
             ForEach(HireCatalog.runnerTags, id: \.tag) { item in
                 let matching = runners.filter { $0.tags.contains(item.tag) }
                 let online = matching.filter { $0.status == "online" }.count
                 let on = selection.contains(item.tag)
                 let caption = "\(Wording.count(matching.count, "runner")) · \(online) online"
                 if large {
-                    ChoiceCard(isOn: on, axis: .vertical, action: { toggle(item.tag) }) {
+                    AinkradChoiceCard(isOn: on, axis: .vertical, action: { toggle(item.tag) }) {
                         HStack(spacing: skin.size.s10) {
-                            CardGlyph(glyph: Self.symbols[item.tag] ?? "cpu", isOn: on, size: skin.size.s38)
-                            CardText(title: item.title, caption: caption)
-                            CheckBox(isOn: on)
+                            AinkradChoiceGlyph(Self.symbols[item.tag] ?? "cpu", isOn: on, size: skin.size.s38)
+                            AinkradChoiceText(title: item.title, caption: caption)
+                            AinkradCheckBox(isOn: on)
                         }
                         if !matching.isEmpty {
                             AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s4) {
@@ -191,9 +191,9 @@ struct NewCompanyTagCards: View {
                         }
                     }
                 } else {
-                    ChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(item.tag) }) {
-                        CheckBox(isOn: on)
-                        CardText(title: item.title, caption: caption)
+                    AinkradChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(item.tag) }) {
+                        AinkradCheckBox(isOn: on)
+                        AinkradChoiceText(title: item.title, caption: caption)
                     }
                 }
             }

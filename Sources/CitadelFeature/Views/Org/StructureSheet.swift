@@ -11,7 +11,7 @@ struct StructureSheet: View {
     var body: some View {
         let page = model.orgPage
         let teams = model.departments.flatMap(\.teams)
-        SheetFrame(
+        AinkradSheetFrame(
             tile: "point.3.connected.trianglepath.dotted", symbol: true, title: "Structure",
             line:
                 "Departments have a head manager, teams have a lead, and roles are the templates new agents start from."
@@ -25,7 +25,7 @@ struct StructureSheet: View {
                     AinkradGlideTab(
                         .roles, title: "Roles", systemImage: "person", count: "\(HireCatalog.roles.count)"),
                 ], selection: Binding(get: { page.structureTab }, set: { page.structureTab = $0 }))
-            CardGrid(columns: 3, spacing: skin.size.s10) {
+            AinkradCardGrid(columns: 3, spacing: skin.size.s10) {
                 switch page.structureTab {
                 case .departments:
                     ForEach(model.departments) { department(model, $0) }
@@ -50,7 +50,7 @@ struct StructureSheet: View {
         title: String, line: String, open: @escaping () -> Void, @ViewBuilder top: () -> Top,
         @ViewBuilder foot: () -> Foot
     ) -> some View {
-        ChoiceCard(height: skin.size.s108, axis: .vertical, action: open) {
+        AinkradChoiceCard(height: skin.size.s108, axis: .vertical, action: open) {
             HStack { top() }.frame(height: skin.size.s28)
             Text(title).citadelFont("t13", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
                 .padding(.top, skin.size.s8)
@@ -101,7 +101,7 @@ struct StructureSheet: View {
     private func role(_ role: HireCatalog.Role) -> some View {
         let count = model.agents.values.filter { $0.role.lowercased() == role.name.lowercased() }.count
         return card(title: role.name, line: role.purpose, open: { model.orgPage.stack(.role(role.name)) }) {
-            CardGlyph(glyph: role.symbol)
+            AinkradChoiceGlyph(role.symbol)
         } foot: {
             HarnessTag(harness: role.harness, size: skin.size.s20)
             who("\(HireCatalog.modelName(role.model)) · \(Fmt.tokens(role.budget)) tok")
@@ -116,7 +116,7 @@ struct StructureSheet: View {
     }
 
     private func addCard(_ title: String, _ line: String, open: @escaping () -> Void) -> some View {
-        ChoiceCard(isAdd: true, height: skin.size.s108, axis: .vertical, action: open) {
+        AinkradChoiceCard(isAdd: true, height: skin.size.s108, axis: .vertical, action: open) {
             VStack(spacing: skin.size.s4) {
                 Text("＋").citadelFont("t13").foregroundStyle(skin.color(skin.text.muted))
                     .frame(width: skin.size.s28, height: skin.size.s28)

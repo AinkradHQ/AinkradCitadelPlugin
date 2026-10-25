@@ -161,7 +161,7 @@ struct TypingTurn: View {
                         .foregroundStyle(skin.color(skin.text.primary))
                     Text(note).citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                 }
-                TypingDots()
+                AinkradTypingDots()
             }
             Spacer(minLength: 0)
         }

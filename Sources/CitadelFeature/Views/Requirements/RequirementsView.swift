@@ -39,12 +39,22 @@ struct RequirementsView: View {
             }
             .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: selected?.id)
         }
-        .floatingDrawer(
-            isPresented: selected != nil && !page.drawer.isEmpty, onClose: { page.drawer = [] },
-            header: { if let selected { RequirementDrawerHeader(model: model, requirement: selected) } },
-            content: { if let selected { RequirementDrawerBody(store: store, model: model, requirement: selected) } },
-            footer: { if let selected { RequirementDrawerFooter(store: store, model: model, requirement: selected) } }
-        )
+        .ainkradFloatingDrawer(
+            isPresented: Binding(
+                get: { selected != nil && !page.drawer.isEmpty }, set: { if !$0 { page.drawer = [] } }),
+            top: skin.size.s110, inset: skin.size.s34
+        ) {
+            AinkradDrawerPanel(
+                onClose: { page.drawer = [] },
+                header: { if let selected { RequirementDrawerHeader(model: model, requirement: selected) } },
+                content: {
+                    if let selected { RequirementDrawerBody(store: store, model: model, requirement: selected) }
+                },
+                footer: {
+                    if let selected { RequirementDrawerFooter(store: store, model: model, requirement: selected) }
+                }
+            )
+        }
         .offlineDimmed()
         .onChange(of: selected?.id, initial: true) { old, id in
             if let id { store.openRequirement(id) }

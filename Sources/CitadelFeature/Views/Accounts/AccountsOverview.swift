@@ -20,7 +20,7 @@ struct AccountsOverview: View {
     }
 
     private func tile<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s10) { content() }
                 .frame(maxHeight: .infinity, alignment: .topLeading)
         }
@@ -41,9 +41,10 @@ struct AccountsOverview: View {
         .filter { $0.2 > 0 }
         return tile {
             HStack(spacing: skin.size.s16) {
-                SegmentDonut(
+                AinkradSegmentDonut(
                     segments: counts.enumerated().map {
-                        DonutSegment(id: $0.offset, value: Double($0.element.2), color: $0.element.0.tone.tint(skin))
+                        AinkradDonutSegment(
+                            id: $0.offset, value: Double($0.element.2), color: $0.element.0.tone.tint(skin))
                     }, diameter: skin.size.s90, lineWidth: skin.size.s10, gap: skin.size.s3
                 ) {
                     VStack(spacing: 0) {
@@ -88,7 +89,7 @@ struct AccountsOverview: View {
                         }
                         .frame(width: skin.size.s90, alignment: .leading)
                         if let used = row.used {
-                            FillTrack(
+                            AinkradFillTrack(
                                 fraction: 1 - used,
                                 fill: AnyShapeStyle(
                                     LinearGradient(
@@ -130,7 +131,7 @@ struct AccountsOverview: View {
                     .fixedSize()
                     .layoutPriority(1)
                 Spacer(minLength: skin.size.s4)
-                AvatarStack(items: Array(agents.prefix(5)), size: skin.size.s28) {
+                AinkradAvatarStack(items: Array(agents.prefix(5)), size: skin.size.s28) {
                     AgentFigure(agent: $0, model: model, size: skin.size.s28)
                 }
             }

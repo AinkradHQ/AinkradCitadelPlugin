@@ -55,7 +55,7 @@ struct ApprovalHero: View {
                     ], startPoint: .topLeading, endPoint: .bottomTrailing))
         )
         .overlay(shape.strokeBorder(tint.opacity(skin.opacity.o30), lineWidth: 1))
-        .riseIn()
+        .ainkradRiseIn()
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(

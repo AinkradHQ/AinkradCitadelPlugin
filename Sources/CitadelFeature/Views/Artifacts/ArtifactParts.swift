@@ -381,8 +381,10 @@ struct ArtifactRow: View {
             model.artifactsPage.images[artifact.id].map { " · \(Int($0.size.width))×\(Int($0.size.height))" } ?? ""
         AinkradTapArea(action: action) {
             HStack(spacing: skin.size.s12) {
-                IconTile(systemName: look.icon, tint: look.hue.color(skin), size: skin.size.s28, radius: skin.size.s8)
-                    .frame(width: skin.size.s34)
+                AinkradIconTile(
+                    systemName: look.icon, tint: look.hue.color(skin), size: skin.size.s28, radius: skin.size.s8
+                )
+                .frame(width: skin.size.s34)
                 VStack(alignment: .leading, spacing: skin.size.s1) {
                     Text(artifact.name).citadelFont("t12_5", weight: "medium").foregroundStyle(
                         skin.color(skin.text.primary))

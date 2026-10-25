@@ -35,7 +35,7 @@ struct ProjectSprints: View {
             }
             .frame(maxWidth: .infinity).padding(.vertical, skin.size.s60)
         } else {
-            PickGrid(columns: 2, spacing: skin.size.s14) {
+            AinkradCardGrid(columns: 2, spacing: skin.size.s14) {
                 if let active = work.active { current(active) }
                 capacity
                 velocity
@@ -51,7 +51,7 @@ struct ProjectSprints: View {
         let items = facts.work.items(in: sprint.id)
         let blocked = items.filter(\.isBlocked).count
         let days = sprint.day()
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Sprint \(sprint.name) · active") {
                     Text(sprint.range).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
@@ -108,7 +108,7 @@ struct ProjectSprints: View {
     private var capacity: some View {
         let sprint = facts.work.active
         let scale = max(16, facts.work.capacity.values.max() ?? 0)
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: 0) {
                 OverviewHead(title: "Capacity · \(sprint?.name ?? "")") {
                     Text("points per agent").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
@@ -165,7 +165,7 @@ struct ProjectSprints: View {
             bars.append((next.name, work.items(in: next.id).reduce(0) { $0 + ($1.points ?? 0) }, 0, "planned"))
         }
         let top = max(1, bars.map { max($0.committed, $0.done) }.max() ?? 1)
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Velocity") {
                     Text("avg \(Int((work.velocityAverage ?? 0).rounded())) pts").citadelFont("t11", mono: true)
@@ -193,7 +193,7 @@ struct ProjectSprints: View {
 
     private var all: some View {
         let work = facts.work
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s4) {
                 OverviewHead(title: "All sprints") {
                     if let next = work.next {

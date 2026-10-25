@@ -7,7 +7,7 @@ struct RunsPeek: View {
     let store: CitadelStore
     let model: CompanyModel
     let run: RunInfo
-    @State private var confirmsStop = false
+    @Binding var confirmsStop: Bool
     @Environment(\.ainkradSkin) private var skin
 
     private var agent: AgentInfo? { model.agent(run.agentID) }
@@ -18,11 +18,10 @@ struct RunsPeek: View {
     }
 
     var body: some View {
-        PeekDrawer(contentID: run.id, onClose: { store.peek(run: nil) }) {
-            DrawerCrumb(parts: ["Runs", "#\(run.id)"])
-        } trailing: {
-            EmptyView()
-        } content: {
+        AinkradDrawerPanel(
+            contentID: run.id, onClose: { store.peek(run: nil) },
+            header: { AinkradDrawerCrumb(["Runs", "#\(run.id)"]) }
+        ) {
             VStack(alignment: .leading, spacing: skin.size.s12) {
                 hero
                 kpis
@@ -36,15 +35,9 @@ struct RunsPeek: View {
                 files
                 context
             }
-        } foot: {
+        } footer: {
             foot
         }
-        .ainkradConfirmDialog(
-            isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
-            message:
-                "\(agent?.name ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
-            confirmTitle: "Stop run", isDestructive: true
-        ) { store.stopWithToast(run) }
     }
 
     // MARK: - Hero
@@ -166,7 +159,7 @@ struct RunsPeek: View {
 
     @ViewBuilder private var tokenMix: some View {
         RunCardHead(title: "Token mix", value: Fmt.tokens(run.tokens))
-        LegendBar(segments: RunMix.tokens(run, skin: skin))
+        AinkradLegendBar(segments: RunMix.tokens(run, skin: skin))
     }
 
     @ViewBuilder private var startup: some View {
@@ -175,7 +168,7 @@ struct RunsPeek: View {
         if stages.rows.isEmpty {
             Text("no stamps yet").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
         } else {
-            LegendBar(segments: RunMix.stages(stages, skin: skin))
+            AinkradLegendBar(segments: RunMix.stages(stages, skin: skin))
         }
     }
 
@@ -298,24 +291,24 @@ struct RunsPeek: View {
 
 /// The token-mix and startup segments, in the prototype's colours.
 enum RunMix {
-    static func tokens(_ run: RunInfo, skin: AinkradSkin) -> [LegendSegment] {
+    static func tokens(_ run: RunInfo, skin: AinkradSkin) -> [AinkradLegendSegment] {
         [
-            LegendSegment(
+            AinkradLegendSegment(
                 label: "Input", value: Double(run.inputTokens), text: Fmt.tokens(run.inputTokens),
                 color: Hue.blue.color(skin)),
-            LegendSegment(
+            AinkradLegendSegment(
                 label: "Cached", value: Double(run.cacheTokens), text: Fmt.tokens(run.cacheTokens),
                 color: Hue.violet.color(skin)),
-            LegendSegment(
+            AinkradLegendSegment(
                 label: "Output", value: Double(run.outputTokens), text: Fmt.tokens(run.outputTokens),
                 color: Hue.cyan.color(skin)),
         ]
     }
 
-    static func stages(_ stages: StageTimings, skin: AinkradSkin) -> [LegendSegment] {
+    static func stages(_ stages: StageTimings, skin: AinkradSkin) -> [AinkradLegendSegment] {
         let hues: [Hue] = [.violet, .blue, .cyan, .green]
         return stages.rows.enumerated().map {
-            LegendSegment(
+            AinkradLegendSegment(
                 label: $0.element.name, value: $0.element.seconds, text: String(format: "%.1fs", $0.element.seconds),
                 color: hues[$0.offset % hues.count].color(skin))
         }

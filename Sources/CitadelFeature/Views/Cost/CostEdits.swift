@@ -26,8 +26,11 @@ struct SetPriceForm: View {
 
     var body: some View {
         let amber = skin.color(skin.palette.warning)
-        OpsDrawerPanel(crumb: ["Cost", "Set a price"], close: { isPresented = false }) {
-            OpsDrawerHero(
+        AinkradDrawerPanel(
+            style: .form, onClose: { isPresented = false },
+            header: { AinkradDrawerCrumb(["Cost", "Set a price"], monospaced: true) }
+        ) {
+            AinkradDrawerHero(
                 tint: amber, title: modelName.isEmpty ? "Unpriced model" : modelName,
                 subtitle:
                     "via \(AgentLook.harnessName(harness)) · until a price exists its runs count as tokens only — never as $0"
@@ -40,36 +43,36 @@ struct SetPriceForm: View {
             } trailing: {
                 EmptyView()
             }
-            OpsSection(title: "Model", hint: "as the harness reports it") {
+            AinkradDrawerSection(title: "Model", hint: "as the harness reports it") {
                 AinkradSegmentedPicker(items: PriceDraft.harnesses, selection: $harness) { AgentLook.harnessName($0) }
                     .fixedSize()
                 AinkradTextField(text: $modelName, placeholder: "qwen3-coder").monospaced()
             }
-            OpsSection(title: "Price per 1M tokens · USD") {
+            AinkradDrawerSection(title: "Price per 1M tokens · USD") {
                 HStack(spacing: skin.size.s8) {
                     AinkradTextField(text: $input, placeholder: "0.40").monospaced()
                     AinkradTextField(text: $output, placeholder: "1.20").monospaced()
                     AinkradTextField(text: $cache, placeholder: "0").monospaced()
                 }
-                OpsHint("input · output · cache read")
+                AinkradDrawerHint("input · output · cache read")
             }
-            OpsSection(title: "Apply to") {
-                OpsChoiceGrid(
-                    cards: [
-                        OpsChoice(
+            AinkradDrawerSection(title: "Apply to") {
+                AinkradOptionGrid(
+                    options: [
+                        AinkradOption(
                             id: "past", title: "Past runs too", detail: "re-cost this period's unpriced runs",
                             isEnabled: false, help: "Re-pricing past runs needs the server (apply_from)"),
-                        OpsChoice(id: "now", title: "From now on", detail: "runs before stay unpriced"),
+                        AinkradOption(id: "now", title: "From now on", detail: "runs before stay unpriced"),
                     ], columns: 2, isOn: { $0 == "now" }, pick: { _ in })
             }
             if !history.isEmpty {
-                OpsSection(title: "Earlier prices") {
+                AinkradDrawerSection(title: "Earlier prices") {
                     ForEach(history.reversed(), id: \.version) {
                         Text($0.line).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
                     }
                 }
             }
-            OpsHint("Audited · company setting. Runs from now on move from unpriced to priced.")
+            AinkradDrawerHint("Audited · company setting. Runs from now on move from unpriced to priced.")
             if let problem { AinkradBanner(message: problem.message, status: .danger) }
         } footer: {
             Spacer()
@@ -130,11 +133,14 @@ struct NewBudgetForm: View {
     var body: some View {
         let edit = BudgetEdit.parse(cap: cap, warn: "")
         let label = targets.first { $0.scope == scope }?.label ?? targets.first?.label ?? "Company"
-        OpsDrawerPanel(crumb: ["Cost", "New budget"], close: { isPresented = false }) {
-            OpsSection(title: "Scope") {
-                OpsChoiceGrid(
-                    cards: ["company", "department", "project", "agent", "issue"].map {
-                        OpsChoice(
+        AinkradDrawerPanel(
+            style: .form, onClose: { isPresented = false },
+            header: { AinkradDrawerCrumb(["Cost", "New budget"], monospaced: true) }
+        ) {
+            AinkradDrawerSection(title: "Scope") {
+                AinkradOptionGrid(
+                    options: ["company", "department", "project", "agent", "issue"].map {
+                        AinkradOption(
                             id: $0, title: $0.capitalized, detail: "", isEnabled: $0 != "issue",
                             help: $0 == "issue" ? "Issue budgets need the server (BudgetScope issue)" : nil)
                     }, columns: 5, isOn: { $0 == kind }
@@ -143,7 +149,7 @@ struct NewBudgetForm: View {
                     scope = targets.first?.scope ?? ""
                 }
             }
-            OpsSection(title: "Target") {
+            AinkradDrawerSection(title: "Target") {
                 AinkradMenuButton(
                     items: targets.map { item in
                         AinkradMenuItem(title: item.label, systemName: nil) { scope = item.scope }
@@ -152,17 +158,17 @@ struct NewBudgetForm: View {
                 .disabled(targets.count < 2)
                 .fixedSize()
             }
-            OpsSection(title: "Period") {
+            AinkradDrawerSection(title: "Period") {
                 AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) { $0.capitalized }
                     .fixedSize()
             }
-            OpsSection(title: "Cap", hint: "tokens · dollar caps need the server") {
+            AinkradDrawerSection(title: "Cap", hint: "tokens · dollar caps need the server") {
                 AinkradTextField(text: $cap, placeholder: "2M").monospaced()
                 if !cap.isEmpty, case .failure(let why) = edit {
                     Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
                 }
             }
-            OpsHint(
+            AinkradDrawerHint(
                 "Warn at inherits the company \(model.limits["budget.warn_percent"]?.value ?? 80)% — edit it on the card to override. Counts from the start of the period."
             )
         } footer: {

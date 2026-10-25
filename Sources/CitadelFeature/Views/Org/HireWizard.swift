@@ -51,7 +51,7 @@ struct HireWizard: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: skin.size.s14) {
                 Text("New agent").citadelFont("t16", weight: "semibold")
-                StepBar(steps: Self.steps, current: $current)
+                AinkradStepBar(steps: Self.steps, current: $current)
                 ScrollView {
                     HireStepPane(
                         model: model, draft: $draft, step: current, leads: leads,

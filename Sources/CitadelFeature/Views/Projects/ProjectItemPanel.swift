@@ -239,7 +239,7 @@ struct WorkItemPanel: View {
                         }
                         Text("#\(run.id)").citadelFont("t11", mono: true).foregroundStyle(
                             skin.color(skin.palette.accentSecondary))
-                        StatePill(
+                        AinkradStatePill(
                             text: run.state.replacingOccurrences(of: "_", with: " "),
                             tint: skin.color(run.state == "failed" ? skin.palette.danger : skin.palette.accentSecondary)
                         )

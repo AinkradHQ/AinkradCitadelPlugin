@@ -29,10 +29,13 @@ struct ProjectPage: View {
         }
         .scrollIndicators(.never)
         .offlineDimmed()
-        .floatingInsetDrawer(isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } })) {
-            drawerHeader(facts)
-        } content: {
-            drawerBody(facts)
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } }),
+            top: skin.size.s62
+        ) {
+            AinkradDrawerPanel(
+                isTranslucent: true, spacing: skin.size.s16, onClose: { page.drawer = nil },
+                header: { drawerHeader(facts) }, content: { drawerBody(facts) })
         }
         .task(id: project.id) { if page.work[project.id] == nil { store.loadWork(project.id) } }
     }

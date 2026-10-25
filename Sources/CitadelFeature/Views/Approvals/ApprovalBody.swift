@@ -19,7 +19,7 @@ struct ApprovalBody: View {
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s12) {
             ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
-                section.riseIn(delay: Double(min(index, 3)) * 0.06)
+                section.ainkradRiseIn(delay: Double(min(index, 3)) * 0.06)
             }
         }
     }
@@ -92,7 +92,7 @@ struct ApprovalBody: View {
                     value: project.flatMap { model.velocity[$0.id] }.map { "\(Int($0.rounded()))" } ?? "—",
                     unit: "avg", label: "velocity · last \(max(series.count, 3))")
                 Spacer(minLength: 0)
-                if series.count > 1 { Sparkline(values: series.map(Double.init), tint: blue) }
+                if series.count > 1 { AinkradMicroTrend(values: series.map(Double.init), tint: blue) }
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -160,18 +160,18 @@ struct ApprovalBody: View {
         let first = prs.first?["repo"]
         out.append(
             AnyView(
-                InfoTileGrid(tiles: [
-                    InfoTile(
+                AinkradInfoTileGrid(tiles: [
+                    AinkradInfoTile(
                         systemImage: "arrow.triangle.branch", tint: green, label: "Merge order",
                         value: "project repo order\(first.map { " · \($0) first" } ?? "")"),
                     // Server policy, static copy (the merge runs the same way for every PR).
-                    InfoTile(
+                    AinkradInfoTile(
                         systemImage: "arrow.triangle.merge", tint: green, label: "Method",
                         value: "merge commit, branches deleted"),
-                    InfoTile(
+                    AinkradInfoTile(
                         systemImage: "exclamationmark.triangle", tint: green, label: "If one fails",
                         value: "stop, reopen this approval"),
-                    InfoTile(
+                    AinkradInfoTile(
                         systemImage: "person.crop.circle.badge.checkmark", tint: green, label: "Verified by",
                         value: asker?.nameAndRole ?? "QA"),
                 ])))
@@ -185,14 +185,15 @@ struct ApprovalBody: View {
         let tint = skin.color(skin.palette.warning)
         var out: [AnyView] = [
             AnyView(
-                InfoTileGrid(tiles: [
-                    InfoTile(systemImage: "shippingbox", tint: tint, label: "Repo", value: f["repo"] ?? "—"),
-                    InfoTile(
+                AinkradInfoTileGrid(tiles: [
+                    AinkradInfoTile(systemImage: "shippingbox", tint: tint, label: "Repo", value: f["repo"] ?? "—"),
+                    AinkradInfoTile(
                         systemImage: "arrow.triangle.branch", tint: tint, label: "Branch", value: f["branch"] ?? "—"),
-                    InfoTile(
+                    AinkradInfoTile(
                         systemImage: "number", tint: tint, label: "Head",
                         value: f["sha"].map { String($0.prefix(12)) } ?? "—"),
-                    InfoTile(systemImage: "play", tint: tint, label: "Run", value: f["run"].map { "#\($0)" } ?? "—"),
+                    AinkradInfoTile(
+                        systemImage: "play", tint: tint, label: "Run", value: f["run"].map { "#\($0)" } ?? "—"),
                 ]))
         ]
         if !files.isEmpty {
@@ -232,11 +233,11 @@ struct ApprovalBody: View {
                 StageCard(
                     title: "\(what) spend", note: "\(Fmt.tokens(numbers.spent)) of \(Fmt.tokens(numbers.cap)) tokens"
                 ) {
-                    MarkerGauge(
+                    AinkradMarkerGauge(
                         fill: Double(numbers.spent) / scale, nowLabel: Fmt.tokens(numbers.spent),
                         ticks: [
-                            GaugeTick(fraction: warn / scale, label: "warn \(Fmt.tokens(Int64(warn)))"),
-                            GaugeTick(fraction: 0.5, label: "cap \(Fmt.tokens(numbers.cap))", isCap: true),
+                            AinkradGaugeTick(fraction: warn / scale, label: "warn \(Fmt.tokens(Int64(warn)))"),
+                            AinkradGaugeTick(fraction: 0.5, label: "cap \(Fmt.tokens(numbers.cap))", isCap: true),
                         ], marker: newCap / scale)
                 }),
             AnyView(
@@ -265,32 +266,33 @@ struct ApprovalBody: View {
             .joined(separator: " · ")
         // The prototype's six cells; a cell whose value the store does not have is left out, not guessed.
         var tiles = [
-            InfoTile(
+            AinkradInfoTile(
                 systemImage: "server.rack", tint: violet, label: "Harness · model",
                 value: "\(AgentLook.harnessName(f["harness"] ?? "")) · \(f["model"] ?? "—")")
         ]
         let skills = model.orgPage.agentSkills[approval.agentID ?? -1] ?? []
         if !skills.isEmpty {
             tiles.append(
-                InfoTile(
+                AinkradInfoTile(
                     systemImage: "square.stack.3d.up", tint: violet, label: "Skills",
                     value: skills.map(\.name).joined(separator: ", ")))
         }
         if let budget = model.budgets.first(where: { $0.scope == "agent:\(approval.agentID ?? -1)" }) {
             tiles.append(
-                InfoTile(
+                AinkradInfoTile(
                     systemImage: "chart.bar", tint: violet, label: "Budget",
                     value: "\(Fmt.tokens(budget.cap)) / \(budget.period)"))
         }
         if let tags = f["runner_tags"], !tags.isEmpty {
-            tiles.append(InfoTile(systemImage: "tag", tint: violet, label: "Runner tags", value: tags))
+            tiles.append(AinkradInfoTile(systemImage: "tag", tint: violet, label: "Runner tags", value: tags))
         }
         if let sandbox = hired?.sandbox, !sandbox.isEmpty {
-            tiles.append(InfoTile(systemImage: "shield", tint: violet, label: "Sandbox", value: sandbox))
+            tiles.append(AinkradInfoTile(systemImage: "shield", tint: violet, label: "Sandbox", value: sandbox))
         }
         if let boss = model.agent(hired?.reportsTo) {
             tiles.append(
-                InfoTile(systemImage: "arrow.up.right", tint: violet, label: "Reports to", value: boss.nameAndRole))
+                AinkradInfoTile(
+                    systemImage: "arrow.up.right", tint: violet, label: "Reports to", value: boss.nameAndRole))
         }
         var out: [AnyView] = [
             AnyView(
@@ -311,7 +313,7 @@ struct ApprovalBody: View {
                                 violet.opacity(skin.opacity.o18), skin.color(.palette("foreground", skin.opacity.o03)),
                             ],
                             center: .leading, startRadius: 0, endRadius: skin.size.s640)))),
-            AnyView(InfoTileGrid(tiles: tiles)),
+            AnyView(AinkradInfoTileGrid(tiles: tiles)),
         ]
         if let why = f["justification"], !why.isEmpty {
             out.append(AnyView(QuoteCard(agent: asker, text: why, model: model)))

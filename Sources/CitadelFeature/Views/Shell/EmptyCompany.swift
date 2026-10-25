@@ -96,7 +96,7 @@ struct NoAgentsView: View {
     }
 
     private func hero(done: Int) -> some View {
-        BentoTile(padding: skin.size.s26) {
+        AinkradBentoTile(padding: skin.size.s26) {
             HStack(alignment: .center, spacing: skin.size.s24) {
                 VStack(alignment: .leading, spacing: skin.size.s8) {
                     Text("Getting started · \(done) of \(steps.count)").citadelFont("t10_5", weight: "semibold")
@@ -156,7 +156,7 @@ struct NoAgentsView: View {
     }
 
     private func setup(done: Int) -> some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 HStack(spacing: skin.size.s8) {
                     Text("Setup").citadelFont("t10_5", weight: "semibold").foregroundStyle(skin.color(skin.text.muted))
@@ -201,7 +201,7 @@ struct NoAgentsView: View {
     }
 
     private var templates: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 Text("Team templates").citadelFont("t10_5", weight: "semibold").foregroundStyle(
                     skin.color(skin.text.muted))

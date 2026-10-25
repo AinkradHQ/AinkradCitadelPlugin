@@ -256,7 +256,7 @@ struct ThreadDetail: View {
 
     private var composer: some View {
         let name = agent?.name ?? "the agent"
-        return ConversationComposer(
+        return AinkradConversationComposer(
             text: $draft, placeholder: question != nil ? "Answer \(name)…" : "Message \(name)…",
             isTargeted: question != nil, hint: "↵ sends and wakes \(wakeName) · @ adds another agent · ⇧↵ new line",
             onSend: {
@@ -273,7 +273,7 @@ struct ThreadDetail: View {
                             AinkradMenuItem(title: agent.nameDotRoleLabel, systemName: nil) { wakeTarget = agent.id }
                         }
                     ) {
-                        ComposerToChip(label: wakeChip, onRemove: nil) {
+                        AinkradComposerChip(label: wakeChip, onRemove: nil) {
                             if let who = model.agent(wakeTarget ?? key.agentID) {
                                 AgentFigure(agent: who, model: model, size: skin.size.s18)
                             }

@@ -18,14 +18,17 @@ struct AddAccountSheet: View {
     ]
 
     var body: some View {
-        OpsDrawerPanel(crumb: ["Accounts", "Add account"], close: { isPresented = false }) {
-            OpsHint(
+        AinkradDrawerPanel(
+            style: .form, onClose: { isPresented = false },
+            header: { AinkradDrawerCrumb(["Accounts", "Add account"], monospaced: true) }
+        ) {
+            AinkradDrawerHint(
                 "A login or key you own. Credentials stay on the runners as a config dir — Citadel only stores a reference."
             )
-            OpsSection(title: "Provider") {
-                OpsChoiceGrid(
-                    cards: Self.providers.map { harness, name, detail in
-                        OpsChoice(
+            AinkradDrawerSection(title: "Provider") {
+                AinkradOptionGrid(
+                    options: Self.providers.map { harness, name, detail in
+                        AinkradOption(
                             id: harness, title: name, detail: detail,
                             leading: AnyView(SolidHarnessTag(harness: harness, size: skin.size.s40)),
                             tint: AgentLook.harness(harness)?.color)
@@ -37,21 +40,21 @@ struct AddAccountSheet: View {
                     draft.harness = harness
                 }
             }
-            OpsSection(title: "Kind") {
-                OpsChoiceGrid(
-                    cards: [
-                        OpsChoice(
+            AinkradDrawerSection(title: "Kind") {
+                AinkradOptionGrid(
+                    options: [
+                        AinkradOption(
                             id: "subscription", title: "Subscription login", detail: "usage windows, counted in tokens",
                             systemImage: "square.stack.3d.up"),
-                        OpsChoice(
+                        AinkradOption(
                             id: "metered", title: "API key", detail: "billed per token, counted in $",
                             systemImage: "key"),
                     ], columns: 2, isOn: { $0 == draft.billing }, pick: { draft.billing = $0 })
             }
-            OpsSection(title: "Label", hint: "config dir ~/.citadel/acct/<label>") {
+            AinkradDrawerSection(title: "Label", hint: "config dir ~/.citadel/acct/<label>") {
                 AinkradTextField(text: $draft.label, placeholder: "claude-max-4").monospaced()
             }
-            OpsSection(title: "Credential", hint: "where it lives on the runner — never the secret") {
+            AinkradDrawerSection(title: "Credential", hint: "where it lives on the runner — never the secret") {
                 AinkradSegmentedPicker(items: ["file", "env"], selection: $draft.credentialKind) {
                     $0 == "file" ? "File or vault path" : "Environment variable"
                 }
@@ -64,15 +67,15 @@ struct AddAccountSheet: View {
                 AinkradTextField(text: $draft.configDir, placeholder: "config dir — empty: the server picks one")
                     .monospaced()
             }
-            OpsSection(title: "Companies") {
+            AinkradDrawerSection(title: "Companies") {
                 AinkradFlowLayout(spacing: skin.size.s8, lineSpacing: skin.size.s8) {
                     ForEach(Array(store.companies.enumerated()), id: \.element.id) { index, company in
                         companyChip(company.id, name: company.name, index: index)
                     }
                 }
             }
-            OpsSection(title: "Preview") {
-                OpsDrawerHero(
+            AinkradDrawerSection(title: "Preview") {
+                AinkradDrawerHero(
                     tint: AgentLook.harness(draft.harness)?.color ?? skin.color(skin.palette.accentPrimary),
                     title: draft.label.isEmpty ? "—" : draft.label,
                     subtitle: "\(AgentLook.harnessName(draft.harness)) · "
@@ -81,7 +84,7 @@ struct AddAccountSheet: View {
                 ) {
                     SolidHarnessTag(harness: draft.harness, size: skin.size.s44)
                 } trailing: {
-                    StatePill(
+                    AinkradStatePill(
                         text: "runners report it on their next probe", tint: skin.color(skin.palette.accentPrimary),
                         dot: true)
                 }
@@ -89,7 +92,7 @@ struct AddAccountSheet: View {
             if let failure = page.addFailure {
                 RefusalLine(failure: failure)
             } else if let problem = draft.label.isEmpty ? nil : draft.problem {
-                OpsHint(problem)
+                AinkradDrawerHint(problem)
             }
         } footer: {
             Spacer()

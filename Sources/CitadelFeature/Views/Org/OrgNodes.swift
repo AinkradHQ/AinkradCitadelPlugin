@@ -231,7 +231,7 @@ private struct TeamCluster: View {
                     .buttonStyle(.plain)
                 }
                 if let cadence = model.cadence(of: team) {
-                    StatePill(
+                    AinkradStatePill(
                         text: cadence.text,
                         tint: cadence.isSprint ? skin.color(skin.palette.accentSecondary) : skin.color(skin.text.muted))
                 }

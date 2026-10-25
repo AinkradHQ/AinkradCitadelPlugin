@@ -11,7 +11,15 @@ struct RunsView: View {
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
+    @State private var confirmsStop = false
+
     private var page: RunsPage { model.runsPage }
+
+    /// The run whose peek drawer is open.
+    private var peeked: RunInfo? {
+        guard let id = page.peekID else { return nil }
+        return model.runs[id] ?? model.knownRuns.first(where: { $0.id == id })
+    }
 
     var body: some View {
         let now = Date()
@@ -42,11 +50,18 @@ struct RunsView: View {
                 }
                 .offlineDimmed()
             }
-            if let id = page.peekID, let run = model.runs[id] ?? model.knownRuns.first(where: { $0.id == id }) {
-                RunsPeek(store: store, model: model, run: run)
-            }
         }
-        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.peekID == nil)
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { peeked != nil }, set: { if !$0 { store.peek(run: nil) } })
+        ) {
+            if let peeked { RunsPeek(store: store, model: model, run: peeked, confirmsStop: $confirmsStop) }
+        }
+        .ainkradConfirmDialog(
+            isPresented: $confirmsStop, title: "Stop run #\(peeked?.id ?? 0) now?",
+            message:
+                "\(peeked.flatMap { model.agent($0.agentID)?.name } ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
+            confirmTitle: "Stop run", isDestructive: true
+        ) { if let peeked { store.stopWithToast(peeked) } }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: page.openPicker)
         .onAppear { store.loadRunsPage() }
     }
@@ -129,7 +144,7 @@ struct RunsView: View {
     }
 
     private var empty: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(spacing: skin.size.s10) {
                 AinkradEmptyState(icon: "play", title: "No runs match", message: "Clear a filter to see more.")
                 AinkradDockButton("Clear filters", height: skin.size.s26) { page.clear() }

@@ -108,7 +108,7 @@ struct PendingHiresSheet: View {
 
     var body: some View {
         let hires = model.agents.values.filter(\.isHirePending).sorted { $0.id < $1.id }
-        SheetFrame(
+        AinkradSheetFrame(
             tile: "\(hires.count)", title: "Pending hires",
             line: "Proposed agents wait here — nothing runs until you approve. Rejecting tells the proposer why."
         ) {

@@ -67,7 +67,7 @@ struct RunDecision: View {
     ) -> some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
         return HStack(spacing: skin.size.s12) {
-            IconTile(systemName: icon, tint: tint, size: skin.size.s36, radius: skin.size.s11)
+            AinkradIconTile(systemName: icon, tint: tint, size: skin.size.s36, radius: skin.size.s11)
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 Text(caption.uppercased()).citadelFont("t10_5", weight: "semibold").tracking(skin.size.s1 / 2)
                     .foregroundStyle(tint)

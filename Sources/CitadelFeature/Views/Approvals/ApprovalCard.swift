@@ -66,7 +66,7 @@ struct ApprovalCard: View {
         .offset(x: hovering && !reduceMotion ? skin.size.s2 : 0)
         .onHover { hovering = $0 }
         .animation(skin.animation(skin.motion.hover), value: hovering)
-        .riseIn(delay: Double(index) * 0.04)
+        .ainkradRiseIn(delay: Double(index) * 0.04)
     }
 
     private var fill: Color {

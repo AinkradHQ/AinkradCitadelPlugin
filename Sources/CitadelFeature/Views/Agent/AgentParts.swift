@@ -83,7 +83,7 @@ struct RunStatePill: View {
     let run: RunInfo
     @Environment(\.ainkradSkin) private var skin
 
-    var body: some View { StatePill(text: run.isLive ? "running" : run.endWord, tint: Self.tint(run, skin)) }
+    var body: some View { AinkradStatePill(text: run.isLive ? "running" : run.endWord, tint: Self.tint(run, skin)) }
 
     static func tint(_ run: RunInfo, _ skin: AinkradSkin) -> Color {
         if run.isLive { return skin.color(skin.palette.accentSecondary) }

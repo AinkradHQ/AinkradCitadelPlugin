@@ -144,8 +144,8 @@ struct RunHero: View {
         let issue = model.issue(run.issueID)
         return HStack(spacing: skin.size.s6) {
             if look.isLive {
-                DockToggle(
-                    "Follow live", systemImage: "arrow.down", isOn: followsLive, help: "⌘↓", action: toggleFollow)
+                AinkradDockButton("Follow live", systemImage: "arrow.down", action: toggleFollow)
+                    .toggled(followsLive).tooltip("⌘↓")
                 AinkradDockButton("Stop", systemImage: "stop", tone: .danger, action: stop)
                 AinkradDockSeparator()
             }
@@ -159,14 +159,12 @@ struct RunHero: View {
                 }
             }
             if let agent {
-                DockToggle(title: agent.name, action: { store.open(.agent(agent.id)) }) {
-                    AgentFigure(agent: agent, model: model, size: skin.size.s16)
-                }
+                AinkradDockButton(agent.name) { store.open(.agent(agent.id)) }
+                    .icon { AgentFigure(agent: agent, model: model, size: skin.size.s16) }
             }
             // TODO(citadel#forge-open): hand the worktrees to Forge once the host has a cross-plugin open intent.
-            DockToggle(
-                "Worktree in Forge", systemImage: "arrow.triangle.branch", isEnabled: false,
-                help: "Needs the host's cross-plugin open (not yet available)", action: {})
+            AinkradDockButton("Worktree in Forge", systemImage: "arrow.triangle.branch", isEnabled: false) {}
+                .tooltip("Needs the host's cross-plugin open (not yet available)")
             AinkradDockButton("Transcript", systemImage: "arrow.down.to.line") { store.downloadTranscript(run) }
             AinkradDockButton("Copy link", systemImage: "doc.on.doc") { store.copyRunLink(run) }
         }

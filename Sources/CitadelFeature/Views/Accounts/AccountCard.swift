@@ -129,7 +129,7 @@ struct AccountCard: View {
     private var share: some View {
         let ids = account.companyIDs.filter { (account.companyTokens[$0] ?? 0) > 0 }
         return VStack(alignment: .leading, spacing: skin.size.s5) {
-            ShareBar(parts: ids.map { (Double(account.companyTokens[$0] ?? 0), companyColor($0)) })
+            AinkradShareBar(parts: ids.map { (Double(account.companyTokens[$0] ?? 0), companyColor($0)) })
             HStack(spacing: skin.size.s10) {
                 ForEach(account.companyIDs, id: \.self) { id in
                     HStack(spacing: skin.size.s5) {

@@ -53,7 +53,7 @@ struct AgentStage: View {
                             .init(color: skin.color(.palette("background", skin.opacity.o90)), location: 0.55),
                             .init(color: palette.deepColor.opacity(skin.opacity.o14), location: 1),
                         ], startPoint: .topLeading, endPoint: .bottomTrailing))
-                ParallaxGlow(light: palette.lightColor, deep: palette.deepColor, cursor: cursor)
+                AinkradParallaxGlow(light: palette.lightColor, deep: palette.deepColor, cursor: cursor)
             }
             .compositingGroup()
             .clipShape(shape)

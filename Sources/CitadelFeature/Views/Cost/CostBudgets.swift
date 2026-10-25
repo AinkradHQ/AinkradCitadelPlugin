@@ -10,7 +10,7 @@ struct BudgetsCard: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(alignment: .firstTextBaseline, spacing: skin.size.s10) {
                     Text("Budgets").citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
@@ -60,13 +60,13 @@ private struct BudgetCard: View {
                 HStack(spacing: skin.size.s4) {
                     Text("\(Fmt.tokens(budget.spent)) /").citadelFont("t12", mono: true).foregroundStyle(
                         skin.color(skin.text.muted))
-                    InlineValuePill(text: Fmt.tokens(budget.cap), help: "Edit cap (tokens)") {
+                    AinkradValuePill(text: Fmt.tokens(budget.cap), help: "Edit cap (tokens)") {
                         store.editBudgetCap(budget, text: $0, inheritsWarn: !isOverridden(scope))
                     }
                 }
                 HStack(spacing: skin.size.s6) {
                     Text("warn").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                    InlineValuePill(text: "\(budget.warnPercent)%", help: "Edit warn %") {
+                    AinkradValuePill(text: "\(budget.warnPercent)%", help: "Edit warn %") {
                         store.editBudgetWarn(budget, text: $0, inherited: inherited)
                     }
                     chip(scope)
@@ -110,15 +110,15 @@ private struct BudgetCard: View {
 
     @ViewBuilder private func chip(_ scope: AinkradValueScope) -> some View {
         switch scope {
-        case .inherited(let from): ScopeChip(text: from)
+        case .inherited(let from): AinkradScopeChip(text: from)
         case .overridden(let at, let inheritedValue):
             // ↺ only when the server actually has a company value to go back to — never a made-up default.
             if inheritedValue != nil {
-                ScopeChip(text: at, overridden: true) {
+                AinkradScopeChip(text: at, overridden: true) {
                     store.editBudgetWarn(budget, text: nil, inherited: inherited)
                 }
             } else {
-                ScopeChip(text: at, overridden: true)
+                AinkradScopeChip(text: at, overridden: true)
             }
         @unknown default: EmptyView()
         }

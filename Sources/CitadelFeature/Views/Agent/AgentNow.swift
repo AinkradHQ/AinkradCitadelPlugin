@@ -216,7 +216,7 @@ struct AgentRunCards: View {
         let runs = (model.agentRuns[agent.id] ?? []).filter { !$0.isLive }
         if !runs.isEmpty {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                SectionHead(title: "Recent runs", count: "\(runs.count)", link: "All runs →") {
+                AinkradSectionHead(title: "Recent runs", count: "\(runs.count)", link: "All runs →") {
                     store.screen = .runs
                     store.detail = nil
                 }

@@ -158,7 +158,7 @@ struct AppearanceSheet: View {
             Text("\(agent.name)'s appearance").citadelFont("t15", weight: "semibold")
             Text("The Orb's palette — picked at hire, shown everywhere this agent appears.").citadelFont("t12")
                 .foregroundStyle(skin.color(skin.text.muted))
-            CardGrid(columns: 6) {
+            AinkradCardGrid(columns: 6) {
                 ForEach(AinkradFigurePalette.all) { palette in
                     VStack(spacing: skin.size.s4) {
                         AinkradAgentFigure(

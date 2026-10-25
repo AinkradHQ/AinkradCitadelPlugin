@@ -52,7 +52,10 @@ struct AccountsView: View {
             .scrollIndicators(.never)
             .offlineDimmed()
         }
-        .opsDrawer(isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } })) {
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } }),
+            inset: skin.size.s34
+        ) {
             drawerPanel
         }
         .task { store.loadAccountsPage() }
@@ -154,7 +157,7 @@ struct LastFallbacksTile: View {
     var body: some View {
         let page = model.accountsPage
         let moves = FallbackMove.merged(events: store.recentEvents, runs: page.fallbackRuns)
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 HStack {
                     Text("Last fallbacks").citadelFont("t13", weight: "bold").foregroundStyle(

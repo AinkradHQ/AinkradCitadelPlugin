@@ -14,9 +14,9 @@ struct RequirementsTile: View {
     }
 
     var body: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s6) {
-                SectionHead(title: "Requirements", count: "\(open.count)", link: "All →") {
+                AinkradSectionHead(title: "Requirements", count: "\(open.count)", link: "All →") {
                     store.screen = .requirements
                 }
                 ForEach(open.prefix(4), id: \.id) { row($0) }
@@ -64,7 +64,7 @@ struct RequirementsTile: View {
                 )
                 .frame(width: skin.size.s18, height: skin.size.s18).background(status.warning, in: Circle())
             } else if requirement.state == "plan_review" {
-                StatePill(text: "plan", tint: status.warning)
+                AinkradStatePill(text: "plan", tint: status.warning)
             }
         }
         .padding(skin.size.s8)
@@ -110,9 +110,9 @@ struct TeamTile: View {
             ("Working", working, skin.color(skin.palette.accentSecondary)), ("Needs you", needs, status.warning),
             ("Idle", idle, skin.color(skin.text.muted)), ("Away", away, skin.color(skin.text.faint)),
         ]
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                SectionHead(title: "Team", count: "\(agents.count)", link: "Org →") { store.screen = .org }
+                AinkradSectionHead(title: "Team", count: "\(agents.count)", link: "Org →") { store.screen = .org }
                 GeometryReader { geo in
                     HStack(spacing: skin.size.s2) {
                         ForEach(parts.filter { $0.1 > 0 }, id: \.0) { part in
@@ -206,9 +206,9 @@ struct ActivityTile: View {
     }
 
     var body: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                SectionHead(title: "Recent activity", link: "Runs →") { store.screen = .runs }
+                AinkradSectionHead(title: "Recent activity", link: "Runs →") { store.screen = .runs }
                 if events.isEmpty {
                     Text("Nothing has happened yet today.").citadelFont("t12").foregroundStyle(
                         skin.color(skin.text.faint))
@@ -216,7 +216,7 @@ struct ActivityTile: View {
                 VStack(alignment: .leading, spacing: skin.size.s4) {
                     ForEach(events) { event in
                         HStack(spacing: skin.size.s10) {
-                            KindTile(glyph: event.glyph, tint: event.tint)
+                            AinkradIconTile(glyph: event.glyph, tint: event.tint)
                             VStack(alignment: .leading, spacing: skin.size.s1) {
                                 Text(event.title).citadelFont("t12_5", weight: "medium")
                                     .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
@@ -251,9 +251,9 @@ struct SpendTile: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
-                SectionHead(title: "Spend today", link: "Cost →") { store.screen = .cost }
+                AinkradSectionHead(title: "Spend today", link: "Cost →") { store.screen = .cost }
                 AinkradLineChart(
                     title: "Spend today",
                     series: [

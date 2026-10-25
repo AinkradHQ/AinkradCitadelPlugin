@@ -70,7 +70,7 @@ struct DevicesSection: View {
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 HStack(spacing: skin.size.s6) {
                     Text(title).citadelFont("t13", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-                    if let chip { StatePill(text: chip, tint: skin.color(skin.palette.accentPrimary)) }
+                    if let chip { AinkradStatePill(text: chip, tint: skin.color(skin.palette.accentPrimary)) }
                 }
                 Text(detail).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
             }
@@ -103,7 +103,7 @@ struct DevicesSection: View {
                     .foregroundStyle(skin.color(skin.text.faint))
                 }
                 Spacer(minLength: 0)
-                if revoked { StatePill(text: "revoked", tint: skin.color(skin.palette.danger)) }
+                if revoked { AinkradStatePill(text: "revoked", tint: skin.color(skin.palette.danger)) }
             }
             HStack(spacing: skin.size.s6) {
                 PulseDot(isOn: recent && !revoked)
@@ -243,7 +243,7 @@ struct AccountAssignmentSection: View {
             if page.canSeeWholePool {
                 AinkradToggle(isOn: Binding(get: { assigned }, set: { toggle(account, $0) }))
             } else {
-                StatePill(text: "assigned", tint: status.success)
+                AinkradStatePill(text: "assigned", tint: status.success)
             }
         }
         .padding(.horizontal, skin.size.s12)

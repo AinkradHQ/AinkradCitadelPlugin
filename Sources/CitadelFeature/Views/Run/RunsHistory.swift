@@ -184,7 +184,7 @@ struct RunsAgentPicker: View {
             (model.agent($0)?.name ?? "") < (model.agent($1)?.name ?? "")
         }
         let selected = model.agent(page.agentID)
-        RichPicker(
+        AinkradRichPicker(
             caption: "Agent", value: selected?.name ?? "Everyone", isOn: selected != nil,
             isOpen: Binding(get: { page.openPicker == "agent" }, set: { page.openPicker = $0 ? "agent" : nil })
         ) {
@@ -194,16 +194,16 @@ struct RunsAgentPicker: View {
                 Image(systemName: "person.2").citadelFont("t14")
             }
         } menu: {
-            RichMenu(header: "Filter runs by agent") {
-                RichMenuRow(
+            AinkradRichMenu(header: "Filter runs by agent") {
+                AinkradRichMenuRow(
                     title: "Everyone",
                     subtitle: "\(Wording.count(ids.count, "agent")) · \(Wording.count(runs.count, "run"))",
                     isChecked: page.agentID == nil, action: { pick(nil) }
                 ) { RunAvatarStack(model: model, ids: Array(ids.prefix(4))) }
-                RichMenuSeparator()
+                AinkradRichMenuSeparator()
                 ForEach(Array(ids.enumerated()), id: \.element) { index, id in
                     if let agent = model.agent(id) {
-                        RichMenuRow(
+                        AinkradRichMenuRow(
                             title: agent.name, subtitle: "\(agent.role) · \(agent.harnessName)",
                             count: runs.filter { $0.agentID == id }.count, isChecked: page.agentID == id,
                             index: index + 1, action: { pick(id) }
@@ -233,7 +233,7 @@ struct RunsProjectPicker: View {
     var body: some View {
         let runs = model.knownRuns
         let selected = model.projects.first { $0.id == page.projectID }
-        RichPicker(
+        AinkradRichPicker(
             caption: "Project", value: selected?.name ?? "All projects", isOn: selected != nil,
             isOpen: Binding(get: { page.openPicker == "project" }, set: { page.openPicker = $0 ? "project" : nil })
         ) {
@@ -243,8 +243,8 @@ struct RunsProjectPicker: View {
                 Image(systemName: "square.stack").citadelFont("t14")
             }
         } menu: {
-            RichMenu(header: "Filter runs by project") {
-                RichMenuRow(
+            AinkradRichMenu(header: "Filter runs by project") {
+                AinkradRichMenuRow(
                     title: "All projects", subtitle: Wording.count(model.projects.count, "project"), count: runs.count,
                     isChecked: page.projectID == nil, action: { pick(nil) }
                 ) {
@@ -254,12 +254,12 @@ struct RunsProjectPicker: View {
                             skin.color(.palette("foreground", skin.opacity.o08)),
                             in: RoundedRectangle(cornerRadius: skin.size.s9))
                 }
-                RichMenuSeparator()
+                AinkradRichMenuSeparator()
                 ForEach(Array(model.projects.enumerated()), id: \.element.id) { index, project in
                     let mine = runs.filter { model.issue($0.issueID)?.projectID == project.id }
                     let ok = mine.filter { model.look($0).tab == .succeeded }.count
                     let bad = mine.filter { model.look($0).tab == .failed }.count
-                    RichMenuRow(
+                    AinkradRichMenuRow(
                         title: project.name, subtitle: "\(project.key) · \(ok) ok\(bad > 0 ? " · \(bad) failed" : "")",
                         count: mine.count, isChecked: page.projectID == project.id, index: index + 1,
                         action: { pick(project.id) }

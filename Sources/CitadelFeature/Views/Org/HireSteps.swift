@@ -38,27 +38,27 @@ struct HireStepPane: View {
             "Role & team",
             "What the agent does and where it works. A role fills in sensible defaults for every later step.")
         field("Role") {
-            CardGrid(columns: 3) {
+            AinkradCardGrid(columns: 3) {
                 ForEach(HireCatalog.roles) { role in
                     let on = role == draft.role
-                    ChoiceCard(isOn: on, height: skin.size.s52, action: { draft.pick(role) }) {
-                        CardGlyph(glyph: role.symbol, isOn: on)
-                        CardText(title: role.name, caption: role.purpose)
+                    AinkradChoiceCard(isOn: on, height: skin.size.s52, action: { draft.pick(role) }) {
+                        AinkradChoiceGlyph(role.symbol, isOn: on)
+                        AinkradChoiceText(title: role.name, caption: role.purpose)
                     }
                     .help(role.purpose)
                 }
-                ChoiceCard(isAdd: true, height: skin.size.s52, action: { model.orgPage.stack(.role(nil)) }) {
-                    CardGlyph(glyph: "plus")
-                    CardText(title: "Custom role", caption: "Name it and set defaults")
+                AinkradChoiceCard(isAdd: true, height: skin.size.s52, action: { model.orgPage.stack(.role(nil)) }) {
+                    AinkradChoiceGlyph("plus")
+                    AinkradChoiceText(title: "Custom role", caption: "Name it and set defaults")
                 }
             }
         }
         field("Team") {
-            CardGrid(columns: 4) {
+            AinkradCardGrid(columns: 4) {
                 ForEach(teamPairs, id: \.team.id) { pair in
                     let team = pair.team
                     let department = pair.department
-                    ChoiceCard(
+                    AinkradChoiceCard(
                         isOn: draft.team == team.id, height: skin.size.s70, axis: .vertical,
                         action: { draft.team = team.id }
                     ) {
@@ -72,7 +72,7 @@ struct HireStepPane: View {
                         Faces(model: model, ids: team.seats.prefix(6).map(\.agentID), size: skin.size.s20)
                     }
                 }
-                ChoiceCard(
+                AinkradChoiceCard(
                     isAdd: true, height: skin.size.s70, axis: .vertical,
                     action: { model.orgPage.stack(.team(nil)) }
                 ) {
@@ -122,7 +122,7 @@ struct HireStepPane: View {
             RoundedRectangle(cornerRadius: skin.size.s12).strokeBorder(
                 skin.color(.palette("foreground", skin.opacity.o08)), lineWidth: 1))
         field("Reports to") {
-            CardGrid(columns: 4) {
+            AinkradCardGrid(columns: 4) {
                 ForEach(leads) { agent in
                     PersonCard(
                         model: model, agent: agent, line: relation(agent),
@@ -169,12 +169,12 @@ struct HireStepPane: View {
                 Text("The company has no skills yet — publish them in Company settings.").citadelFont("t12")
                     .foregroundStyle(skin.color(skin.text.faint))
             }
-            CardGrid(columns: 2) {
+            AinkradCardGrid(columns: 2) {
                 ForEach(library) { skill in
                     let on = draft.skills.contains(skill.name)
-                    ChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(skill.name) }) {
-                        CheckBox(isOn: on)
-                        CardText(
+                    AinkradChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(skill.name) }) {
+                        AinkradCheckBox(isOn: on)
+                        AinkradChoiceText(
                             title: "\(skill.name) v\(skill.version)",
                             caption: "≈ \(Fmt.tokens(skill.bytes / 4)) tokens", mono: true)
                     }
@@ -206,7 +206,7 @@ struct HireStepPane: View {
         }
         VStack(alignment: .leading, spacing: skin.size.s8) {
             HStack {
-                GroupLabel(title: "Budget")
+                AinkradGroupLabel(title: "Budget")
                 AinkradSegmentedPicker(
                     items: HireCatalog.budgetPresets,
                     selection: Binding(
@@ -234,7 +234,7 @@ struct HireStepPane: View {
         head("Look", "Its colour everywhere it appears. The figure animates by state, so you can read it at a glance.")
         field("Colour · \(palette.name)") { PaletteGrid(selection: $draft.palette) }
         field("In every state") {
-            CardGrid(columns: 4, spacing: skin.size.s10) {
+            AinkradCardGrid(columns: 4, spacing: skin.size.s10) {
                 ForEach(
                     [
                         (AinkradFigureState.idle, "Idle"), (.working, "Working"), (.confused, "Needs you"),

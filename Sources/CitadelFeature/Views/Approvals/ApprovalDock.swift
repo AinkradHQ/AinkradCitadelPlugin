@@ -37,7 +37,7 @@ struct ApprovalDock<Side: View, Decision: View>: View {
         )
         .padding(.horizontal, skin.size.s14)
         .padding(.bottom, skin.size.s14)
-        .riseIn(distance: skin.size.s14)
+        .ainkradRiseIn(distance: skin.size.s14)
         .background {
             // ⌘↵ approves, ⌘⌫ rejects (the reply goes with either).
             Button("", action: onApprove)  // design-lint: allow raw-control hidden ⌘↵ claim

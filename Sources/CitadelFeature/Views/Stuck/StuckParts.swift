@@ -13,47 +13,48 @@ struct StuckTrail: View {
     var body: some View {
         if let run = liveRun {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                StepTrail(steps: runSteps(run, now: context.date), delay: 0.15)
+                AinkradStepTrail(steps: runSteps(run, now: context.date), delay: 0.15)
             }
         } else {
-            StepTrail(steps: steps, delay: 0.15)
+            AinkradStepTrail(steps: steps, delay: 0.15)
         }
     }
 
-    private func runSteps(_ run: RunInfo, now: Date) -> [TrailStep] {
+    private func runSteps(_ run: RunInfo, now: Date) -> [AinkradTrailStep] {
         let runner = run.runnerID.flatMap { model.runners[$0] }
-        var out = [TrailStep(label: ["run #\(run.id)", runner].compactMap { $0 }.joined(separator: " · "))]
+        var out = [AinkradTrailStep(label: ["run #\(run.id)", runner].compactMap { $0 }.joined(separator: " · "))]
         if let last = run.lastProgressAt {
-            out.append(TrailStep(label: "silent", state: .warn, detail: Fmt.duration(now.timeIntervalSince(last))))
+            out.append(
+                AinkradTrailStep(label: "silent", state: .warn, detail: Fmt.duration(now.timeIntervalSince(last))))
         }
         if let stall = model.limits["run.stall_after_secs"]?.value {
-            out.append(TrailStep(label: "watchdog stops it at \(Fmt.age(TimeInterval(stall)))", state: .bad))
+            out.append(AinkradTrailStep(label: "watchdog stops it at \(Fmt.age(TimeInterval(stall)))", state: .bad))
         }
         return out
     }
 
-    private var steps: [TrailStep] {
-        var out: [TrailStep] = []
+    private var steps: [AinkradTrailStep] {
+        var out: [AinkradTrailStep] = []
         if let repair = stuck.lastRepair {
             out.append(
-                TrailStep(
+                AinkradTrailStep(
                     label: "engine \(repair.replacingOccurrences(of: "_", with: " "))",
                     detail: stuck.lastRepairAt?.formatted(date: .omitted, time: .shortened)))
         }
         if stuck.waitsOnASleepingRunner {
             let tags = model.agent(stuck.agentID)?.runnerTags ?? []
-            if !tags.isEmpty { out.append(TrailStep(label: "needs tag \(tags.joined(separator: ", "))")) }
+            if !tags.isEmpty { out.append(AinkradTrailStep(label: "needs tag \(tags.joined(separator: ", "))")) }
             if let runner = sleepingRunner(for: tags, in: model.runnersPage.runners) {
                 out.append(
-                    TrailStep(
+                    AinkradTrailStep(
                         label: "\(runner.name) asleep", state: .bad,
                         detail: runner.lastSeenAt.map { "since \($0.formatted(date: .omitted, time: .shortened))" }))
             }
         } else {
-            out.append(TrailStep(label: Self.rule(stuck.kind), state: isWarn ? .warn : .bad))
+            out.append(AinkradTrailStep(label: Self.rule(stuck.kind), state: isWarn ? .warn : .bad))
         }
         if let agent = model.agent(stuck.agentID) {
-            out.append(TrailStep(label: "waits on \(agent.name)", state: isWarn ? .warn : .ok))
+            out.append(AinkradTrailStep(label: "waits on \(agent.name)", state: isWarn ? .warn : .ok))
         }
         return out
     }

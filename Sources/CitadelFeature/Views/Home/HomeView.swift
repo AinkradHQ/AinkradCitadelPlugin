@@ -88,7 +88,7 @@ private struct AccountStrip: View {
         let amber = skin.color(skin.palette.warning)
         let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
         HStack(spacing: skin.size.s12) {
-            KindTile(glyph: "⚿", tint: amber)
+            AinkradIconTile(glyph: "⚿", tint: amber)
             text.citadelFont("t12_5").foregroundStyle(skin.color(skin.text.muted)).lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             AinkradDockButton("Accounts", action: open)
@@ -122,9 +122,9 @@ struct NeedsYouTile: View {
 
     var body: some View {
         let items = model.needsItems()
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                SectionHead(
+                AinkradSectionHead(
                     title: "What needs you now", count: items.isEmpty ? nil : "\(items.count)", link: "Open inbox →"
                 ) {
                     store.screen = .approvals
@@ -199,7 +199,7 @@ private struct NeedsRow: View {
 
     var body: some View {
         HStack(spacing: skin.size.s10) {
-            KindTile(glyph: item.glyph, tint: tint)
+            AinkradIconTile(glyph: item.glyph, tint: tint)
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 Text(item.title).citadelFont("t13", weight: "medium").foregroundStyle(skin.color(skin.text.primary))
                     .lineLimit(1)
@@ -249,9 +249,9 @@ private struct HomeAccountsTile: View {
     var body: some View {
         let accounts = model.accounts.values.sorted { $0.id < $1.id }
         let hot = accounts.filter(isHot).count
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                SectionHead(
+                AinkradSectionHead(
                     title: "Account limits",
                     count: hot > 0 ? "\(hot) need a look" : accounts.isEmpty ? nil : "\(accounts.count)",
                     link: "Accounts →"

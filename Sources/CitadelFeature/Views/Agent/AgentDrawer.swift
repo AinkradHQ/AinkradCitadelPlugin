@@ -196,14 +196,14 @@ private struct DrawerSkills: View {
                 Text("No skills attached — pick some from the library below.").citadelFont("t12").foregroundStyle(
                     skin.color(skin.text.faint))
             }
-            CardGrid(columns: 2) {
+            AinkradCardGrid(columns: 2) {
                 ForEach(have) { skill in
-                    ChoiceCard(
+                    AinkradChoiceCard(
                         isOn: skill.id == selected?.id, height: skin.size.s56,
                         action: { page.selectedSkill = skill.name }
                     ) {
-                        CardGlyph(glyph: "square.stack.3d.up", isOn: skill.id == selected?.id, size: skin.size.s30)
-                        CardText(
+                        AinkradChoiceGlyph("square.stack.3d.up", isOn: skill.id == selected?.id, size: skin.size.s30)
+                        AinkradChoiceText(
                             title: "\(skill.name) v\(skill.version)", caption: "attached to its \(skill.attachedTo)",
                             mono: true)
                     }
@@ -235,11 +235,11 @@ private struct DrawerSkills: View {
             }
         }
         DrawerTile(title: "Library \(library.count)") {
-            CardGrid(columns: 2) {
+            AinkradCardGrid(columns: 2) {
                 ForEach(library) { skill in
-                    ChoiceCard(height: skin.size.s56) {
-                        CardGlyph(glyph: "square.stack.3d.up", size: skin.size.s30)
-                        CardText(
+                    AinkradChoiceCard(height: skin.size.s56) {
+                        AinkradChoiceGlyph("square.stack.3d.up", size: skin.size.s30)
+                        AinkradChoiceText(
                             title: "\(skill.name) v\(skill.version)", caption: "≈ \(Fmt.tokens(skill.bytes / 4)) tok",
                             mono: true)
                         AinkradButton(title: "Attach", style: .secondary) {}.compact().disabled(true).fixedSize()

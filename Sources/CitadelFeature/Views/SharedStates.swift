@@ -91,7 +91,7 @@ struct FirstLoadView: View {
             }
             HStack(spacing: skin.size.s14) {
                 ForEach(0..<4, id: \.self) { _ in
-                    BentoTile {
+                    AinkradBentoTile {
                         VStack(alignment: .leading, spacing: skin.size.s10) {
                             GeometryReader { geo in bar(width: geo.size.width * 0.5, height: skin.size.s12) }
                                 .frame(height: skin.size.s12)
@@ -101,7 +101,7 @@ struct FirstLoadView: View {
                     }
                 }
             }
-            BentoTile {
+            AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s14) {
                     ForEach(0..<6, id: \.self) { index in
                         HStack(spacing: skin.size.s10) {

@@ -18,7 +18,7 @@ struct OrgView: View {
             header
             ZStack {
                 dotGrid
-                PanZoomCanvas(
+                AinkradPanZoomCanvas(
                     camera: Binding(get: { page.camera }, set: { page.camera = $0 }),
                     worldSize: CGSize(width: layout.width, height: layout.height)
                 ) {

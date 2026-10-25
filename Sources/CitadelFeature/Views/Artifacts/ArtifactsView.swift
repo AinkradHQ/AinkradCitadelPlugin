@@ -15,6 +15,11 @@ struct ArtifactsView: View {
     private var page: ArtifactsPage { model.artifactsPage }
     private var items: [ArtifactInfo] { model.filteredArtifacts }
 
+    /// The artifact whose peek drawer is open.
+    private var selected: ArtifactInfo? {
+        page.selectedID.flatMap { id in page.items.first(where: { $0.id == id }) }
+    }
+
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: 0) {
@@ -29,11 +34,12 @@ struct ArtifactsView: View {
                     .offlineDimmed()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            if let id = page.selectedID, let artifact = page.items.first(where: { $0.id == id }) {
-                ArtifactPeek(store: store, model: model, artifact: artifact)
-            }
         }
-        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.selectedID == nil)
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { selected != nil }, set: { if !$0 { page.selectedID = nil } })
+        ) {
+            if let selected { ArtifactPeek(store: store, model: model, artifact: selected) }
+        }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: page.openPicker)
         .onAppear { store.loadArtifacts() }
         .background {
@@ -68,8 +74,10 @@ struct ArtifactsView: View {
             }
             Spacer(minLength: skin.size.s10)
             let accent = skin.color(skin.palette.accentSecondary)
-            DockToggle("Grid", systemImage: "square.grid.2x2", isOn: page.isGrid, onTint: accent) { page.isGrid = true }
-            DockToggle("List", systemImage: "list.bullet", isOn: !page.isGrid, onTint: accent) { page.isGrid = false }
+            AinkradDockButton("Grid", systemImage: "square.grid.2x2") { page.isGrid = true }
+                .toggled(page.isGrid, tint: accent)
+            AinkradDockButton("List", systemImage: "list.bullet") { page.isGrid = false }
+                .toggled(!page.isGrid, tint: accent)
         }
         .padding(.horizontal, skin.size.s20)
         .padding(.top, skin.size.s14)
@@ -82,18 +90,20 @@ struct ArtifactsView: View {
         let all = page.items
         let tiles =
             [
-                TypeTile(
+                AinkradFilterTile(
                     id: "", label: "All", icon: ArtifactTypeLook(type: "").icon, count: all.count,
                     tint: Hue.slate.color(skin))
             ]
             + ArtifactTypeLook.tiles.map { type in
                 let look = ArtifactTypeLook(type: type)
-                return TypeTile(
+                return AinkradFilterTile(
                     id: type, label: look.plural, icon: look.icon, count: all.filter { $0.type == type }.count,
                     tint: look.hue.color(skin))
             }
         return HStack(spacing: skin.size.s8) {
-            TypeTileBar(tiles: tiles, selection: page.filter.type ?? "") { page.filter.type = $0.isEmpty ? nil : $0 }
+            AinkradFilterTileBar(tiles: tiles, selection: page.filter.type ?? "") {
+                page.filter.type = $0.isEmpty ? nil : $0
+            }
             ArtifactAgentPicker(model: model, page: page)
             ArtifactRequirementPicker(model: model, page: page)
         }
@@ -191,7 +201,7 @@ struct ArtifactAgentPicker: View {
             (model.agent($0)?.name ?? "") < (model.agent($1)?.name ?? "")
         }
         let selected = model.agent(page.filter.agentID)
-        RichPicker(
+        AinkradRichPicker(
             caption: "Agent", value: selected?.name ?? "Everyone", isOn: selected != nil,
             isOpen: Binding(get: { page.openPicker == "agent" }, set: { page.openPicker = $0 ? "agent" : nil })
         ) {
@@ -201,15 +211,15 @@ struct ArtifactAgentPicker: View {
                 Image(systemName: "person.2").citadelFont("t14")
             }
         } menu: {
-            RichMenu(header: "Published by") {
-                RichMenuRow(
+            AinkradRichMenu(header: "Published by") {
+                AinkradRichMenuRow(
                     title: "Everyone", subtitle: Wording.count(ids.count, "agent"), count: all.count,
                     isChecked: page.filter.agentID == nil, action: { pick(nil) }
                 ) { RunAvatarStack(model: model, ids: Array(ids.prefix(4))) }
-                RichMenuSeparator()
+                AinkradRichMenuSeparator()
                 ForEach(Array(ids.enumerated()), id: \.element) { index, id in
                     if let agent = model.agent(id) {
-                        RichMenuRow(
+                        AinkradRichMenuRow(
                             title: agent.name, subtitle: agent.role, count: all.filter { $0.agentID == id }.count,
                             isChecked: page.filter.agentID == id, index: index + 1, action: { pick(id) }
                         ) { AgentFigure(agent: agent, model: model, size: skin.size.s28) }
@@ -236,15 +246,15 @@ struct ArtifactRequirementPicker: View {
         let requirementOf = { (a: ArtifactInfo) in a.requirementID ?? model.issue(a.issueID)?.requirementID }
         let ids = Array(Set(all.compactMap(requirementOf))).sorted(by: >)
         let selected = model.requirements.first { $0.id == page.filter.requirementID }
-        RichPicker(
+        AinkradRichPicker(
             caption: "Requirement", value: selected.map { "\($0.key) · \($0.title)" } ?? "Any", isOn: selected != nil,
             isOpen: Binding(
                 get: { page.openPicker == "requirement" }, set: { page.openPicker = $0 ? "requirement" : nil })
         ) {
             Image(systemName: "list.bullet").citadelFont("t14")
         } menu: {
-            RichMenu(header: "From requirement") {
-                RichMenuRow(
+            AinkradRichMenu(header: "From requirement") {
+                AinkradRichMenuRow(
                     title: "Any requirement", subtitle: Wording.count(ids.count, "requirement"), count: all.count,
                     isChecked: page.filter.requirementID == nil, action: { pick(nil) }
                 ) {
@@ -254,10 +264,10 @@ struct ArtifactRequirementPicker: View {
                             skin.color(.palette("foreground", skin.opacity.o08)),
                             in: RoundedRectangle(cornerRadius: skin.size.s9))
                 }
-                RichMenuSeparator()
+                AinkradRichMenuSeparator()
                 ForEach(Array(ids.enumerated()), id: \.element) { index, id in
                     let requirement = model.requirements.first { $0.id == id }
-                    RichMenuRow(
+                    AinkradRichMenuRow(
                         title: requirement?.title ?? "R-\(id)", subtitle: requirement?.key ?? "R-\(id)",
                         count: all.filter { requirementOf($0) == id }.count, isChecked: page.filter.requirementID == id,
                         index: index + 1, action: { pick(id) }

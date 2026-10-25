@@ -29,7 +29,7 @@ struct ProjectTimeline: View {
             Calendar.current.date(byAdding: .day, value: 3, to: ends.max() ?? Date()) ?? Date(),
             from.addingTimeInterval(7 * 86_400 * 4))
         VStack(alignment: .leading, spacing: skin.size.s14) {
-            BentoTile {
+            AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     OverviewHead(title: "Roadmap · epics") {
                         Text(
@@ -55,7 +55,7 @@ struct ProjectTimeline: View {
                     }
                 }
             }
-            PickGrid(columns: 2, spacing: skin.size.s14) {
+            AinkradCardGrid(columns: 2, spacing: skin.size.s14) {
                 ForEach(work.epics) { epic in card(epic) }
             }
         }
@@ -72,7 +72,7 @@ struct ProjectTimeline: View {
         // The requirement its issues serve, when they all serve one (MISSING `Epic.requirement_id`).
         let reqs = Set(work.items.filter { $0.epicID == epic.id }.compactMap(\.requirementID))
         let requirement = reqs.count == 1 ? facts.model.requirements.first { $0.id == reqs.first } : nil
-        return BentoTile(onTap: { facts.page.filter.epic = epic.id }) {
+        return AinkradBentoTile(onTap: { facts.page.filter.epic = epic.id }) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(spacing: skin.size.s8) {
                     Text("⚡").citadelFont("t12").foregroundStyle(tint)
@@ -219,8 +219,8 @@ struct ProjectReports: View {
 
     var body: some View {
         let work = facts.work
-        PickGrid(columns: 2, spacing: skin.size.s14) {
-            BentoTile {
+        AinkradCardGrid(columns: 2, spacing: skin.size.s14) {
+            AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     OverviewHead(title: "Cumulative flow") {
                         Text("6 weeks").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
@@ -236,7 +236,7 @@ struct ProjectReports: View {
                     }
                 }
             }
-            BentoTile {
+            AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     OverviewHead(title: "Throughput") {
                         Text("items done per week").citadelFont("t11", mono: true).foregroundStyle(
@@ -261,7 +261,7 @@ struct ProjectReports: View {
         let cyan = skin.color(skin.palette.accentSecondary)
         let amber = skin.color(skin.palette.warning)
         let top = max(10, (days.max() ?? 0) * 1.1)
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Cycle time") {
                     Text("days from start to done").citadelFont("t11", mono: true).foregroundStyle(
@@ -310,7 +310,7 @@ struct ProjectReports: View {
 
     private func mix(_ items: [WorkItem]) -> some View {
         let kinds = ["story", "task", "bug", "subtask"]
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Work mix") {
                     Text("\(items.count) items").citadelFont("t11", mono: true).foregroundStyle(

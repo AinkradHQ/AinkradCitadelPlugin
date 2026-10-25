@@ -48,7 +48,7 @@ struct ProjectOverview: View {
     // MARK: - Burndown / flow
 
     private var burndown: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Burndown · \(facts.active?.name ?? "")") {
                     Text("\(facts.report?.left ?? 0) pts left").citadelFont("t11", mono: true).foregroundStyle(
@@ -70,7 +70,7 @@ struct ProjectOverview: View {
     }
 
     private var flow: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s12) {
                 OverviewHead(title: "Flow") { EmptyView() }
                 FlowBar(flow: facts.work.flow, thickness: skin.size.s22)
@@ -95,7 +95,7 @@ struct ProjectOverview: View {
 
     private var issues: some View {
         let open = ProjectLogic.ranked(facts.work.open)
-        return BentoTile {
+        return AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s4) {
                 OverviewHead(title: "Open issues", count: open.count) {
                     TileLink("Runs →") { store.screen = .runs }
@@ -132,7 +132,7 @@ struct ProjectOverview: View {
     // MARK: - Teams
 
     private var teams: some View {
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 OverviewHead(title: "Teams", count: facts.teams.count) {
                     TileLink("Manage →") { facts.page.drawer = .config(.teams) }
@@ -189,7 +189,7 @@ struct ProjectOverview: View {
     // MARK: - Repositories
 
     private var repos: some View {
-        BentoTile(onTap: { facts.page.drawer = .config(.repos) }) {
+        AinkradBentoTile(onTap: { facts.page.drawer = .config(.repos) }) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 OverviewHead(title: "Repositories · merge order") {
                     TileLink("Configure →") { facts.page.drawer = .config(.repos) }

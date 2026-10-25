@@ -52,8 +52,8 @@ struct NewRequirementSheet: View {
     private var ident: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
-            BareTextEditor(text: $title, placeholder: "What do you want?", sizeKey: "t20", weight: "semibold")
-            BareTextEditor(
+            AinkradBareEditor(text: $title, placeholder: "What do you want?", sizeKey: "t20", weight: "semibold")
+            AinkradBareEditor(
                 text: $details,
                 placeholder:
                     "Details — the problem, who it's for, constraints. e.g. “A weekly cost report in my inbox, per project, every Monday 9:00.”",
@@ -93,7 +93,7 @@ struct NewRequirementSheet: View {
                 .background(shape.fill(skin.color(.palette("foreground", skin.opacity.o05))))
             }
             HStack(spacing: skin.size.s6) {
-                BareTextEditor(
+                AinkradBareEditor(
                     text: $criterion, placeholder: "e.g. arrives every Monday 9:00", sizeKey: "t12", onReturn: add)
                 AinkradTapArea(help: "Add", action: add) {
                     Image(systemName: "plus").citadelFont("t12", weight: "semibold")

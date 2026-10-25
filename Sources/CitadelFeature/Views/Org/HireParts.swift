@@ -11,12 +11,13 @@ struct HarnessCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 4) {
+        AinkradCardGrid(columns: 4) {
             ForEach(HireCatalog.harnesses, id: \.self) { harness in
                 let pool = model.orgPage.pool.filter { $0.harness == harness }.count
-                ChoiceCard(isOn: selection == harness, height: skin.size.s54, action: { selection = harness }) {
+                AinkradChoiceCard(isOn: selection == harness, height: skin.size.s54, action: { selection = harness }) {
                     HarnessTag(harness: harness, size: skin.size.s26)
-                    CardText(title: AgentLook.harnessName(harness), caption: showsPool ? "\(pool) in pool" : nil)
+                    AinkradChoiceText(
+                        title: AgentLook.harnessName(harness), caption: showsPool ? "\(pool) in pool" : nil)
                 }
             }
         }
@@ -30,9 +31,9 @@ struct ModelCards: View {
 
     var body: some View {
         let models = HireCatalog.models[harness] ?? []
-        CardGrid(columns: max(1, models.count)) {
+        AinkradCardGrid(columns: max(1, models.count)) {
             ForEach(models) { item in
-                ChoiceCard(isOn: selection == item.wire, axis: .vertical, action: { selection = item.wire }) {
+                AinkradChoiceCard(isOn: selection == item.wire, axis: .vertical, action: { selection = item.wire }) {
                     Text(item.name).citadelFont("t13", weight: "semibold").foregroundStyle(
                         skin.color(skin.text.primary))
                     Text(item.blurb).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
@@ -50,7 +51,7 @@ struct ModelCards: View {
     private func meter(_ label: String, _ value: Int) -> some View {
         GridRow {
             Text(label).citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
-            DotMeter(value: value)
+            AinkradDotMeter(value: value)
         }
     }
 }
@@ -60,11 +61,13 @@ struct EffortCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 3) {
+        AinkradCardGrid(columns: 3) {
             ForEach(Array(HireCatalog.efforts.enumerated()), id: \.element.id) { index, effort in
-                ChoiceCard(isOn: selection == effort.id, height: skin.size.s54, action: { selection = effort.id }) {
-                    EffortBars(level: index)
-                    CardText(title: effort.title, caption: effort.blurb)
+                AinkradChoiceCard(
+                    isOn: selection == effort.id, height: skin.size.s54, action: { selection = effort.id }
+                ) {
+                    AinkradLevelBars(level: index)
+                    AinkradChoiceText(title: effort.title, caption: effort.blurb)
                 }
             }
         }
@@ -76,10 +79,10 @@ struct SandboxCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 3) {
+        AinkradCardGrid(columns: 3) {
             ForEach(HireCatalog.sandboxes) { box in
-                ChoiceCard(isOn: selection == box.id, axis: .vertical, action: { selection = box.id }) {
-                    CardGlyph(glyph: box.symbol, isOn: selection == box.id).padding(.bottom, skin.size.s4)
+                AinkradChoiceCard(isOn: selection == box.id, axis: .vertical, action: { selection = box.id }) {
+                    AinkradChoiceGlyph(box.symbol, isOn: selection == box.id).padding(.bottom, skin.size.s4)
                     Text(box.title).citadelFont("t13", weight: "semibold").foregroundStyle(
                         skin.color(skin.text.primary))
                     Text(box.blurb).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
@@ -96,13 +99,13 @@ struct RunnerTagCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 4) {
+        AinkradCardGrid(columns: 4) {
             ForEach(HireCatalog.runnerTags, id: \.tag) { item in
                 let runners = model.orgPage.runners.filter { $0.tags.contains(item.tag) }
                 let on = selection.contains(item.tag)
-                ChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(item.tag) }) {
-                    CheckBox(isOn: on)
-                    CardText(
+                AinkradChoiceCard(isOn: on, height: skin.size.s50, action: { toggle(item.tag) }) {
+                    AinkradCheckBox(isOn: on)
+                    AinkradChoiceText(
                         title: item.title,
                         caption:
                             "\(Wording.count(runners.count, "runner")) · \(runners.filter { $0.status == "online" }.count) online"
@@ -180,10 +183,10 @@ struct GuidelineCards: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 2) {
+        AinkradCardGrid(columns: 2) {
             ForEach(all, id: \.self) { text in
                 let isOn = on.contains(text)
-                ChoiceCard(isOn: isOn, height: skin.size.s46, action: { toggle(text) }) {
+                AinkradChoiceCard(isOn: isOn, height: skin.size.s46, action: { toggle(text) }) {
                     Text(HireCatalog.guidelines.first { $0.text == text }?.glyph ?? "•").citadelFont("t11")
                         .foregroundStyle(isOn ? skin.color(skin.palette.accentPrimary) : skin.color(skin.text.muted))
                         .frame(width: skin.size.s24, height: skin.size.s24)
@@ -200,7 +203,7 @@ struct GuidelineCards: View {
                 }
             }
         }
-        ChoiceCard(isAdd: true, height: skin.size.s46) {
+        AinkradChoiceCard(isAdd: true, height: skin.size.s46) {
             AinkradTextField(text: $draft, placeholder: "Add your own guideline…").onSubmit(add)
             AinkradButton(title: "Add", style: .secondary, action: add).compact().fixedSize()
         }
@@ -225,7 +228,7 @@ struct PaletteGrid: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        CardGrid(columns: 9) {
+        AinkradCardGrid(columns: 9) {
             ForEach(AinkradFigurePalette.all) { palette in
                 Swatch(palette: palette, isOn: selection == palette.id) { selection = palette.id }
             }
@@ -284,7 +287,7 @@ struct BudgetFields: View {
         let total = TokenAmount.parse(budget) ?? 0
         let warnPercent = min(99, max(1, Int(warn) ?? 80))
         VStack(alignment: .leading, spacing: skin.size.s6) {
-            CardGrid(columns: 3) {
+            AinkradCardGrid(columns: 3) {
                 number("Monthly budget", $budget, unit: "tok / mo")
                 number("Warn at", $warn, unit: "%")
                 number("Per-run cap", $cap, unit: "tok")

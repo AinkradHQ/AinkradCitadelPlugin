@@ -294,7 +294,7 @@ private struct HeatTile: View {
     var body: some View {
         BentoBox {
             BentoHead(title: "When it works", trailing: "this week")
-            Heatmap(
+            AinkradHeatmap(
                 rows: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], columns: ["00", "04", "08", "12", "16", "20"],
                 values: stats.heat)
         }

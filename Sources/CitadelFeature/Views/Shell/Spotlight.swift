@@ -227,18 +227,18 @@ struct Spotlight: View {
             if let agent = model.agent(model.runs[id]?.agentID ?? model.companyRuns?.first { $0.id == id }?.agentID) {
                 AgentFigure(agent: agent, model: model, size: size)
             } else {
-                KindTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
+                AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
             }
         case .approval, .stuck:
-            KindTile(glyph: item.glyph, tint: skin.color(skin.palette.warning), size: size)
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.warning), size: size)
         case .requirement, .issue:
-            KindTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
         case .project:
-            KindTile(glyph: item.glyph, tint: skin.color(skin.palette.accentViolet), size: size)
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentViolet), size: size)
         case .screen(let screen):
             GlyphTile(icon: screen.icon, size: size, tint: skin.color(skin.palette.accentPrimary))
         case .action:
-            KindTile(glyph: item.glyph, tint: skin.color(skin.text.muted), size: size)
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.text.muted), size: size)
         }
     }
 

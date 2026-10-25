@@ -42,8 +42,10 @@ struct CostView: View {
             .scrollIndicators(.never)
             .offlineDimmed()
         }
-        .opsDrawer(
-            isPresented: Binding(get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } })
+        .ainkradFloatingDrawer(
+            isPresented: Binding(
+                get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } }),
+            inset: skin.size.s34
         ) {
             let shown = Binding(get: { model.costPage.drawer != nil }, set: { if !$0 { model.costPage.drawer = nil } })
             switch model.costPage.drawer {

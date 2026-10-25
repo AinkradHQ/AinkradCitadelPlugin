@@ -126,17 +126,19 @@ struct StuckCard: View {
         let lead = model.lead(ofProject: issue?.projectID)
         AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
             if stuck.waitsOnASleepingRunner {
-                TintDockButton(title: "Wake my Mac", tint: tint, busyTitle: busy) {
+                AinkradDockButton("Wake my Mac") {
                     busy = "Waking…"
                     store.wakeFix(stuck, when: "now")
                 }
+                .tinted(tint, busyTitle: busy)
                 AinkradDockButton("Run when I'm back") { store.wakeFix(stuck, when: "when_back") }
                 AinkradDockButton("Allow Power Nap runs") { store.powerNapFix(stuck) }
             } else if let run = liveRun {
-                TintDockButton(title: "Nudge \(agent?.name ?? "the agent")", tint: tint) {
+                AinkradDockButton("Nudge \(agent?.name ?? "the agent")") {
                     nudge = "You've been quiet for a while — post what you're stuck on, or carry on."
                     nudging = true
                 }
+                .tinted(tint)
                 reassignMenu(title: "Reassign")
                 AinkradDockButton("Open run") { store.open(.run(run.id)) }
             } else {
@@ -199,24 +201,28 @@ struct StuckCard: View {
     /// The engine's recommendation as the tinted fix, when the server takes it; otherwise disabled with why.
     @ViewBuilder private func recommended(lead: AgentInfo?) -> some View {
         if let runner = primaryRetry {
-            TintDockButton(title: "Retry on \(runner.name)", tint: tint, busyTitle: busy) {
+            AinkradDockButton("Retry on \(runner.name)") {
                 busy = "Retrying…"
                 store.retryFix(stuck, on: runner)
             }.fixedSize()
         } else {
             switch stuck.repair {
             case "unblock" where stuck.issueID != nil:
-                TintDockButton(title: "Unblock", tint: tint) { store.engineFix(stuck, "unblock") }
+                AinkradDockButton("Unblock") { store.engineFix(stuck, "unblock") }
+                    .tinted(tint)
             case "reassign_to_lead", "escalate":
                 if let lead, stuck.issueID != nil {
-                    TintDockButton(title: "Reassign to \(lead.name)", tint: tint) { store.reassignFix(stuck, to: lead) }
+                    AinkradDockButton("Reassign to \(lead.name)") { store.reassignFix(stuck, to: lead) }
+                        .tinted(tint)
                 }
             case "rewake" where stuck.issueID != nil, "requeue" where stuck.issueID != nil:
-                TintDockButton(title: "Wake \(agent?.name ?? "the agent") again", tint: tint) {
+                AinkradDockButton("Wake \(agent?.name ?? "the agent") again") {
                     store.engineFix(stuck, "rewake")
                 }
+                .tinted(tint)
             case "release_checkout" where stuck.issueID != nil:
-                TintDockButton(title: "Release checkout", tint: tint) { store.engineFix(stuck, "release_checkout") }
+                AinkradDockButton("Release checkout") { store.engineFix(stuck, "release_checkout") }
+                    .tinted(tint)
             case let repair?:
                 // drop_wake / notify have no manual endpoint; the engine runs them by itself.
                 AinkradDockButton(repair.replacingOccurrences(of: "_", with: " ").capitalized, isEnabled: false) {}
@@ -263,7 +269,7 @@ struct StuckCard: View {
         .background(shape.fill(skin.color(.palette("background", skin.opacity.o90))))
         .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o09)), lineWidth: 1))
         .padding(.top, skin.size.s6)
-        .riseIn(distance: skin.size.s14)
+        .ainkradRiseIn(distance: skin.size.s14)
     }
 
     private func sentence(_ text: String, capitalized: Bool = true) -> String {

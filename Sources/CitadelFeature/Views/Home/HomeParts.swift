@@ -9,7 +9,7 @@ struct LiveRunsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s10) {
-            SectionHead(title: "Live runs", count: "\(model.liveRuns.count)", link: "All runs →") {
+            AinkradSectionHead(title: "Live runs", count: "\(model.liveRuns.count)", link: "All runs →") {
                 store.screen = .runs
             }
             .padding(.horizontal, skin.size.s2)
@@ -29,7 +29,7 @@ struct LiveRunsSection: View {
     /// `● Idle · last run #426 Rook on CIT-61 ended 11:32   [Runs →]`.
     private var idle: some View {
         let last = (model.companyRuns ?? []).first { !$0.isLive }
-        return BentoTile(padding: skin.size.s12) {
+        return AinkradBentoTile(padding: skin.size.s12) {
             HStack(spacing: skin.size.s8) {
                 Circle().fill(skin.color(skin.text.faint)).frame(width: skin.size.s7, height: skin.size.s7)
                 Text("Idle").citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
@@ -136,9 +136,9 @@ struct LiveRunCard: View {
             }
             Spacer(minLength: skin.size.s4)
             switch state.tone {
-            case .warning?: StatePill(text: "waiting on you", tint: status.warning)
-            case .danger?: StatePill(text: "stalling", tint: status.danger)
-            default: StatePill(text: "running", tint: skin.color(skin.palette.accentSecondary), dot: true)
+            case .warning?: AinkradStatePill(text: "waiting on you", tint: status.warning)
+            case .danger?: AinkradStatePill(text: "stalling", tint: status.danger)
+            default: AinkradStatePill(text: "running", tint: skin.color(skin.palette.accentSecondary), dot: true)
             }
         }
     }

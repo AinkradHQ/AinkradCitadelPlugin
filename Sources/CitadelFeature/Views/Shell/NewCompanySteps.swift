@@ -35,7 +35,7 @@ struct NewCompanyStepPane: View {
                 .citadelFont("t15")
         }
         field("Kind") {
-            CardGrid(columns: 2) {
+            AinkradCardGrid(columns: 2) {
                 kindCard("client", "Client", "work you do for someone else · its own budget and reports", "briefcase")
                 kindCard("own", "Own", "your own product · you are the client", "hexagon")
             }
@@ -67,8 +67,8 @@ struct NewCompanyStepPane: View {
 
     private func kindCard(_ id: String, _ title: String, _ line: String, _ symbol: String) -> some View {
         let on = draft.kind == id
-        return ChoiceCard(isOn: on, axis: .vertical, action: { draft.kind = id }) {
-            CardGlyph(glyph: symbol, isOn: on, size: skin.size.s34).padding(.bottom, skin.size.s6)
+        return AinkradChoiceCard(isOn: on, axis: .vertical, action: { draft.kind = id }) {
+            AinkradChoiceGlyph(symbol, isOn: on, size: skin.size.s34).padding(.bottom, skin.size.s6)
             Text(title).citadelFont("t14", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
             Text(line).citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                 .fixedSize(horizontal: false, vertical: true)
@@ -225,7 +225,7 @@ struct NewCompanyStepPane: View {
         }
         VStack(alignment: .leading, spacing: skin.size.s8) {
             HStack {
-                GroupLabel(title: "CEO budget")
+                AinkradGroupLabel(title: "CEO budget")
                 AinkradSegmentedPicker(
                     items: [10_000_000, 20_000_000, 40_000_000, 60_000_000] as [Int64],
                     selection: Binding(

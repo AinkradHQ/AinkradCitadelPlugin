@@ -20,20 +20,26 @@ struct ArtifactPeek: View {
         let index = list.firstIndex { $0.id == artifact.id }
         let prev = index.flatMap { $0 > 0 ? list[$0 - 1] : nil }
         let next = index.flatMap { $0 + 1 < list.count ? list[$0 + 1] : nil }
-        PeekDrawer(contentID: artifact.id, onClose: { page.selectedID = nil }) {
-            DrawerCrumb(parts: ["Artifacts", look.plural])
-        } trailing: {
-            DrawerCloseButton(glyph: "chevron.left", size: skin.size.s28, isEnabled: prev != nil, filled: true) {
-                page.selectedID = prev?.id
+        AinkradDrawerPanel(
+            contentID: artifact.id, onClose: { page.selectedID = nil },
+            header: { AinkradDrawerCrumb(["Artifacts", look.plural]) },
+            trailing: {
+                AinkradDrawerButton(
+                    glyph: "chevron.left", size: skin.size.s28, isEnabled: prev != nil, filled: true
+                ) {
+                    page.selectedID = prev?.id
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                Text("\((index ?? 0) + 1) / \(list.count)").citadelFont("t11", mono: true)
+                    .foregroundStyle(skin.color(skin.text.faint))
+                AinkradDrawerButton(
+                    glyph: "chevron.right", size: skin.size.s28, isEnabled: next != nil, filled: true
+                ) {
+                    page.selectedID = next?.id
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [])
             }
-            .keyboardShortcut(.leftArrow, modifiers: [])
-            Text("\((index ?? 0) + 1) / \(list.count)").citadelFont("t11", mono: true)
-                .foregroundStyle(skin.color(skin.text.faint))
-            DrawerCloseButton(glyph: "chevron.right", size: skin.size.s28, isEnabled: next != nil, filled: true) {
-                page.selectedID = next?.id
-            }
-            .keyboardShortcut(.rightArrow, modifiers: [])
-        } content: {
+        ) {
             VStack(alignment: .leading, spacing: skin.size.s12) {
                 head
                 preview
@@ -41,8 +47,6 @@ struct ArtifactPeek: View {
                 provenance
                 siblings
             }
-        } foot: {
-            EmptyView()
         }
         .onAppear { store.loadPreview(artifact) }
         .onChange(of: artifact.id) { _, _ in store.loadPreview(artifact) }
@@ -50,7 +54,7 @@ struct ArtifactPeek: View {
 
     private var head: some View {
         HStack(spacing: skin.size.s12) {
-            IconTile(systemName: look.icon, tint: tint, size: skin.size.s40, radius: skin.size.s12)
+            AinkradIconTile(systemName: look.icon, tint: tint, size: skin.size.s40, radius: skin.size.s12)
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 Text(artifact.name).citadelFont("t16", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
                     .lineLimit(1)
@@ -276,20 +280,20 @@ struct ArtifactQuickLook: View {
                             .foregroundStyle(skin.color(skin.text.faint))
                         Spacer(minLength: skin.size.s8)
                         if let prev {
-                            DrawerCloseButton(glyph: "chevron.left", size: skin.size.s28, filled: true) {
+                            AinkradDrawerButton(glyph: "chevron.left", size: skin.size.s28, filled: true) {
                                 page.quickLookID = prev.id
                                 store.loadPreview(prev)
                             }
                             .keyboardShortcut(.leftArrow, modifiers: [])
                         }
                         if let next {
-                            DrawerCloseButton(glyph: "chevron.right", size: skin.size.s28, filled: true) {
+                            AinkradDrawerButton(glyph: "chevron.right", size: skin.size.s28, filled: true) {
                                 page.quickLookID = next.id
                                 store.loadPreview(next)
                             }
                             .keyboardShortcut(.rightArrow, modifiers: [])
                         }
-                        DrawerCloseButton { page.quickLookID = nil }
+                        AinkradDrawerButton { page.quickLookID = nil }
                     }
                     .padding(.horizontal, skin.size.s16)
                     .padding(.vertical, skin.size.s14)

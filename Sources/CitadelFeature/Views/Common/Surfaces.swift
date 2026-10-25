@@ -115,22 +115,3 @@ struct HarnessTag: View {
         }
     }
 }
-
-/// A small status pill (`.pill.ok/warn/err/run`): optional leading dot.
-struct StatePill: View {
-    let text: String
-    let tint: Color
-    var dot = false
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        HStack(spacing: skin.size.s5) {
-            if dot { Circle().fill(tint).frame(width: skin.size.s6, height: skin.size.s6) }
-            Text(text).citadelFont("t10_5", weight: "medium")
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, skin.size.s8)
-        .padding(.vertical, skin.size.s2)
-        .background(tint.opacity(skin.opacity.o14), in: Capsule())
-    }
-}

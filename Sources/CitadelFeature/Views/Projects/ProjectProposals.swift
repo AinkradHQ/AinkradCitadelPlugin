@@ -13,7 +13,7 @@ struct ProposalsTile: View {
     var body: some View {
         let proposals = facts.profile?.proposals ?? []
         let violet = skin.color(skin.palette.accentViolet)
-        BentoTile {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 OverviewHead(
                     title: "Proposed by agents", count: proposals.isEmpty ? nil : proposals.count, countTint: violet

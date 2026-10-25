@@ -122,7 +122,7 @@ private struct BacklogSection<Extra: View>: View {
             }
             .padding(.horizontal, skin.size.s6).padding(.bottom, skin.size.s8)
         }
-        .dropZone { drop($0, before: nil) }
+        .ainkradDropZone { drop($0, before: nil) }
     }
 
     /// Into this section; dropped on a row of the same section, a new rank before it.

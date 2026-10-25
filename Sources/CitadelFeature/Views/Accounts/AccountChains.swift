@@ -17,7 +17,7 @@ struct FallbackChainsCard: View {
 
     var body: some View {
         let shared = page.sharedChains(agents)
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 Text("Fallback chains").citadelFont("t13", weight: "bold").foregroundStyle(
                     skin.color(skin.text.primary))
@@ -36,7 +36,7 @@ struct FallbackChainsCard: View {
                     ForEach(AccountsPage.triggers, id: \.key) { trigger in
                         let setting = page.companySettings[trigger.key]
                         let isOn = (setting?.value ?? 1) == 1
-                        ToggleChip(
+                        AinkradToggleChip(
                             title: trigger.title, isOn: isOn, isEnabled: setting != nil,
                             help: setting?.description ?? "Not read from the server yet"
                         ) {
@@ -51,7 +51,7 @@ struct FallbackChainsCard: View {
     @ViewBuilder private func presets(_ shared: [SharedChain]) -> some View {
         VStack(alignment: .leading, spacing: skin.size.s10) {
             if shared.isEmpty {
-                OpsHint("No two agents share a chain yet — each one's chain is on the Agents tab.")
+                AinkradDrawerHint("No two agents share a chain yet — each one's chain is on the Agents tab.")
             }
             ForEach(Array(shared.enumerated()), id: \.element.id) { _, chain in
                 PresetCard(model: model, chain: chain) { editChain(chain.id) }
@@ -81,13 +81,14 @@ struct FallbackChainsCard: View {
                     }
                 }
                 UsesRow(chain: mine)
-                ChainEditor(
+                AinkradChainEditor(
                     links: links(agent), editable: true,
                     reorder: { store.saveChain(entries($0)) },
-                    remove: { link in store.saveChain(page.chain.filter { $0.id != link.id }) })
+                    remove: { link in store.saveChain(page.chain.filter { $0.id != link.id }) },
+                    leading: { HarnessTag(harness: $0, size: skin.size.s20) })
                 addFallback
                 if let mine {
-                    OpsHint(
+                    AinkradDrawerHint(
                         "Same chain as \(Wording.count(mine.agents.count - 1, "other agent")) — edit \(mine.name) on Presets to change it for all of them."
                     )
                 }
@@ -95,12 +96,12 @@ struct FallbackChainsCard: View {
         }
     }
 
-    private func links(_ agent: AgentInfo) -> [ChainLink] {
+    private func links(_ agent: AgentInfo) -> [AinkradChainLink] {
         let live = model.liveRuns.first { $0.agentID == agent.id }
         let current = live.map { "\($0.harness)|\($0.model ?? "")" }
         return page.chain.map { entry in
-            ChainLink(
-                id: entry.id, harness: entry.harness, model: entry.model,
+            AinkradChainLink(
+                id: entry.id, kind: entry.harness, title: entry.model,
                 detail: (entry.isOwn ? "the agent's own harness and model" : "account: pool")
                     + (entry.harness == "opencode" ? " · unpriced" : ""),
                 detailWarns: entry.harness == "opencode",
@@ -109,7 +110,7 @@ struct FallbackChainsCard: View {
         }
     }
 
-    private func entries(_ links: [ChainLink]) -> [FallbackEntry] {
+    private func entries(_ links: [AinkradChainLink]) -> [FallbackEntry] {
         links.compactMap { link in page.chain.first { $0.id == link.id } }
     }
 
@@ -146,7 +147,7 @@ private struct PresetCard: View {
     var body: some View {
         let tint = AgentLook.harness(chain.harness)?.color ?? skin.color(skin.palette.accentPrimary)
         let agents = chain.agents.compactMap { model.agent($0) }
-        BentoTile(padding: skin.size.s12, tint: tint) {
+        AinkradBentoTile(padding: skin.size.s12, tint: tint) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(spacing: skin.size.s10) {
                     LetterTile(letter: String(chain.name.prefix(1)), tint: tint, size: skin.size.s32)
@@ -156,9 +157,11 @@ private struct PresetCard: View {
                         Text(chain.detail).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                     }
                 }
-                ChainFlow(steps: chain.entries.map { ($0.harness, $0.model) })
+                AinkradChainFlow(steps: chain.entries.map { ($0.harness, $0.model) }) {
+                    HarnessTag(harness: $0, size: skin.size.s22)
+                }
                 HStack(spacing: skin.size.s6) {
-                    AvatarStack(items: Array(agents.prefix(4)), size: skin.size.s22) {
+                    AinkradAvatarStack(items: Array(agents.prefix(4)), size: skin.size.s22) {
                         AgentFigure(agent: $0, model: model, size: skin.size.s22)
                     }
                     Text(Wording.count(agents.count, "agent")).citadelFont("t11")
@@ -248,27 +251,32 @@ struct SharedChainDrawer: View {
 
     var body: some View {
         let tint = AgentLook.harness(chain.harness)?.color ?? skin.color(skin.palette.accentPrimary)
-        OpsDrawerPanel(crumb: ["Accounts", "Preset"], close: close) {
-            OpsDrawerHero(tint: tint, title: chain.name, subtitle: chain.detail) {
+        AinkradDrawerPanel(
+            style: .form, onClose: close, header: { AinkradDrawerCrumb(["Accounts", "Preset"], monospaced: true) }
+        ) {
+            AinkradDrawerHero(tint: tint, title: chain.name, subtitle: chain.detail) {
                 LetterTile(letter: String(chain.name.prefix(1)), tint: tint, size: skin.size.s52)
             } trailing: {
                 EmptyView()
             }
-            OpsSection(title: "Name", hint: "named presets need the server") {
+            AinkradDrawerSection(title: "Name", hint: "named presets need the server") {
                 Text(chain.name).citadelFont("t13", mono: true).foregroundStyle(skin.color(skin.text.muted))
             }
-            OpsSection(title: "Chain", hint: "drag ⋮⋮ to reorder · first entry serves, the rest are fallbacks") {
-                ChainEditor(
+            AinkradDrawerSection(
+                title: "Chain", hint: "drag ⋮⋮ to reorder · first entry serves, the rest are fallbacks"
+            ) {
+                AinkradChainEditor(
                     links: entries.map {
-                        ChainLink(
-                            id: $0.id, harness: $0.harness, model: $0.model,
+                        AinkradChainLink(
+                            id: $0.id, kind: $0.harness, title: $0.model,
                             detail: $0.isOwn ? "each agent's own harness and model" : "account: pool",
                             chip: $0.isOwn ? "first" : nil, isCurrent: $0.isOwn, isFixed: $0.isOwn)
                     },
                     reorder: { links in entries = links.compactMap { link in entries.first { $0.id == link.id } } },
-                    remove: { link in entries.removeAll { $0.id == link.id } })
+                    remove: { link in entries.removeAll { $0.id == link.id } },
+                    leading: { HarnessTag(harness: $0, size: skin.size.s20) })
             }
-            OpsSection(title: "Used by") {
+            AinkradDrawerSection(title: "Used by") {
                 AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
                     ForEach(chain.agents.compactMap { model.agent($0) }, id: \.id) { agent in
                         HStack(spacing: skin.size.s6) {

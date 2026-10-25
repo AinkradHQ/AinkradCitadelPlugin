@@ -102,7 +102,7 @@ struct SpotlightPreview: View {
                             skin.color(skin.palette.accentSecondary))
                         Text(issue.title).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                         Spacer(minLength: skin.size.s4)
-                        StatePill(
+                        AinkradStatePill(
                             text: issue.state.replacingOccurrences(of: "_", with: " "),
                             tint: skin.color(skin.text.muted))
                     }

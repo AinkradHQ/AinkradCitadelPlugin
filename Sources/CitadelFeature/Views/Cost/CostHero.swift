@@ -26,9 +26,9 @@ struct CostHero: View {
                         fraction: budget.fraction,
                         projected: pace(budget).map { Double($0) / Double(max(budget.cap, 1)) })
                     HStack(spacing: skin.size.s14) {
-                        LegendSwatch(color: blue, label: "used")
+                        AinkradLegendSwatch(color: blue, label: "used")
                         if let pace = pace(budget) {
-                            LegendSwatch(
+                            AinkradLegendSwatch(
                                 color: blue.opacity(skin.opacity.o35), label: "on pace for \(Fmt.tokens(pace))")
                         }
                         Spacer()
@@ -198,7 +198,7 @@ struct CostKinds: View {
                 "Priced", "dollarsign", blue, value: Text(Fmt.dollars(micros: t.costMicros)),
                 sub: "API-billed runs at known prices · \(Fmt.tokens(t.pricedTokens)) tok"
             ) {
-                AreaSparkline(values: model.costDays.map { Double($0.totals.costMicros) }, color: blue)
+                AinkradMicroTrend(values: model.costDays.map { Double($0.totals.costMicros) }, tint: blue, style: .area)
                     .frame(height: skin.size.s34)
             }
             tile(
@@ -222,8 +222,10 @@ struct CostKinds: View {
                     .foregroundStyle(skin.color(skin.text.faint)),
                 sub: "\(Wording.count(t.subscriptionRuns, "run")) on Max / Pro logins — tokens, not dollars"
             ) {
-                AreaSparkline(values: model.costDays.map { Double($0.totals.subscriptionTokens) }, color: violet)
-                    .frame(height: skin.size.s34)
+                AinkradMicroTrend(
+                    values: model.costDays.map { Double($0.totals.subscriptionTokens) }, tint: violet, style: .area
+                )
+                .frame(height: skin.size.s34)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -232,7 +234,7 @@ struct CostKinds: View {
     private func tile<Foot: View>(
         _ label: String, _ symbol: String, _ tint: Color, value: Text, sub: String, @ViewBuilder foot: () -> Foot
     ) -> some View {
-        BentoTile(padding: skin.size.s14, tint: tint) {
+        AinkradBentoTile(padding: skin.size.s14, tint: tint) {
             VStack(alignment: .leading, spacing: skin.size.s4) {
                 HStack(spacing: skin.size.s8) {
                     Image(systemName: symbol).citadelFont("t12", weight: "semibold").foregroundStyle(tint)
@@ -267,16 +269,16 @@ struct CostChartTile: View {
         let amber = skin.color(skin.palette.warning)
         let violet = skin.color(skin.palette.accentViolet)
         let days = model.costDays
-        BentoTile(padding: skin.size.s14) {
+        AinkradBentoTile(padding: skin.size.s14) {
             VStack(alignment: .leading, spacing: skin.size.s8) {
                 HStack {
                     Text(hourly ? "Per hour · tokens" : "Per day · tokens").citadelFont("t13", weight: "bold")
                         .foregroundStyle(skin.color(skin.text.primary))
                     Spacer()
                     HStack(spacing: skin.size.s12) {
-                        LegendSwatch(color: blue, label: "Priced")
-                        LegendSwatch(color: amber, label: "Unpriced")
-                        LegendSwatch(color: violet, label: "Subscription")
+                        AinkradLegendSwatch(color: blue, label: "Priced")
+                        AinkradLegendSwatch(color: amber, label: "Unpriced")
+                        AinkradLegendSwatch(color: violet, label: "Subscription")
                     }
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                 }
@@ -284,20 +286,20 @@ struct CostChartTile: View {
                     Text("No runs in this period").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                         .frame(maxWidth: .infinity, minHeight: skin.size.s160)
                 } else {
-                    StackedBarChart(
+                    AinkradStackedBarChart(
                         bars: days.enumerated().map { index, day in
-                            StackedBar(
+                            AinkradStackedBar(
                                 id: index,
                                 segments: [
-                                    StackedSegment(
+                                    AinkradStackedSegment(
                                         value: Double(day.totals.pricedTokens),
                                         fill: AnyShapeStyle(
                                             LinearGradient(
                                                 colors: [blue.opacity(skin.opacity.o60), blue], startPoint: .top,
                                                 endPoint: .bottom))),
-                                    StackedSegment(
+                                    AinkradStackedSegment(
                                         value: Double(day.totals.unpricedTokens), fill: AnyShapeStyle(amber)),
-                                    StackedSegment(
+                                    AinkradStackedSegment(
                                         value: Double(day.totals.subscriptionTokens),
                                         fill: AnyShapeStyle(
                                             LinearGradient(
@@ -327,15 +329,15 @@ struct CostChartTile: View {
 
     private func tip(_ day: DaySpend) -> some View {
         let t = day.totals
-        return ChartTip {
+        return AinkradChartTip {
             Text(axis(day)).bold().foregroundStyle(skin.color(skin.text.primary))
-            LegendSwatch(
+            AinkradLegendSwatch(
                 color: skin.color(skin.palette.accentPrimary),
                 label: "Priced \(Fmt.dollars(micros: t.costMicros)) · \(Fmt.tokens(t.pricedTokens)) tok")
-            LegendSwatch(
+            AinkradLegendSwatch(
                 color: skin.color(skin.palette.warning),
                 label: t.unpricedTokens > 0 ? "\(Fmt.tokens(t.unpricedTokens)) tok unpriced" : "no unpriced")
-            LegendSwatch(
+            AinkradLegendSwatch(
                 color: skin.color(skin.palette.accentViolet), label: "\(Fmt.tokens(t.subscriptionTokens)) sub tok")
         }
         .foregroundStyle(skin.color(skin.text.muted))

@@ -148,7 +148,7 @@ struct ThreadRail: View {
         return card {
             HStack {
                 head("Issue")
-                StatePill(text: state, tint: tint)
+                AinkradStatePill(text: state, tint: tint)
             }
             (Text(issue.key).foregroundStyle(theme.accentSecondary)
                 + Text(" \(issue.title)").foregroundStyle(skin.color(skin.text.primary)))
