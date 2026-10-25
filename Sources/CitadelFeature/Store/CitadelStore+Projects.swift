@@ -174,17 +174,17 @@ extension CitadelStore {
 
     /// "＋ New project": the new project joins the list, selected; a refusal (a taken key) stays in the sheet.
     func createProject(
-        name: String, key: String, mode: String, done: @escaping @MainActor (ActionFailure?) -> Void
+        name: String, key: String, mode: String, team: Int64? = nil, done: @escaping @MainActor (ActionFailure?) -> Void
     ) {
         guard let server, let model else { return }
         let name = name.trimmingCharacters(in: .whitespaces)
         let key = key.trimmingCharacters(in: .whitespaces).uppercased()
         Task {
-            switch await server.createProject(company: model.companyID, name: name, key: key, mode: mode) {
+            switch await server.createProject(company: model.companyID, name: name, key: key, mode: mode, team: team) {
             case .success(let project):
                 model.projects.append(project)
                 done(nil)
-                selectProject(project.id)
+                openProject(project.id)
             case .failure(let answer):
                 done(ActionFailure(title: "Couldn't create \(key)", answer: answer, outcome: "No project was made."))
             }

@@ -9,26 +9,66 @@ struct NewProjectSheet: View {
     @State private var name = ""
     @State private var key = ""
     @State private var mode = "scrum"
+    @State private var team: Int64?
     @State private var failure: ActionFailure?
     @Environment(\.ainkradSkin) private var skin
 
+    private var teams: [(team: TeamInfo, department: String)] {
+        (store.model?.departments ?? []).flatMap { department in department.teams.map { ($0, department.name) } }
+    }
+
+    /// The colours the new project takes: the next pair in the list.
+    private var previewTint: (Color, Color) {
+        let pair = ProjectLook.pairs[(store.model?.projects.count ?? 0) % ProjectLook.pairs.count]
+        return (pair.lightColor, pair.deepColor)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: skin.size.s12) {
-            Text("New project").citadelFont("t15", weight: "semibold")
+        VStack(alignment: .leading, spacing: skin.size.s14) {
+            HStack(spacing: skin.size.s12) {
+                ProjectMark(glyph: ProjectLook.glyphs[0], tint: previewTint, side: skin.size.s44)
+                Text("New project").citadelFont("t15", weight: "semibold")
+            }
             AinkradFormRow(title: "Name") { AinkradTextField(text: $name, placeholder: "Citadel Core") }
-            AinkradFormRow(title: "Key", help: "CIT → CIT-12") {
+            AinkradFormRow(title: "Key", help: "\(key.isEmpty ? "CIT" : key.uppercased())-1, -2 …") {
                 AinkradTextField(text: $key, placeholder: "CIT").monospaced()
             }
-            AinkradFormRow(title: "Mode") {
-                AinkradSegmentedPicker(items: ["scrum", "kanban"], selection: $mode) { $0.capitalized }.fixedSize()
+            AinkradFormRow(title: "Cadence") {
+                PickGrid(columns: 2) {
+                    PickCard(
+                        isOn: mode == "scrum", minHeight: skin.size.s64, vertical: true, action: { mode = "scrum" }
+                    ) {
+                        PickText(title: "Sprints", caption: "Plan, commit, burn down")
+                    }
+                    PickCard(
+                        isOn: mode == "kanban", minHeight: skin.size.s64, vertical: true, action: { mode = "kanban" }
+                    ) {
+                        PickText(title: "Kanban", caption: "A continuous flow, no sprints")
+                    }
+                }
+            }
+            if !teams.isEmpty {
+                AinkradFormRow(title: "Team") {
+                    PickGrid(columns: 2) {
+                        ForEach(teams, id: \.team.id) { entry in
+                            PickCard(
+                                isOn: team == entry.team.id, minHeight: skin.size.s46, action: { team = entry.team.id }
+                            ) {
+                                PickText(
+                                    title: entry.team.name,
+                                    caption: "\(entry.department) · \(entry.team.seats.count) agents")
+                            }
+                        }
+                    }
+                }
             }
             if let failure { RefusalLine(failure: failure) }
             HStack(spacing: skin.size.s8) {
                 Spacer()
                 AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
-                AinkradButton(title: "Create") {
+                AinkradButton(title: "Create project") {
                     failure = nil
-                    store.createProject(name: name, key: key, mode: mode) { refused in
+                    store.createProject(name: name, key: key, mode: mode, team: team) { refused in
                         if let refused { failure = refused } else { isPresented = false }
                     }
                 }
