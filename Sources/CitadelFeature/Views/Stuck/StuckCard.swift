@@ -18,8 +18,10 @@ struct StuckCard: View {
 
     private var issue: IssueInfo? { model.issue(stuck.issueID) }
     private var agent: AgentInfo? { model.agent(stuck.agentID) }
-    /// The issue's live run, when there is one: its silence is the reason, a message is the fix.
+    /// The issue's live run, when there is one: its silence is the reason, a message is the fix. From API minor 18
+    /// the run the server names; else the issue's newest live run.
     private var liveRun: RunInfo? {
+        if store.hasTrancheB, let named = stuck.runID.flatMap({ model.runs[$0] }), named.isLive { return named }
         guard let id = stuck.issueID else { return nil }
         return model.runs.values.filter { $0.issueID == id && $0.isLive }.max { $0.id < $1.id }
     }
@@ -36,8 +38,10 @@ struct StuckCard: View {
                     + Text(" \(sentence(stuck.action, capitalized: false))").foregroundStyle(
                         skin.color(skin.text.muted)))
                     .citadelFont("t12_5").lineSpacing(skin.size.s3).fixedSize(horizontal: false, vertical: true)
-                StuckTrail(model: model, stuck: stuck, liveRun: liveRun, isWarn: isWarn)
-                    .padding(.vertical, skin.size.s2)
+                StuckTrail(
+                    model: model, stuck: stuck, liveRun: liveRun, isWarn: isWarn, usesServerTrail: store.hasTrancheB
+                )
+                .padding(.vertical, skin.size.s2)
                 if nudging, let run = liveRun { inlineNudge(run) } else { fixes.padding(.top, skin.size.s4) }
             }
         }
@@ -101,6 +105,12 @@ struct StuckCard: View {
             Text(issue?.title ?? stuck.kind.replacingOccurrences(of: "_", with: " "))
                 .citadelFont("t14", weight: "semibold").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
             Spacer(minLength: skin.size.s8)
+            if store.hasTrancheB, let usual = stuck.usualSecs {
+                Text("usually \(Fmt.age(TimeInterval(usual)))").citadelFont("t11").foregroundStyle(
+                    skin.color(skin.text.faint)
+                )
+                .help("How long work like this usually takes")
+            }
             if let since = stuck.since {
                 Text(ageWord(Date().timeIntervalSince(since))).citadelFont("t11", weight: "semibold", mono: true)
                     .foregroundStyle(tint)
@@ -155,6 +165,9 @@ struct StuckCard: View {
                 }
                 if ["run_queued_no_lease", "checkout_dead", "runner_disk_full"].contains(stuck.kind) {
                     AinkradDockButton("Open runner") { store.screen = .runners }
+                }
+                if store.hasTrancheB, let run = stuck.runID, model.runs[run] != nil {
+                    AinkradDockButton("Open run") { store.open(.run(run)) }
                 }
             }
             if stuck.issueID != nil, stuck.isSlowing {

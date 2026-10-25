@@ -1,22 +1,36 @@
 import AinkradAppKit
 import SwiftUI
 
-/// The evidence trail of a stuck card, from what the plugin knows (the server sends no `trail` yet): a live run's
-/// runner, its silence counting up and the watchdog's limit; otherwise the engine's last repair, the stuck rule, the
-/// runner it waits on, and who it waits on.
+/// The evidence trail of a stuck card. From API minor 18 it is the server's own `trail[]` when it sent one; else
+/// what the plugin knows: a live run's runner, its silence counting up and the watchdog's limit, otherwise the
+/// engine's last repair, the stuck rule, the runner it waits on, and who it waits on.
 struct StuckTrail: View {
     let model: CompanyModel
     let stuck: StuckInfo
     let liveRun: RunInfo?
     let isWarn: Bool
+    /// The server speaks API minor 18, so its `trail[]` is used when present.
+    var usesServerTrail = false
 
     var body: some View {
-        if let run = liveRun {
+        if usesServerTrail, !stuck.trail.isEmpty {
+            AinkradStepTrail(steps: Self.serverSteps(stuck.trail, isWarn: isWarn), delay: 0.15)
+        } else if let run = liveRun {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 AinkradStepTrail(steps: runSteps(run, now: context.date), delay: 0.15)
             }
         } else {
             AinkradStepTrail(steps: steps, delay: 0.15)
+        }
+    }
+
+    /// Oldest first; the last step is where it stopped.
+    static func serverSteps(_ steps: [TrailInfo], isWarn: Bool) -> [AinkradTrailStep] {
+        let trail = steps.sorted { $0.at < $1.at }
+        return trail.enumerated().map { index, step in
+            AinkradTrailStep(
+                label: step.what, state: index == trail.count - 1 ? (isWarn ? .warn : .bad) : .ok,
+                detail: step.at.formatted(date: .omitted, time: .shortened))
         }
     }
 
