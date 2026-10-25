@@ -8,6 +8,11 @@ struct StructureSheet: View {
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
 
+    /// The company's roles from API minor 18 (its starter list until it has one of its own), else the built-ins.
+    private var roles: [HireCatalog.Role] {
+        store.rolesOn && !model.roles.isEmpty ? model.roles.map(\.catalogRole) : HireCatalog.roles
+    }
+
     var body: some View {
         let page = model.orgPage
         let teams = model.departments.flatMap(\.teams)
@@ -23,7 +28,7 @@ struct StructureSheet: View {
                         count: "\(model.departments.count)"),
                     AinkradGlideTab(.teams, title: "Teams", systemImage: "person.2", count: "\(teams.count)"),
                     AinkradGlideTab(
-                        .roles, title: "Roles", systemImage: "person", count: "\(HireCatalog.roles.count)"),
+                        .roles, title: "Roles", systemImage: "person", count: "\(roles.count)"),
                 ], selection: Binding(get: { page.structureTab }, set: { page.structureTab = $0 }))
             AinkradCardGrid(columns: 3, spacing: skin.size.s10) {
                 switch page.structureTab {
@@ -34,7 +39,7 @@ struct StructureSheet: View {
                     ForEach(teams) { team(model, $0) }
                     addCard("New team", "Department, lead, project") { page.stack(.team(nil)) }
                 case .roles:
-                    ForEach(HireCatalog.roles) { role($0) }
+                    ForEach(roles) { role($0) }
                     addCard("New role", "Icon, defaults, instructions") { page.stack(.role(nil)) }
                 }
             }
@@ -44,6 +49,7 @@ struct StructureSheet: View {
             Spacer()
             AinkradButton(title: "Done") { page.sheet = nil }.frame(minWidth: skin.size.s96).fixedSize()
         }
+        .task { store.loadRoles() }
     }
 
     private func card<Top: View, Foot: View>(

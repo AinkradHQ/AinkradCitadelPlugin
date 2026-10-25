@@ -82,7 +82,7 @@ private struct OrgSheets: ViewModifier {
         case .hire(let team, let step): HireWizard(store: store, model: model, team: team, step: step)
         case .team(let id): TeamSheet(store: store, model: model, team: id)
         case .department(let id): DepartmentSheet(store: store, model: model, department: id)
-        case .role(let name): RoleSheet(model: model, role: name)
+        case .role(let name): RoleSheet(store: store, model: model, role: name)
         case .editBudget(let id):
             if let agent = model.agents[id] { EditBudgetSheet(store: store, model: model, agent: agent) }
         case .changeModel(let id):

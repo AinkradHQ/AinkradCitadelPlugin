@@ -245,7 +245,11 @@ struct DepartmentSheet: View {
     }
 }
 
+/// Org › Structure › a role (`orgRole`): the template new agents of the role start from. From API minor 18 it is
+/// written to the company's roles (a starter role that is not stored yet is created on Save); older servers keep
+/// the built-in templates read-only.
 struct RoleSheet: View {
+    let store: CitadelStore
     let model: CompanyModel
     let role: String?
     @State private var name = ""
@@ -262,7 +266,8 @@ struct RoleSheet: View {
     ]
 
     var body: some View {
-        let current = role.flatMap(HireCatalog.role)
+        let stored = role.flatMap { name in model.roles.first { $0.name.lowercased() == name.lowercased() } }
+        let current = stored?.catalogRole ?? role.flatMap(HireCatalog.role)
         AinkradSheetFrame(
             tile: symbol, symbol: true, title: current.map { "Edit \($0.name)" } ?? "New role",
             line: "A role is a template — new agents in it start with these defaults."
@@ -295,11 +300,34 @@ struct RoleSheet: View {
             InstructionsEditor(
                 title: "Instructions", pill: nil, text: $instructions, template: nil,
                 note: "every agent in this role starts with these")
-            NeedsServer(text: "Roles are client templates until the server stores them (roles resource).")
+            if !store.rolesOn {
+                NeedsServer(
+                    text:
+                        "Roles are client templates until the server stores them (\(store.help(minor: CitadelStore.trancheBMinor)))."
+                )
+            }
         } foot: {
+            if let stored {
+                AinkradButton(title: "Delete", style: .ghost) {
+                    store.deleteRole(stored) { model.orgPage.close() }
+                }
+                .borderless().fixedSize().disabled(!store.rolesOn)
+            }
             Spacer()
             AinkradButton(title: "Cancel", style: .ghost) { model.orgPage.close() }.borderless().fixedSize()
-            AinkradButton(title: current == nil ? "Create role" : "Save role") {}.disabled(true).fixedSize()
+            AinkradButton(title: stored == nil ? "Create role" : "Save role") {
+                let first = HireCatalog.models[harness]?.first?.wire
+                let keep = stored?.model.flatMap {
+                    HireCatalog.models[harness]?.map(\.wire).contains($0) == true ? $0 : nil
+                }
+                store.saveRole(
+                    RoleInfo(
+                        id: stored?.id ?? 0, name: name, purpose: purpose, icon: symbol, skills: stored?.skills ?? [],
+                        instructions: instructions, harness: harness, model: keep ?? first, budgetTokens: budget),
+                    isNew: stored == nil
+                ) { model.orgPage.close() }
+            }
+            .disabled(!store.rolesOn || name.trimmingCharacters(in: .whitespaces).isEmpty).fixedSize()
         }
         .onAppear {
             guard let current else { return }
