@@ -15,9 +15,11 @@ enum NavDirection {
 
     @MainActor func transition(_ skin: AinkradSkin, reduceMotion: Bool) -> AnyTransition {
         guard !reduceMotion else { return .opacity }
-        let leave = skin.animation(AinkradAnimationToken(curve: "easeIn", duration: 0.11))
+        // The old pane leaves in 110 ms; the new one waits for it.
+        let gap = 0.11
+        let leave = skin.animation(AinkradAnimationToken(curve: "easeIn", duration: gap))
         func arrive(_ seconds: Double) -> Animation {
-            skin.animation(AinkradAnimationToken(curve: "easeOut", duration: seconds)).delay(0.11)
+            skin.animation(AinkradAnimationToken(curve: "easeOut", duration: seconds)).delay(gap)
         }
         switch self {
         case .push:
