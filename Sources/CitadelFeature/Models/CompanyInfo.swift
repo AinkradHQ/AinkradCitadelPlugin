@@ -57,6 +57,10 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var issueID: Int64?
     /// `queued`, `claimed`, `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `runner_lost`.
     var state: String
+    /// The run stopped on its token cap: a budget stop, not a lost run.
+    var isCapHit: Bool { state == "failed" && terminalReason?.contains("cap") == true }
+    /// The run died and left nothing to read: failed (unless it merely hit its cap), lost or timed out.
+    var died: Bool { !isCapHit && ["failed", "runner_lost", "timed_out"].contains(state) }
     var harness: String
     var harnessVersion: String?
     var model: String?
@@ -88,7 +92,7 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var isLive: Bool { ["queued", "claimed", "running"].contains(state) }
     /// The run's end in the words of screen 04: `cap hit` is a failure the token cap caused.
     var endWord: String {
-        if state == "failed", terminalReason?.contains("cap") == true { return "cap hit" }
+        if isCapHit { return "cap hit" }
         return state.replacingOccurrences(of: "_", with: " ")
     }
 }
@@ -190,6 +194,8 @@ struct RequirementInfo: Identifiable, Equatable, Sendable {
     var percentDone: Int = 0
     /// `YYYY-MM-DD`.
     var eta: String?
+    /// When you asked for it (the list's age).
+    var createdAt: Date? = nil
 }
 
 struct BudgetInfo: Identifiable, Equatable, Sendable {

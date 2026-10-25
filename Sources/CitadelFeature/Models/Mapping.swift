@@ -180,7 +180,8 @@ extension RequirementInfo {
         self.init(
             id: requirement.id, key: requirement.key, title: requirement.title, state: requirement.state.word,
             ownerAgentID: requirement.ownerAgentId, points: Int(tree?.points ?? 0),
-            donePoints: Int(tree?.donePoints ?? 0), percentDone: Int(tree?.percentDone ?? 0), eta: tree?.eta)
+            donePoints: Int(tree?.donePoints ?? 0), percentDone: Int(tree?.percentDone ?? 0), eta: tree?.eta,
+            createdAt: requirement.createdAt)
     }
 }
 

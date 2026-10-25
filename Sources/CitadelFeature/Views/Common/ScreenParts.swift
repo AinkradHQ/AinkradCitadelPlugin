@@ -102,6 +102,12 @@ enum Fmt {
         return s < 60 ? "\(s)s" : s < 3600 ? "\(s / 60)m \(s % 60)s" : "\(s / 3600)h \(s % 3600 / 60)m"
     }
 
+    /// `09:31`, never `9:31 AM` — Citadel writes the 24-hour clock the prototype does.
+    static func clock(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
+
     /// `Tue` within a week, `Oct 28` after.
     static func eta(_ day: String, now: Date = Date()) -> String {
         guard let date = try? Date(day, strategy: Date.ISO8601FormatStyle().year().month().day()) else { return day }

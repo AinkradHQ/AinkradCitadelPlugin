@@ -100,7 +100,7 @@ final class InboxTests: XCTestCase {
         let model = CompanyFixture.model()
         CompanyFixture.threadsPage(model)
         let ids = model.conversation(ThreadKey(agentID: 15, issueID: 8)).map(\.id)
-        XCTAssertEqual(ids, ["c1", "r405", "c2", "r422", "q3"])
+        XCTAssertEqual(ids, ["c1", "r405", "c2", "r419", "r427", "q3"])
         XCTAssertEqual(model.openQuestion(ThreadKey(agentID: 15, issueID: 8))?.id, 3)
         XCTAssertEqual(model.nextActorWord(model.issues[8]!), "you")
     }

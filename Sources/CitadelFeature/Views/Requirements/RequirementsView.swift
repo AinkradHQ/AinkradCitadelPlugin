@@ -3,13 +3,10 @@ import SwiftUI
 
 /// Screen 12: one thread per requirement with the CEO (decision #39), beside the list of requirements and the
 /// requirement's live plan. Every agent question on the requirement lands in the thread; answers go back to the
-/// agent that asked.
+/// agent that asked. Plan and artifacts open in a floating drawer with a back stack.
 struct RequirementsView: View {
     let store: CitadelStore
     let model: CompanyModel
-    @State private var composing = false
-    @State private var newTitle = ""
-    @State private var newBody = ""
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -25,159 +22,92 @@ struct RequirementsView: View {
     var body: some View {
         HStack(spacing: 0) {
             listPane
-                .frame(width: skin.size.s250)
-                .background(theme.surface.opacity(skin.opacity.o20))
+                .frame(width: skin.size.s320 + skin.size.s10)
+                .background(skin.color(.palette("foreground", skin.opacity.o03)).opacity(skin.opacity.o60))
             Group {
                 if let selected {
                     RequirementThreadView(store: store, model: model, requirement: selected).id(selected.id)
                     PlanRail(store: store, model: model, requirement: selected)
-                        .frame(width: skin.size.s300)
-                        .background(theme.surface.opacity(skin.opacity.o20))
+                        .frame(width: skin.size.s320)
                 } else {
                     AinkradEmptyState(
                         icon: "rhombus", title: "No requirements yet",
-                        message: "Ask the CEO for something with ＋. It plans the work before any agent starts it."
+                        message: "Ask the CEO for something with ＋ New. It plans the work before any agent starts it."
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: selected?.id)
         }
+        .floatingDrawer(
+            isPresented: selected != nil && !page.drawer.isEmpty, onClose: { page.drawer = [] },
+            header: { if let selected { RequirementDrawerHeader(model: model, requirement: selected) } },
+            content: { if let selected { RequirementDrawerBody(store: store, model: model, requirement: selected) } },
+            footer: { if let selected { RequirementDrawerFooter(store: store, model: model, requirement: selected) } }
+        )
         .offlineDimmed()
-        .onChange(of: selected?.id, initial: true) { _, id in if let id { store.openRequirement(id) } }
+        .onChange(of: selected?.id, initial: true) { old, id in
+            if let id { store.openRequirement(id) }
+            if old != nil, old != id {
+                page.drawer = []
+                page.askingChanges = false
+            }
+        }
         // A question asked or answered anywhere (an agent thread, screen 07) shows here too.
         .onChange(of: model.questions) { _, _ in if let id = selected?.id { store.openRequirement(id) } }
+        // A requirement that arrives while the list is open glows amber once (`.arrive`).
+        .onChange(of: model.requirements.map(\.id), initial: true) { _, ids in page.noteArrivals(ids) }
     }
+
+    private var openCount: Int { model.requirementList(.open).count }
+    private var asksCount: Int { model.requirementList(.open).reduce(0) { $0 + model.waitingCount($1) } }
 
     private var listPane: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Requirements", crumb: nil) {
-                AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "New requirement for the CEO") {
-                    composing = true
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            HStack(spacing: skin.size.s10) {
+                VStack(alignment: .leading, spacing: skin.size.s1) {
+                    Text("Requirements").citadelFont("t17", weight: "bold")
+                        .foregroundStyle(skin.color(skin.text.primary))
+                    Text("\(openCount) open · \(asksCount) ask you").citadelFont("t11")
+                        .foregroundStyle(skin.color(skin.text.faint))
                 }
-                .outlineBox()
-                .ainkradPopover(isPresented: $composing) { newRequirement }
-            }
-            HStack(spacing: skin.size.s6) {
-                ForEach(RequirementFilter.allCases, id: \.self) { filter in
-                    AinkradToggleButton(
-                        isOn: Binding(get: { page.filter == filter }, set: { if $0 { page.filter = filter } }),
-                        title: filter.title)
+                Spacer(minLength: skin.size.s8)
+                AinkradDockButton("New", systemImage: "plus", tone: .primary, height: skin.size.s30) {
+                    store.isComposingRequirement = true
                 }
+                .help("New requirement (⌘N)")
+                .keyboardShortcut("n", modifiers: .command)
             }
-            .padding(.horizontal, skin.size.s12)
-            .padding(.bottom, skin.size.s8)
+            .padding(.horizontal, skin.size.s4)
+            AinkradGlideTabs(
+                RequirementFilter.allCases.map {
+                    AinkradGlideTab($0, title: $0.title, count: "\(model.requirementList($0).count)")
+                },
+                selection: Binding(get: { page.filter }, set: { page.filter = $0 }), height: skin.size.s32)
             ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s4) {
-                    ForEach(list) { requirement in
-                        RequirementRow(
-                            requirement: requirement, model: model, isSelected: requirement.id == selected?.id
+                VStack(alignment: .leading, spacing: skin.size.s8) {
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, requirement in
+                        RequirementCard(
+                            requirement: requirement, model: model, isSelected: requirement.id == selected?.id,
+                            isFresh: page.fresh.contains(requirement.id), index: index
                         ) { page.selectedID = requirement.id }
                     }
-                    if list.isEmpty {
-                        Text(page.filter == .needsYou ? "Nothing waits on you." : "None here.").citadelFont("t12")
-                            .foregroundStyle(skin.color(skin.text.faint)).padding(skin.size.s10)
+                    if shown.isEmpty {
+                        AinkradEmptyState(icon: "checkmark", title: "Nothing here", message: "")
+                            .padding(.top, skin.size.s40)
                     }
                 }
-                .padding(.horizontal, skin.size.s8)
+                .padding(skin.size.s2)
                 .padding(.bottom, skin.size.s14)
-                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: list.map(\.id))
+                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: shown.map(\.id))
             }
         }
+        .padding(.top, skin.size.s14)
+        .padding(.horizontal, skin.size.s12)
     }
 
-    /// ＋: what you want, for the CEO to route and plan.
-    private var newRequirement: some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            Text("New requirement").citadelFont("t13", weight: "semibold")
-            AinkradTextField(text: $newTitle, placeholder: "What you want, in one line")
-            AinkradTextArea(text: $newBody, placeholder: "Details for the CEO (optional)", minHeight: skin.size.s80)
-            HStack {
-                Text("The CEO routes it and the team plans it before any work starts.").citadelFont("t11")
-                    .foregroundStyle(skin.color(skin.text.faint))
-                Spacer(minLength: skin.size.s8)
-                AinkradButton(title: "Send to the CEO") {
-                    store.submitRequirement(title: newTitle, body: newBody)
-                    newTitle = ""
-                    newBody = ""
-                    composing = false
-                }
-                .compact().fixedSize()
-                .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(skin.size.s14)
-        .frame(width: skin.size.s380)
-    }
-}
-
-/// A requirement in the list: key and title, the waiting count, its state and owner, progress by points.
-private struct RequirementRow: View {
-    let requirement: RequirementInfo
-    let model: CompanyModel
-    let isSelected: Bool
-    let open: () -> Void
-    @State private var hovering = false
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
-
-    private var isDone: Bool { requirement.state == "done" }
-
-    var body: some View {
-        let waiting = model.waitingCount(requirement)
-        VStack(alignment: .leading, spacing: skin.size.s4) {
-            HStack(spacing: skin.size.s6) {
-                (Text(requirement.key).foregroundStyle(theme.accentSecondary)
-                    .font(skin.font(AinkradFontToken(sizeKey: "t10_5", mono: "family")))
-                    + Text(" \(requirement.title)").foregroundStyle(skin.color(skin.text.primary)))
-                    .citadelFont("t13").lineLimit(1)
-                Spacer(minLength: skin.size.s4)
-                if isDone {
-                    Text("✓").citadelFont("t12").foregroundStyle(status.success)
-                } else if waiting > 0 {
-                    AinkradBadge(text: "\(waiting)", status: .warning)
-                }
-            }
-            HStack(spacing: skin.size.s6) {
-                StateBadge(state: requirement.state)
-                Text(model.requirementSubtitle(requirement)).citadelFont("t11").lineLimit(1)
-                    .foregroundStyle(skin.color(skin.text.faint))
-            }
-            AinkradBudgetBar(
-                label: requirement.key, value: Double(requirement.donePoints),
-                limit: Double(max(requirement.points, 1)), warnFraction: nil, showsHardLimit: false,
-                tone: isDone ? .success : .progress(Double(requirement.donePoints), of: Double(requirement.points)))
-        }
-        .padding(.horizontal, skin.size.s10)
-        .padding(.vertical, skin.size.s8)
-        .background(
-            RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
-                .fill(
-                    isSelected
-                        ? theme.accentPrimary.opacity(skin.opacity.o16)
-                        : skin.color(skin.palette.white).opacity(hovering ? skin.opacity.o05 : 0))
-        )
-        .opacity(isDone && !isSelected ? skin.opacity.o60 : 1)
-        .contentShape(Rectangle())
-        .onHover { hovering = $0 }
-        .onTapGesture(perform: open)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-}
-
-/// A requirement's state: planning → plan to approve → in progress → done.
-struct StateBadge: View {
-    let state: String
-    @Environment(\.ainkradTheme) private var theme
-
-    var body: some View {
-        switch state {
-        case "plan_review": AinkradBadge(text: "plan to approve", status: .warning)
-        case "in_progress": AinkradBadge(text: "in progress", tint: theme.accentSecondary)
-        case "done": AinkradBadge(text: "done", status: .success)
-        default: AinkradBadge(text: state.replacingOccurrences(of: "_", with: " "))
-        }
+    /// The Open tab lists the done ones after the open ones (`reqs-view.js`).
+    private var shown: [RequirementInfo] {
+        page.filter == .open ? list + model.requirementList(.done) : list
     }
 }

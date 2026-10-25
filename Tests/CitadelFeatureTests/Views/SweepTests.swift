@@ -187,7 +187,7 @@ final class SweepTests: XCTestCase {
             store.selectedApproval = id
             all.append(("06-approvals-\(kind)", store, wide))
         }
-        all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
+        all.append(("07-chat", company(.threads, CompanyFixture.threadsParity), wide))
         all.append(
             (
                 "08-stuck",
@@ -199,6 +199,7 @@ final class SweepTests: XCTestCase {
         all.append(("09-cost", company(.cost, CompanyFixture.costPage), CGSize(width: 1280, height: 1100)))
         let stage: SweepStage = { company($0, detail: $1, $2) }
         all += Self.requirementsShots(stage)
+        all += Self.threadsShots(stage)
         all += Self.settingsShots(stage)
         all += Self.runnersShots(stage)
         all += Self.approvalsShots(stage)

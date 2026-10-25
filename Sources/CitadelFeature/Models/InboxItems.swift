@@ -251,7 +251,7 @@ extension CompanyModel {
             let name = agent(key.agentID)?.name ?? "Agent"
             let requirement = issue(key.issueID)?.requirementID.flatMap { id in requirements.first { $0.id == id } }
             let lastComment = comments[key.issueID]?.last
-            let died = run.map { ["failed", "runner_lost", "timed_out"].contains($0.state) } ?? false
+            let died = run?.died ?? false
             let line: String =
                 if let open { "\(name): \(open.text)" } else if let lastComment {
                     "\(lastComment.agentID.flatMap { agent($0)?.name } ?? "You"): \(lastComment.body)"
@@ -260,7 +260,9 @@ extension CompanyModel {
                 } else { "no messages yet" }
             return ThreadSummary(
                 key: key, requirementKey: requirement?.key, lastLine: line, waitingOnYou: open != nil,
-                died: died && open == nil && lastComment == nil,
+                // Red in the list even when the last message came before the run died — badge and line sit side by
+                // side in the prototype; only a newer open question clears it.
+                died: died && open == nil,
                 at: max(open?.askedAt ?? .distantPast, run?.endedAt ?? run?.startedAt ?? run?.queuedAt ?? .distantPast))
         }
         return rows.sorted {
@@ -273,9 +275,11 @@ extension CompanyModel {
     /// A thread's conversation: comments in order, each run of the agent on the issue after the comment that
     /// woke it (by id order: a run's comments carry its id), and the open question last.
     func conversation(_ key: ThreadKey) -> [ThreadLine] {
-        let issueRuns = (agentRuns[key.agentID] ?? [])
-            .filter { $0.issueID == key.issueID }
+        var seen = Set<Int64>()
+        let issueRuns = ((agentRuns[key.agentID] ?? []) + Array(runs.values))
+            .filter { $0.agentID == key.agentID && $0.issueID == key.issueID }
             .sorted { $0.queuedAt < $1.queuedAt }
+            .filter { seen.insert($0.id).inserted }
         var lines: [ThreadLine] = []
         var pending = issueRuns
         for comment in comments[key.issueID] ?? [] {

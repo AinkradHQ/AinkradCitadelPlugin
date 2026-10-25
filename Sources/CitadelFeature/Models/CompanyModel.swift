@@ -113,6 +113,7 @@ final class CompanyModel {
     /// Screens 10 and 12–16 keep their own state, loaded when the screen opens and kept current by events.
     let requirementsPage = RequirementsPage()
     let artifactsPage = ArtifactsPage()
+    let threadsPage = ThreadsPage()
     let projectsPage = ProjectsPage()
     let limitsPage = LimitsPage()
     let accountsPage = AccountsPage()

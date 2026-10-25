@@ -16,6 +16,43 @@ final class RequirementsPage {
     var plans: [Int64: PlanTree] = [:]
     /// The composer's To chip was cleared: the next message goes to the owner (decision #44).
     var targetCleared = false
+    /// The drawer's back stack, the current view last; empty when closed.
+    var drawer: [RequirementDrawer] = []
+    /// The inline "Ask for changes" panel under the hero.
+    var askingChanges = false
+    /// Plan rail epics folded shut.
+    var collapsedEpics: Set<Int64> = []
+    /// The artifacts drawer's type filter (`report`, `screenshot`, …); `nil` is all.
+    var artifactKind: String?
+    /// Requirements that arrived while the list was open: an amber ring for a moment (`.arrive`).
+    var fresh: Set<Int64> = []
+    /// Every id the list has shown, so a new one glows exactly once.
+    private var seenIDs: Set<Int64> = []
+    /// The first read fills `seenIDs`; nothing glows for requirements that were already there.
+    private var sawFirstList = false
+
+    /// Marks requirements that were not in the list before (`arrive`, 1.6 s), then lets the glow fade.
+    func noteArrivals(_ ids: [Int64]) {
+        let incoming = Set(ids)
+        defer {
+            seenIDs = incoming
+            sawFirstList = true
+        }
+        guard sawFirstList else { return }
+        let gained = incoming.subtracting(seenIDs)
+        guard !gained.isEmpty else { return }
+        fresh.formUnion(gained)
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(1600))
+            self?.fresh.subtract(gained)
+        }
+    }
+}
+
+/// What the requirement drawer shows: the plan, the requirement's artifacts, or one artifact.
+enum RequirementDrawer: Hashable {
+    case plan, artifacts
+    case artifact(Int64)
 }
 
 enum RequirementFilter: String, CaseIterable, Hashable {
@@ -63,32 +100,66 @@ enum ThreadItem: Equatable, Sendable, Identifiable {
     }
 }
 
-/// A thread line as drawn: consecutive artifacts share one two-column grid under the message they follow.
+/// A thread line as drawn: consecutive artifacts share one grid under the message they follow; permission
+/// approvals already decided inside runs fold into one receipt (audit #1); system lines mark work starting and the
+/// requirement closing.
 enum HubLine: Identifiable, Equatable {
     case item(ThreadItem)
     case artifacts([ArtifactInfo])
+    case permissions([ApprovalInfo])
+    case system(String)
 
     var id: String {
         switch self {
         case .item(let item): item.id
         case .artifacts(let list): "g\(list.first?.id ?? 0)"
+        case .permissions(let list): "p\(list.first?.id ?? 0)"
+        case .system(let text): "s\(text)"
         }
     }
 
-    static func lines(_ items: [ThreadItem]) -> [HubLine] {
+    /// `started` follows the approved plan ("▶ Work started · 4 agents"); `closed` ends the thread.
+    static func lines(_ items: [ThreadItem], started: String? = nil, closed: String? = nil) -> [HubLine] {
         var lines: [HubLine] = []
+        var permissionsAt: Int?
         for item in items {
-            if case .artifact(let artifact) = item {
+            switch item {
+            case .artifact(let artifact):
                 if case .artifacts(let list) = lines.last {
                     lines[lines.count - 1] = .artifacts(list + [artifact])
-                    continue
+                } else {
+                    lines.append(.artifacts([artifact]))
                 }
-                lines.append(.artifacts([artifact]))
-            } else {
+            case .approval(let approval, _)
+            where approval.kind == "permission_escalation" && approval.status != "pending":
+                if let index = permissionsAt, case .permissions(let list) = lines[index] {
+                    lines[index] = .permissions(list + [approval])
+                } else {
+                    permissionsAt = lines.count
+                    lines.append(.permissions([approval]))
+                }
+            case .approval(let approval, _) where approval.kind == "plan_approval" && approval.status == "approved":
+                lines.append(.item(item))
+                if let started { lines.append(.system(started)) }
+            default:
                 lines.append(.item(item))
             }
         }
+        if let closed { lines.append(.system(closed)) }
         return lines
+    }
+
+    /// "Bash ×13 · WebFetch ×2", the folded receipt's detail.
+    static func toolCounts(_ approvals: [ApprovalInfo]) -> String {
+        var counts: [(String, Int)] = []
+        for tool in approvals.map({ $0.fields["tool"] ?? "tool" }) {
+            if let index = counts.firstIndex(where: { $0.0 == tool }) {
+                counts[index].1 += 1
+            } else {
+                counts.append((tool, 1))
+            }
+        }
+        return counts.map { "\($0.0) ×\($0.1)" }.joined(separator: " · ")
     }
 }
 
@@ -311,18 +382,33 @@ extension CompanyModel {
         TaskGlyph(state: task.state, asksYou: questions.contains { $0.isOpen && $0.issueID == task.issueID })
     }
 
-    /// The faint line under a task: "done · 1h40m · 96k tok", "2 PRs · in review", "asks you · 2 repos".
+    /// The faint line under a task: "done · 1h40m · 96k tok", "2 PRs · QA ✓ · merge waits", "asks you · 2 repos".
     func taskMeta(_ task: PlanTask) -> String? {
         var parts: [String] = []
         switch glyph(task) {
         case .done: parts = ["done", Fmt.duration(TimeInterval(task.timeSecs)), "\(Fmt.tokens(task.tokens)) tok"]
-        case .review: parts = ["\(task.prs) PR\(task.prs == 1 ? "" : "s")", "in review"]
+        case .review:
+            parts = ["\(task.prs) PR\(task.prs == 1 ? "" : "s")"]
+            if approvals.contains(where: {
+                $0.kind == "pr_merge" && $0.issueID == task.issueID && $0.status == "pending"
+            }) {
+                parts += ["QA ✓", "merge waits"]
+            } else {
+                parts.append("in review")
+            }
+        case .running: parts = [agent(task.assigneeAgentID)?.name, "running"].compactMap { $0 }
         case .waiting: parts = ["asks you"]
         case .blocked: parts = ["blocked"]
         default: return nil
         }
         if let repos = issueRepos[task.issueID], repos.count > 1, task.prs == 0 { parts.append("\(repos.count) repos") }
-        return parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// The list's age: when it was asked for (`createdAt`), not the thread's activity — the list stays stable as
+    /// agents reply.
+    func requirementAge(_ requirement: RequirementInfo, now: Date = Date()) -> String? {
+        requirement.createdAt.map { Fmt.age(now.timeIntervalSince($0)) }
     }
 
     /// "Kestrel (Dev)".

@@ -26,6 +26,18 @@ enum Wording {
         return "\(name) (\(detail))"
     }
 
+    /// A role as the prototype writes it: the server stores slugs, people read "Writer", "PO", "QA", "DevOps".
+    static func roleLabel(_ role: String) -> String {
+        let trimmed = role.trimmingCharacters(in: .whitespaces)
+        if let acronym = roleAcronyms[trimmed.lowercased()] { return acronym }
+        guard let first = trimmed.first else { return trimmed }
+        return first.uppercased() + trimmed.dropFirst()
+    }
+
+    private static let roleAcronyms = [
+        "ceo": "CEO", "cto": "CTO", "cmo": "CMO", "coo": "COO", "po": "PO", "qa": "QA", "devops": "DevOps",
+    ]
+
     /// A sprint with its project key and the word "Sprint" each said once: "WRK Sprint 1" (named "Sprint 1" or
     /// "WRK Sprint 1"), "Sprint CIT S4" (named "S4").
     static func sprint(key: String?, name: String) -> String {
@@ -40,6 +52,10 @@ extension AgentInfo {
     var nameAndRole: String { Wording.parenthesized(name, role) }
     /// "Mira · Product Owner"; "CEO" when the name is the role.
     var nameDotRole: String { Wording.name(name, role) }
+    /// The role as the prototype writes it: "Quill · Writer", "Mira · PO", "Toma · Lead".
+    var roleLabel: String { Wording.roleLabel(role) }
+    /// "Quill · Writer" — `nameDotRole` with the server's role slug tidied.
+    var nameDotRoleLabel: String { Wording.name(name, roleLabel) }
 }
 
 extension SprintInfo {

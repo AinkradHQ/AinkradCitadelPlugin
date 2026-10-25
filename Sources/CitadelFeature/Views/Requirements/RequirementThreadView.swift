@@ -11,6 +11,8 @@ struct RequirementThreadView: View {
     @State private var draft = ""
     @State private var renaming = false
     @State private var cancelling = false
+    /// You sent a message; the agent it went to shows typing until the thread moves.
+    @State private var awaiting: Int64?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -21,34 +23,21 @@ struct RequirementThreadView: View {
     private var target: ComposerTarget {
         thread?.target(cleared: page.targetCleared) ?? .owner(agentID: requirement.ownerAgentID)
     }
-    private var ownerName: String { model.ownerName(thread?.ownerAgentID ?? requirement.ownerAgentID) }
+    private var owner: AgentInfo? { model.agent(thread?.ownerAgentID ?? requirement.ownerAgentID) ?? model.ceo }
+    private var ownerName: String { owner?.name ?? "the CEO" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "\(requirement.key) \(requirement.title)", crumb: crumb) {
-                HStack(spacing: skin.size.s8) {
-                    AinkradIconButton(
-                        systemName: "doc.text", size: skin.size.s30, tooltip: "Artifacts of \(requirement.key)"
-                    ) { store.showArtifacts(requirement: requirement.id) }
-                    .outlineBox()
-                    AinkradIconButton(
-                        systemName: "envelope", size: skin.size.s30, tooltip: "Agent threads on \(requirement.key)"
-                    ) { store.screen = .threads }
-                    .outlineBox()
-                    AinkradMenuButton(items: [
-                        AinkradMenuItem(title: "Rename…", systemName: "pencil") { renaming = true },
-                        AinkradMenuItem(title: "Cancel requirement…", systemName: "xmark.circle", isDestructive: true) {
-                            cancelling = true
-                        },
-                    ]) {
-                        Image(systemName: "ellipsis")
-                    }
-                    .disabled(["done", "cancelled"].contains(requirement.state))
-                }
+            RequirementHero(
+                store: store, model: model, requirement: requirement, renaming: $renaming, cancelling: $cancelling)
+            if page.askingChanges, requirement.state == "plan_review" {
+                AskForChangesPanel(store: store, model: model, requirement: requirement)
+                    .transition(.opacity.combined(with: .offset(y: -skin.size.s6)))
             }
             conversation
             composer
         }
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.askingChanges)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ainkradSheet(isPresented: $renaming) {
             PromptSheet(
@@ -77,202 +66,176 @@ struct RequirementThreadView: View {
         store.attach(url, requirement: requirement)
     }
 
-    /// "Citadel · with Aldric (CEO) · IN PROGRESS".
-    private var crumb: Text {
-        let muted = skin.color(skin.text.muted)
-        let projects = Set(plan?.epics.map(\.projectID) ?? [])
-        let project = model.projects.first { projects.contains($0.id) }?.name
-        var parts = [project, "with \(ownerName)"].compactMap { $0 }
-        if requirement.state == "planning" { parts.append("planning, no work yet") }
-        let state = requirement.state.replacingOccurrences(of: "_", with: " ")
-        return Text(parts.joined(separator: " · ") + " · ").foregroundStyle(muted)
-            + Text(skin.labelCased(state)).foregroundStyle(theme.accentSecondary)
+    /// "▶ Work started · 4 agents" after the approved plan; "✓ Done · 21 pts" once closed.
+    private var lines: [HubLine] {
+        let agents = Set(plan?.allTasks.compactMap(\.assigneeAgentID) ?? []).count
+        let started = requirement.state == "planning" ? nil : "▶ Work started · \(Wording.count(agents, "agent"))"
+        let closed = requirement.state == "done" ? "✓ Done · \(requirement.points) pts" : nil
+        return HubLine.lines(thread?.items ?? [], started: agents > 0 ? started : nil, closed: closed)
+    }
+
+    /// The owner drafting the plan (a live run while planning), or the agent you just wrote to.
+    private var typing: (agent: AgentInfo, note: String)? {
+        if let awaiting, let agent = model.agent(awaiting) { return (agent, "typing…") }
+        guard requirement.state == "planning", let owner,
+            model.runs.values.contains(where: { $0.agentID == owner.id && $0.isLive })
+        else { return nil }
+        return (owner, "\(owner.name) is drafting the plan…")
     }
 
     private var conversation: some View {
-        let lines = HubLine.lines(thread?.items ?? [])
+        let lines = lines
         return ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: skin.size.s14) {
-                    if thread != nil, lines.isEmpty {
+                LazyVStack(alignment: .leading, spacing: skin.size.s16) {
+                    if thread != nil, lines.isEmpty, typing == nil {
                         Text("Nothing here yet. Tell \(ownerName) what you want.").citadelFont("t12")
                             .foregroundStyle(skin.color(skin.text.faint)).frame(maxWidth: .infinity)
                     }
                     ForEach(lines) { line in
                         lineView(line).transition(
-                            reduceMotion ? .opacity : .opacity.combined(with: .offset(y: skin.size.s6)))
+                            reduceMotion ? .opacity : .opacity.combined(with: .offset(y: skin.size.s8)))
+                    }
+                    if let typing {
+                        TypingTurn(agent: typing.agent, model: model, note: typing.note).transition(.opacity)
                     }
                     Color.clear.frame(height: skin.size.s1).id("end")
                 }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.vertical, skin.size.s10)
+                .padding(.horizontal, skin.size.s22)
+                .padding(.top, skin.size.s10)
+                .padding(.bottom, skin.size.s18)
                 .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: lines.map(\.id))
             }
-            .onChange(of: lines.count, initial: true) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            .onChange(of: lines.count, initial: true) { _, _ in
+                awaiting = nil
+                proxy.scrollTo("end", anchor: .bottom)
+            }
         }
     }
 
     @ViewBuilder private func lineView(_ line: HubLine) -> some View {
         switch line {
         case .artifacts(let list):
-            ArtifactPair(store: store, model: model, artifacts: list).padding(.leading, skin.size.s40)
+            ArtifactTiles(store: store, model: model, artifacts: list).padding(.leading, skin.size.s42)
+        case .permissions(let list):
+            PermissionsReceipt(approvals: list).padding(.leading, skin.size.s42)
+        case .system(let text):
+            SysLine(text: text)
         case .item(.message(let comment, let at)):
             message(comment, at: at)
         case .item(.question(let question, let answer)):
             if question.isOpen {
-                questionCard(question)
+                AskCard(store: store, model: model, question: question, requirement: requirement.id)
             } else {
-                Receipt(model: model, question: question, answer: answer)
+                answered(question, answer: answer).padding(.leading, skin.size.s42)
             }
         case .item(.approval(let approval, let at)):
-            ThreadApprovalCard(store: store, model: model, approval: approval, at: at).padding(.leading, skin.size.s40)
+            ThreadApprovalCard(store: store, model: model, requirement: requirement, approval: approval, at: at)
+                .padding(.leading, skin.size.s42)
         case .item(.artifact(let artifact)):
-            ArtifactPair(store: store, model: model, artifacts: [artifact]).padding(.leading, skin.size.s40)
+            ArtifactTiles(store: store, model: model, artifacts: [artifact]).padding(.leading, skin.size.s42)
         }
     }
 
     @ViewBuilder private func message(_ comment: CommentInfo, at: Date) -> some View {
         if let author = model.agent(comment.agentID) {
-            let role = author.orgRole == "ceo" ? "CEO" : author.role
-            let on = comment.issueID == plan?.intakeIssueID ? nil : model.issue(comment.issueID).map { "on \($0.key)" }
-            AinkradChatBubble(
-                text: comment.body, role: .agent, author: author.name,
-                meta: [role, on, Self.time(at)].compactMap { $0 }.joined(separator: " · ")
-            ) { AgentFigure(agent: author, model: model, size: skin.size.s28) }
+            let role = author.roleLabel
+            // "on CIT-61" for a plan task's issue; the intake issue is the thread itself.
+            let key =
+                plan?.allTasks.contains { $0.issueID == comment.issueID } == true
+                ? model.issue(comment.issueID)?.key : nil
+            AgentTurn(
+                agent: author, model: model, role: role, issueKey: key, at: Self.time(at), text: comment.body,
+                onKey: nil)
         } else {
-            AinkradChatBubble(text: comment.body, role: .user, author: "You", meta: Self.time(at))
+            YouTurn(text: comment.body, at: Self.time(at))
         }
     }
 
-    private func questionCard(_ question: QuestionInfo) -> some View {
+    /// "↩ ● Wren asked "…" — you: yes, end them        routed · done".
+    private func answered(_ question: QuestionInfo, answer: String?) -> some View {
         let asker = model.agent(question.agentID)
-        let run = question.runID.flatMap { model.runs[$0] }
-        let context = run.map { $0.isLive ? "its run waits on you" : "while planning" }
-        return AinkradQuestionCard(
-            asker: model.askerName(question.agentID), issueKey: question.issueKey, context: context,
-            age: Fmt.age(Date().timeIntervalSince(question.askedAt)), question: question.text,
-            replies: question.options, route: route(question),
-            onReply: { store.send($0, requirement: requirement.id, to: .question(question)) }
-        ) {
-            if let asker { AgentFigure(agent: asker, model: model, size: skin.size.s18) }
+        let primary = skin.color(skin.text.primary)
+        return ReceiptRow(glyph: "↩", trailing: question.state == "cancelled" ? "withdrawn" : "routed · done") {
+            if let asker { AgentFigure(agent: asker, model: model, size: skin.size.s20) }
+            (Text(asker?.name ?? "Agent").foregroundStyle(primary).fontWeight(.medium)
+                + Text(" asked “\(question.text)”") + Text(answer == nil ? "" : " — you: ")
+                + Text(answer ?? "").foregroundStyle(primary).fontWeight(.medium))
+                .lineLimit(1)
         }
-    }
-
-    private func route(_ question: QuestionInfo) -> String {
-        let name = model.agent(question.agentID)?.name ?? "the agent"
-        let owner = model.ownerWord(thread?.ownerAgentID ?? requirement.ownerAgentID)
-        return "Your answer goes to \(name) on \(question.issueKey) and wakes it — not to the \(owner)"
     }
 
     private var composer: some View {
-        let send = {
-            store.send(draft, requirement: requirement.id, to: target)
-            draft = ""
-        }
-        return AinkradComposer(
-            text: $draft, placeholder: placeholder, isEditable: true,
-            canSend: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, autoFocus: false,
-            suggestions: { _ in [] }, onPick: { _, _ in }, onDrop: nil, onSend: send,
-            chips: { targetRow },
-            leading: {
-                Text(hint).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+        let asker: AgentInfo? = if case .question(let q) = target { model.agent(q.agentID) } else { nil }
+        return ConversationComposer(
+            text: $draft, placeholder: placeholder, isTargeted: asker != nil, hint: hint, onAttach: attach,
+            onSend: send,
+            toRow: {
+                if case .question(let q) = target, let asker {
+                    HStack(spacing: skin.size.s8) {
+                        Text("To").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                        ComposerToChip(label: "\(asker.name) · \(q.issueKey) question") {
+                            page.targetCleared = true
+                        } avatar: {
+                            AgentFigure(agent: asker, model: model, size: skin.size.s18)
+                        }
+                        Text("your answer wakes \(asker.name), not the \(model.ownerWord(requirement.ownerAgentID))")
+                            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                    }
+                } else if page.targetCleared, let open = thread?.openQuestions.first {
+                    AinkradButton(
+                        title: model.agent(open.agentID).map { "Answer \($0.name)'s question" }
+                            ?? "Answer the question",
+                        style: .ghost
+                    ) {
+                        page.targetCleared = false
+                    }
+                    .borderless().secondaryAccent().compact().fixedSize()
+                }
             },
-            trailing: {
-                AinkradIconButton(
-                    systemName: "paperclip", size: AinkradComposer<EmptyView, EmptyView, EmptyView>.controlHeight,
-                    tooltip: "Attach a file"
-                ) { attach() }
-                .outlineBox()
+            avatar: {
+                if let speaker = asker ?? owner { AgentFigure(agent: speaker, model: model, size: skin.size.s28) }
             }
         )
-        .padding(.horizontal, skin.size.s20)
+        .padding(.horizontal, skin.size.s14)
         .padding(.bottom, skin.size.s14)
+    }
+
+    private func send() {
+        let text = draft
+        draft = ""
+        if case .question(let q) = target {
+            store.answer(text, question: q, requirement: requirement.id)
+            awaiting = q.agentID
+        } else {
+            store.send(text, requirement: requirement.id, to: target)
+            awaiting = owner?.id
+        }
     }
 
     private var placeholder: String {
         switch target {
-        case .question(let q): "Answer \(model.agent(q.agentID)?.name ?? "the agent") — wakes it on \(q.issueKey)"
-        case .owner: "Message \(ownerName)"
+        case .question(let q): "Answer \(model.agent(q.agentID)?.name ?? "the agent")…"
+        case .owner: "Message \(ownerName) about \(requirement.key)…"
         }
     }
 
-    /// "↵ answers Kestrel · ⇧↵ new line".
+    /// "↵ answers Kestrel · ⇧↵ new line · @ adds an agent".
     private var hint: String {
         switch target {
-        case .question(let q): "↵ answers \(model.agent(q.agentID)?.name ?? "the agent") · ⇧↵ new line"
-        case .owner: "↵ sends to \(ownerName) · ⇧↵ new line"
+        case .question(let q):
+            "↵ answers \(model.agent(q.agentID)?.name ?? "the agent") · ⇧↵ new line · @ adds an agent"
+        case .owner: "↵ sends to \(ownerName) · ⇧↵ new line · @ adds an agent"
         }
     }
 
-    /// "To [Kestrel · CIT-62 question ✕] — clear to talk to Aldric (CEO)".
-    private var targetRow: some View {
-        HStack(spacing: skin.size.s6) {
-            Text("To").citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
-            switch target {
-            case .question(let q):
-                AinkradChip(
-                    label: "\(model.agent(q.agentID)?.name ?? "Agent") · \(q.issueKey) question",
-                    systemName: "questionmark.circle", onRemove: { page.targetCleared = true }
-                )
-                .fixedSize()
-                Text("— clear to talk to \(ownerName)").citadelFont("t11")
-                    .foregroundStyle(skin.color(skin.text.faint))
-            case .owner:
-                AinkradChip(label: ownerName, systemName: "person")
-                if page.targetCleared, !(thread?.openQuestions.isEmpty ?? true) {
-                    AinkradButton(title: "Answer the open question", style: .ghost) { page.targetCleared = false }
-                        .borderless().secondaryAccent().compact().fixedSize()
-                }
-            }
-        }
-    }
-
-    /// `09:31` today, `Mon 09:12` this week, `Oct 19` before.
+    /// `Today 09:31`, `Mon 09:12` this week, `Oct 19` before — 24-hour, like the rest of Citadel.
     static func time(_ date: Date, now: Date = Date()) -> String {
         let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) { return date.formatted(.dateTime.hour().minute()) }
+        if calendar.isDate(date, inSameDayAs: now) { return "Today \(Fmt.clock(date))" }
         if now.timeIntervalSince(date) < 6 * 86_400 {
-            return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+            return "\(date.formatted(.dateTime.weekday(.abbreviated))) \(Fmt.clock(date))"
         }
         return date.formatted(.dateTime.month(.abbreviated).day())
-    }
-}
-
-/// An answered question, collapsed to one line: "Wren on CIT-58 asked "…" — you: yes, end them · routed to Wren".
-private struct Receipt: View {
-    let model: CompanyModel
-    let question: QuestionInfo
-    let answer: String?
-    @State private var hovering = false
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
-
-    var body: some View {
-        let asker = model.agent(question.agentID)
-        let name = asker?.name ?? "Agent"
-        let primary = skin.color(skin.text.primary)
-        let muted = skin.color(skin.text.muted)
-        HStack(spacing: skin.size.s8) {
-            Text("↩").citadelFont("t12").foregroundStyle(status.success)
-            if let asker { AgentFigure(agent: asker, model: model, size: skin.size.s18) }
-            (Text(name).foregroundStyle(primary).fontWeight(.medium) + Text(" on ").foregroundStyle(muted)
-                + Text(question.issueKey).foregroundStyle(theme.accentSecondary)
-                + Text(" asked \"\(question.text)\"").foregroundStyle(muted)
-                + Text(answer == nil ? "" : " — you: ").foregroundStyle(muted)
-                + Text(answer ?? "").foregroundStyle(primary).fontWeight(.medium))
-                .citadelFont("t12").lineLimit(2)
-            Spacer(minLength: skin.size.s8)
-            Text(question.state == "cancelled" ? "withdrawn" : "routed to \(name) · done").citadelFont("t11")
-                .foregroundStyle(skin.color(skin.text.faint)).fixedSize()
-        }
-        .padding(.horizontal, skin.size.s12)
-        .padding(.vertical, skin.size.s7)
-        .background(
-            skin.color(skin.palette.white).opacity(hovering ? skin.opacity.o06 : skin.opacity.o03),
-            in: RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
-        )
-        .onHover { hovering = $0 }
-        .accessibilityElement(children: .combine)
     }
 }
