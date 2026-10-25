@@ -96,7 +96,7 @@ final class TranscriptTests: XCTestCase {
 
     func testStageTimingsFollowTheRunsStamps() {
         let stages = StageTimings(run: CompanyFixture.run(1, agent: 4, issue: 42, minutes: 1, tokens: 1))
-        XCTAssertEqual(stages.rows.map(\.name), ["Wake → claimed", "Setup · worktrees", "Harness up", "First token"])
+        XCTAssertEqual(stages.rows.map(\.name), ["Wake", "Claim", "Setup", "First token"])
         XCTAssertEqual(stages.rows.map(\.seconds).reduce(0, +), stages.total ?? 0, accuracy: 0.001)
         XCTAssertEqual(stages.total ?? 0, 9, accuracy: 0.001)
     }

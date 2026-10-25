@@ -36,6 +36,72 @@ final class ProjectsPage {
     var history: [Int64: [ProfileChangeInfo]] = [:]
     /// Each project's knowledge entries (API minor 16), oldest first, once its Knowledge group first loads.
     var knowledge: [Int64: [KnowledgeInfo]] = [:]
+    /// The project page open over the list (`#/projects/<KEY>`); `nil` is the list.
+    var openProject: Int64?
+    var tab: ProjectTab = .overview
+    /// The configuration drawer's tab, or the work item it shows; `nil` is closed.
+    var drawer: ProjectDrawer?
+    /// Each opened project's work: issues, epics, sprints, velocity, capacity, flow.
+    var work: [Int64: ProjectWork] = [:]
+    /// The Board and Backlog toolbar.
+    var filter = WorkFilter()
+    /// The item drawer's runs and activity, per issue.
+    var itemRuns: [Int64: [RunInfo]] = [:]
+    var itemActivity: [Int64: [AuditLine]] = [:]
+    /// Each project's cumulative flow, and the text a run on it is given (API minor 18).
+    var cfd: [Int64: [CfdPoint]] = [:]
+    var preview: [Int64: ProfilePreviewInfo] = [:]
+}
+
+enum ProjectTab: String, CaseIterable, Hashable, Sendable {
+    case overview, board, backlog, sprints, timeline, reports
+
+    var title: String { rawValue.capitalized }
+    var icon: String {
+        switch self {
+        case .overview: "square.grid.2x2"
+        case .board: "rectangle.split.3x1"
+        case .backlog: "line.3.horizontal"
+        case .sprints: "clock"
+        case .timeline: "text.alignleft"
+        case .reports: "chart.bar"
+        }
+    }
+}
+
+enum ConfigTab: String, CaseIterable, Hashable, Sendable {
+    case teams, repos, rules, runtime, limits, docs, context
+
+    var title: String { rawValue.capitalized }
+    var icon: String {
+        switch self {
+        case .teams: "person.2"
+        case .repos: "arrow.triangle.branch"
+        case .rules: "checklist"
+        case .runtime: "server.rack"
+        case .limits: "gauge.with.needle"
+        case .docs: "doc"
+        case .context: "eye"
+        }
+    }
+}
+
+enum ProjectDrawer: Hashable, Sendable {
+    case config(ConfigTab)
+    case item(Int64)
+}
+
+/// The Board / Backlog toolbar: type, epic, and the board's grouping.
+struct WorkFilter: Equatable, Sendable {
+    /// `nil` is All.
+    var kind: String?
+    var epic: Int64?
+    /// `none`, `epic`, `agent`.
+    var group = "none"
+
+    func apply(_ items: [WorkItem]) -> [WorkItem] {
+        items.filter { (kind == nil || $0.kind == kind) && (epic == nil || $0.epicID == epic) }
+    }
 }
 
 /// One git repo of a project (decision #51).
@@ -54,6 +120,10 @@ struct RepoInfo: Identifiable, Equatable, Sendable {
     var test: String?
     var lint: String?
     var format: String?
+    /// What it is built with, "Rust · Node" (API minor 18).
+    var stack: String? = nil
+    /// The keys of the issues working it now (API minor 18).
+    var inUseBy: [String] = []
 
     /// The URL without its scheme: `github.com/AinkradHQ/citadel`.
     var shortURL: String {
@@ -83,6 +153,10 @@ struct ProfileInfo: Equatable, Sendable {
     /// `owner`, `product_owner`, `lead`.
     var mergedBy = "owner"
     var environments: [EnvironmentInfo] = []
+    /// The definition of done with each rule on or off (API minor 18); empty from an older server.
+    var dodRules: [DodRuleInfo] = []
+    /// Hosts agents may reach while the network is `ask` (API minor 18).
+    var networkHosts: [String] = []
     var conventions = ""
     var docs: [String] = []
     var models: [RoleModelInfo] = []
@@ -96,6 +170,11 @@ struct ProfileInfo: Equatable, Sendable {
     var budgetBytes: Int64 = 0
     var proposals: [ProposalInfo] = []
     var updatedAt: Date?
+}
+
+struct DodRuleInfo: Equatable, Sendable {
+    var text: String
+    var on = true
 }
 
 struct EnvironmentInfo: Equatable, Sendable {
@@ -163,7 +242,19 @@ extension RepoInfo {
             id: repo.id, name: repo.name, url: repo.url, defaultBranch: repo.defaultBranch, isPrimary: repo.primary,
             position: repo.position, forgeKind: repo.forge?.kind, tokenFile: repo.forge?.tokenFile,
             build: repo.commands.build.nonEmpty, test: repo.commands.test.nonEmpty, lint: repo.commands.lint.nonEmpty,
-            format: repo.commands.format.nonEmpty)
+            format: repo.commands.format.nonEmpty, stack: repo.stack.nonEmpty, inUseBy: repo.inUseBy ?? [])
+    }
+}
+
+extension ProjectInfo {
+    init(_ project: Schemas.Project) {
+        self.init(
+            id: project.id, key: project.key, name: project.name, teamID: project.teamId, mode: project.mode.word,
+            icon: project.icon.nonEmpty, color: project.color.nonEmpty, logoURL: project.logoUrl.nonEmpty,
+            teamIDs: project.teamIds ?? [], runnerTags: project.runnerTags ?? [],
+            maxParallelRuns: project.maxParallelRuns.map(Int.init),
+            runTimeoutSecs: project.runTimeoutSecs.map(Int.init),
+            worktreeKeepDays: project.worktreeKeepDays.map(Int.init))
     }
 }
 
@@ -177,6 +268,8 @@ extension ProfileInfo {
             environments: (profile.environments ?? []).map {
                 EnvironmentInfo(name: $0.name, url: $0.url ?? "", deploy: $0.deploy?.word ?? "ask")
             },
+            dodRules: (profile.definitionOfDoneRules ?? []).map { DodRuleInfo(text: $0.text, on: $0.on ?? true) },
+            networkHosts: profile.networkHosts ?? [],
             conventions: profile.conventions ?? "", docs: profile.docs ?? [],
             models: (profile.models ?? []).map {
                 RoleModelInfo(role: $0.role, model: $0.model, small: $0.small, large: $0.large)

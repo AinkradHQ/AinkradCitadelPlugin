@@ -1,5 +1,5 @@
 import AinkradAppKit
-import Foundation
+import SwiftUI
 
 /// The approvals inbox's filter chips (screen 06): All, then one per kind family.
 enum ApprovalFilter: String, CaseIterable, Hashable {
@@ -25,6 +25,34 @@ enum ApprovalFilter: String, CaseIterable, Hashable {
         case .hire: approval.kind == "hire_agent"
         case .permission: approval.kind == "permission_escalation"
         }
+    }
+
+    /// The type strip's and the cards' line icon (the prototype's `AP_K` set).
+    var systemImage: String {
+        switch self {
+        case .all: "square.3.layers.3d"
+        case .sprint: "clock"
+        case .merge: "arrow.triangle.branch"
+        case .budget: "dollarsign"
+        case .hire: "person.badge.plus"
+        case .permission: "key"
+        }
+    }
+
+    /// The type's colour: sprint blue, merge green, budget and permission amber, hire violet, all slate.
+    func tint(_ skin: AinkradSkin) -> Color {
+        switch self {
+        case .all: skin.color(skin.text.muted)
+        case .sprint: skin.color(skin.palette.accentPrimary)
+        case .merge: skin.color(skin.palette.success)
+        case .budget, .permission: skin.color(skin.palette.warning)
+        case .hire: skin.color(skin.palette.accentViolet)
+        }
+    }
+
+    /// The family a kind belongs to.
+    static func of(_ approval: ApprovalInfo) -> ApprovalFilter {
+        allCases.first { $0 != .all && $0.matches(approval) } ?? .all
     }
 }
 
@@ -56,7 +84,7 @@ extension CompanyModel {
     func summary(_ approval: ApprovalInfo) -> ApprovalSummary {
         let f = approval.fields
         let key = issue(approval.issueID)?.key ?? f["key"]
-        let asker = agent(approval.agentID ?? approval.requestedBy)?.name
+        let asker = agent(replyAgent(approval))?.name
         switch approval.kind {
         case "sprint_commit":
             let issues = approval.lists["issues"] ?? []
@@ -97,12 +125,13 @@ extension CompanyModel {
             return ApprovalSummary(
                 glyph: "＋", tone: .accentViolet, typeLabel: "Hire",
                 title: "Hire \(f["name"] ?? "an agent")\(f["role"].map { " · \($0)" } ?? "")",
-                subtitle: [asker, f["harness"].map(AgentLook.harnessName), f["model"]].compactMap { $0 }.joined(
-                    separator: " · "))
+                subtitle: [asker, teamPath(of: approval.agentID), f["harness"].map(AgentLook.harnessName)]
+                    .compactMap { $0 }.joined(separator: " · "))
         case "permission_escalation":
             return ApprovalSummary(
                 glyph: "⌁", tone: .warning, typeLabel: "Permission escalation · run #\(f["run"] ?? "?")",
-                title: "\(asker ?? "An agent") wants to run \(f["tool"] ?? "a tool")",
+                title:
+                    "\(asker ?? "An agent") wants to run \(PermissionAsk(f).prefix.isEmpty ? PermissionAsk(f).tool : PermissionAsk(f).prefix)",
                 subtitle: [key, ToolLine.argument(f)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
             )
         default:
@@ -119,9 +148,29 @@ extension CompanyModel {
         return sprint.hasPrefix("Sprint ") ? "Commit sprint \(sprint.dropFirst(7))" : "Commit \(sprint)"
     }
 
+    /// The approval holds a live run (a permission escalation's, a budget overrun's when its payload names it).
+    func holdsRun(_ approval: ApprovalInfo) -> Bool {
+        approval.status == "pending" && approval.fields["run"] != nil
+    }
+
+    /// The agents an approval involves, for the stage's orbs: who asked, then whom it is about.
+    func involved(_ approval: ApprovalInfo) -> [AgentInfo] {
+        var ids: [Int64] = [approval.requestedBy]
+        if approval.kind != "hire_agent", let agent = approval.agentID, agent != approval.requestedBy {
+            ids.append(agent)
+        }
+        return ids.compactMap { agent($0) }
+    }
+
     /// Who an approval's reply wakes: the agent that asked.
     func replyTarget(_ approval: ApprovalInfo) -> String {
-        agent(approval.agentID ?? approval.requestedBy)?.name ?? "the agent"
+        agent(replyAgent(approval))?.name ?? "the agent"
+    }
+
+    /// The agent a reply wakes: the one the approval is about, except a hire's — that agent is not seated yet,
+    /// so its proposer hears it.
+    func replyAgent(_ approval: ApprovalInfo) -> Int64 {
+        approval.kind == "hire_agent" ? approval.requestedBy : approval.agentID ?? approval.requestedBy
     }
 
     /// Records a decision locally until the approval's event reloads the lists.
@@ -130,6 +179,7 @@ extension CompanyModel {
         var decided = approval
         decided.status = approved ? "approved" : "rejected"
         decided.reply = reply
+        decided.decidedAt = Date()
         answeredApprovals.removeAll { $0.id == approval.id }
         answeredApprovals.insert(decided, at: 0)
     }
@@ -202,7 +252,7 @@ extension CompanyModel {
             let name = agent(key.agentID)?.name ?? "Agent"
             let requirement = issue(key.issueID)?.requirementID.flatMap { id in requirements.first { $0.id == id } }
             let lastComment = comments[key.issueID]?.last
-            let died = run.map { ["failed", "runner_lost", "timed_out"].contains($0.state) } ?? false
+            let died = run?.died ?? false
             let line: String =
                 if let open { "\(name): \(open.text)" } else if let lastComment {
                     "\(lastComment.agentID.flatMap { agent($0)?.name } ?? "You"): \(lastComment.body)"
@@ -211,7 +261,9 @@ extension CompanyModel {
                 } else { "no messages yet" }
             return ThreadSummary(
                 key: key, requirementKey: requirement?.key, lastLine: line, waitingOnYou: open != nil,
-                died: died && open == nil && lastComment == nil,
+                // Red in the list even when the last message came before the run died — badge and line sit side by
+                // side in the prototype; only a newer open question clears it.
+                died: died && open == nil,
                 at: max(open?.askedAt ?? .distantPast, run?.endedAt ?? run?.startedAt ?? run?.queuedAt ?? .distantPast))
         }
         return rows.sorted {
@@ -224,9 +276,11 @@ extension CompanyModel {
     /// A thread's conversation: comments in order, each run of the agent on the issue after the comment that
     /// woke it (by id order: a run's comments carry its id), and the open question last.
     func conversation(_ key: ThreadKey) -> [ThreadLine] {
-        let issueRuns = (agentRuns[key.agentID] ?? [])
-            .filter { $0.issueID == key.issueID }
+        var seen = Set<Int64>()
+        let issueRuns = ((agentRuns[key.agentID] ?? []) + Array(runs.values))
+            .filter { $0.agentID == key.agentID && $0.issueID == key.issueID }
             .sorted { $0.queuedAt < $1.queuedAt }
+            .filter { seen.insert($0.id).inserted }
         var lines: [ThreadLine] = []
         var pending = issueRuns
         for comment in comments[key.issueID] ?? [] {
@@ -283,5 +337,17 @@ extension CompanyModel {
         case .runners: return runners.isEmpty ? nil : AinkradNavCount("\(runnersOnline)/\(runners.count)")
         case .home, .artifacts, .cost: return nil
         }
+    }
+}
+
+extension ApprovalInfo {
+    /// "asked 12m ago", or nil when the server (API minor < 17) did not say.
+    func askedAgo(now: Date = Date()) -> String? {
+        createdAt.map { "asked \(Fmt.age(now.timeIntervalSince($0))) ago" }
+    }
+
+    /// "4m ago" for an answered approval, or nil without `decided_at`.
+    func decidedAgo(now: Date = Date()) -> String? {
+        decidedAt.map { "\(Fmt.age(now.timeIntervalSince($0))) ago" }
     }
 }

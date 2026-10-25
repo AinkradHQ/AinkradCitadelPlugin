@@ -1,3 +1,4 @@
+import AinkradAppKit
 import AppKit
 import Foundation
 import UniformTypeIdentifiers
@@ -18,7 +19,9 @@ extension CitadelStore {
             async let breakdown = server.spendBreakdown(company: company, since: start)
             async let days = server.spendSeries(
                 company: company, bucket: period == .today ? "hour" : "day", since: first)
+            async let unpriced = loadUnpriced(server, company: company)
             guard model.costPeriod == period else { return }
+            if let unpriced = await unpriced { model.unpriced = unpriced }
             if let tasks = await tasks { model.costTasks = tasks }
             if let use = await use { model.accountUse = use }
             if let (agents, departments) = await breakdown {
@@ -29,11 +32,18 @@ extension CitadelStore {
         }
     }
 
+    /// The unpriced models (API minor 18); `nil` on an older server, which has no such list.
+    func loadUnpriced(_ server: CitadelServer, company: Int64) async -> [UnpricedModelInfo]? {
+        guard serverSupports(minor: Self.trancheBMinor) else { return nil }
+        return await server.unpricedModels(company: company)?.sorted { $0.tokens > $1.tokens }
+    }
+
     /// The period read again after a run or budget event: its issues, breakdown and bars.
     func refreshCostTasks(_ model: CompanyModel, server: CitadelServer) async {
         guard let period = model.costPeriod else { return }
         let start = period.start(sprintStart: model.sprint?.startsOn)
         if let tasks = await server.taskCosts(company: model.companyID, since: start) { model.costTasks = tasks }
+        if let unpriced = await loadUnpriced(server, company: model.companyID) { model.unpriced = unpriced }
         if let (agents, departments) = await server.spendBreakdown(company: model.companyID, since: start) {
             model.costByAgent = agents
             model.costByDepartment = departments
@@ -145,24 +155,37 @@ extension CitadelStore {
         }
     }
 
-    /// "Set a price…": the model's price from now on; runs before stay unpriced.
-    func setPrice(_ price: PriceDraft) {
-        act("Couldn't set the price of \(price.model)", outcome: "No price was set.") { await $0.setPrice(price) }
-    }
-
-    /// A budget's cap (tokens, raises included as shown) and warn % (`nil` inherits).
-    func setBudget(_ budget: BudgetInfo, cap: Int64, warnPercent: Int?) {
-        guard let company = model?.companyID else { return }
-        act("Couldn't change the \(budget.label) budget", outcome: "The budget is unchanged.") {
-            await $0.setBudget(company: company, budget, cap: cap, warnPercent: warnPercent)
+    /// "Set a price…": the model's price from now on, or (`pastToo`, API minor 18) its unpriced past runs as well.
+    func setPrice(_ price: PriceDraft, pastToo: Bool = false) {
+        let past = pastToo && serverSupports(minor: Self.trancheBMinor)
+        act("Couldn't set the price of \(price.model)", outcome: "No price was set.") {
+            await $0.setPrice(price, pastToo: past)
         }
     }
 
-    /// "＋ New budget".
-    func createBudget(scope: String, label: String, period: String, cap: Int64, warnPercent: Int?) {
+    /// A budget's token cap (raises included as shown) and warn % (`nil` inherits); its dollar cap is kept.
+    func setBudget(_ budget: BudgetInfo, cap: Int64, warnPercent: Int?) {
+        setBudget(budget, cap: cap, usdCap: budget.usdCap, warnPercent: warnPercent)
+    }
+
+    /// A budget's caps — tokens and dollars (millionths, `nil` clears it; sent from API minor 18 only) — and warn %.
+    func setBudget(_ budget: BudgetInfo, cap: Int64, usdCap: Int64?, warnPercent: Int?) {
         guard let company = model?.companyID else { return }
+        let usd = serverSupports(minor: Self.trancheBMinor) ? usdCap : nil
+        act("Couldn't change the \(budget.label) budget", outcome: "The budget is unchanged.") {
+            await $0.setBudget(company: company, budget, cap: cap, usdCap: usd, warnPercent: warnPercent)
+        }
+    }
+
+    /// "＋ New budget" (`usdCap` in millionths of a dollar, sent from API minor 18 only).
+    func createBudget(
+        scope: String, label: String, period: String, cap: Int64, usdCap: Int64? = nil, warnPercent: Int?
+    ) {
+        guard let company = model?.companyID else { return }
+        let usd = serverSupports(minor: Self.trancheBMinor) ? usdCap : nil
         act("Couldn't add a budget for \(label)", outcome: "No budget was added.") {
-            await $0.createBudget(company: company, scope: scope, period: period, cap: cap, warnPercent: warnPercent)
+            await $0.createBudget(
+                company: company, scope: scope, period: period, cap: cap, usdCap: usd, warnPercent: warnPercent)
         }
     }
 
@@ -202,7 +225,15 @@ extension CitadelStore {
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.nameFieldStringValue = "citadel-cost-\(model.costPeriod?.rawValue ?? "period").csv"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? Data(costCSV(model.costTasks).utf8).write(to: url)
+        do {
+            try Data(costCSV(model.costTasks).utf8).write(to: url)
+            toast(
+                AinkradRichToast(
+                    title: "\(url.lastPathComponent) exported",
+                    body: "Priced, unpriced and subscription in separate columns", status: .success))
+        } catch {
+            toast(AinkradRichToast(title: "Couldn't export", body: error.localizedDescription, status: .danger))
+        }
     }
 }
 

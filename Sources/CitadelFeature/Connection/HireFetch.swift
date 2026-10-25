@@ -12,13 +12,20 @@ extension CitadelServer {
         }
     }
 
-    /// Proposes one agent; its hire approval's id.
-    func proposeAgent(company: Int64, _ draft: AgentDraft) async -> Result<Int64, ServerAnswer> {
+    /// Proposes one agent; its hire approval's id and the pending agent's.
+    func proposeAgent(company: Int64, _ draft: AgentDraft) async -> Result<ProposedHire, ServerAnswer> {
         await attempt({ try await client.proposeAgent(path: .init(id: company), body: .json(draft.body)) }) {
             guard case .ok(let ok) = $0 else { return nil }
-            return try ok.body.json.hireApprovalId
+            let proposed = try ok.body.json
+            return ProposedHire(approvalID: proposed.hireApprovalId, agentID: proposed.agent.id)
         }
     }
+}
+
+/// A proposal as the server took it: the hire approval to decide and the agent that waits on it.
+struct ProposedHire: Equatable, Sendable {
+    var approvalID: Int64
+    var agentID: Int64
 }
 
 /// "Propose an agent…" as typed.
@@ -31,6 +38,19 @@ struct AgentDraft: Equatable, Sendable {
     var reportsTo: Int64?
     /// Space-separated (`macos xcode-27`).
     var runnerTags = ""
+    /// What API minor 17 lets a proposal carry; the wizard fills them only for a server that has it.
+    var description: String?
+    var effort: String?
+    var sandbox: String?
+    var instructions: String?
+    var guidelines: [String]?
+    var teamID: Int64?
+    var teamRole: String?
+    var paletteID: String?
+    /// `ceo` seats the company's CEO (the New company wizard); absent for every other hire.
+    var orgRole: String?
+    /// The chain preset the pending agent is given once it exists (API minor 18); not part of the proposal.
+    var chainPresetID: Int64?
 
     static let harnesses = ["claude", "codex", "opencode", "agy"]
 
@@ -44,13 +64,29 @@ struct AgentDraft: Equatable, Sendable {
         return nil
     }
 
+    /// At most 50 rules of 1-500 characters, as the server takes them.
+    static func cleanGuidelines(_ rules: [String]) -> [String] {
+        Array(rules.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.prefix(50))
+            .map { String($0.prefix(500)) }
+    }
+
     var body: Schemas.AgentProposal {
         let tags = runnerTags.split(whereSeparator: \.isWhitespace).map(String.init)
-        return Schemas.AgentProposal(
+        var proposal = Schemas.AgentProposal(
             harness: .init(value1: .init(rawValue: harness), value2: harness),
             justification: justification.trimmingCharacters(in: .whitespacesAndNewlines),
             model: model.trimmingCharacters(in: .whitespaces), name: name.trimmingCharacters(in: .whitespaces),
             reportsTo: reportsTo, role: role.trimmingCharacters(in: .whitespaces),
             runnerTags: tags.isEmpty ? nil : tags)
+        proposal.description = description.flatMap { $0.isEmpty ? nil : String($0.prefix(4000)) }
+        proposal.effort = effort.map { Schemas.Effort(value1: .init(rawValue: $0), value2: $0) }
+        proposal.sandbox = sandbox.map { Schemas.Sandbox(value1: .init(rawValue: $0), value2: $0) }
+        proposal.instructions = instructions.flatMap { $0.isEmpty ? nil : String($0.prefix(20_000)) }
+        proposal.guidelines = guidelines.map { Self.cleanGuidelines($0) }
+        proposal.teamId = teamID
+        proposal.teamRole = teamRole.map { Schemas.TeamRole(value1: .init(rawValue: $0), value2: $0) }
+        proposal.paletteId = paletteID
+        proposal.orgRole = orgRole.map { Schemas.OrgRole(value1: .init(rawValue: $0), value2: $0) }
+        return proposal
     }
 }

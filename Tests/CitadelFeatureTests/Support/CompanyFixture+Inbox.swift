@@ -19,10 +19,12 @@ extension CompanyFixture {
         model.approvals = [
             ApprovalInfo(
                 id: 21, kind: "sprint_commit", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-720),
                 fields: ["name": "S5", "points": "31", "capacity": "34", "goal": "Phone alerts and key hygiene"],
                 sprintID: 5, lists: ["issues": sprintIssues]),
             ApprovalInfo(
                 id: 22, kind: "pr_merge", agentID: nil, issueID: 61, requestedBy: 9, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-1500),
                 fields: [
                     "summary": "Merge 2 PRs (citadel #61, ainkrad-citadel-plugin #14): runner lease heartbeat",
                     "qa_notes":
@@ -36,18 +38,21 @@ extension CompanyFixture {
                 ]),
             ApprovalInfo(
                 id: 23, kind: "permission_escalation", agentID: 4, issueID: 42, requestedBy: 4, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-60),
                 fields: [
                     "run": "418", "request": "r7", "tool": "Bash",
                     "input.command": "cargo add tokio-tungstenite@0.26 --features rustls",
                 ]),
             ApprovalInfo(
                 id: 24, kind: "budget_overrun", agentID: nil, issueID: 8, requestedBy: 15, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-180),
                 fields: [
                     "scope": "agent", "scope_id": "15", "token_cap": "200000", "spent": "200400", "raised": "0",
                     "summary": "agent 15 day budget exhausted: 200400 of 200000 tokens spent",
                 ]),
             ApprovalInfo(
                 id: 25, kind: "hire_agent", agentID: 18, issueID: nil, requestedBy: 14, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-7200),
                 fields: [
                     "name": "Echo", "role": "social", "org_role": "none", "harness": "opencode",
                     "model": "qwen3-coder", "runner_tags": "linux",
@@ -58,9 +63,11 @@ extension CompanyFixture {
         model.answeredApprovals = [
             ApprovalInfo(
                 id: 17, kind: "pr_merge", agentID: nil, issueID: 49, requestedBy: 9, expiresAt: nil,
+                createdAt: now.addingTimeInterval(-5400),
                 fields: ["summary": "Merge PR #58 · wake queue"], status: "approved", reply: "merged")
         ]
         model.velocity[1] = 29
+        echoHireStore(model)
     }
 
     static func threadsPage(_ model: CompanyModel) {
@@ -84,11 +91,19 @@ extension CompanyFixture {
                     "First draft is up — 860 words. I didn't find user quotes in the knowledge base, so I left two marked placeholders instead of inventing them.",
                 runID: 405),
         ]
-        var first = ended(405, issue: 8, state: "succeeded", daysAgo: 0.2, minutes: 22, cost: 1_300_000)
+        var first = ended(405, issue: 8, state: "succeeded", daysAgo: 0.2, minutes: 22, cost: 1_100_000)
         first.agentID = 15
-        var second = ended(422, issue: 8, state: "succeeded", daysAgo: 0.05, minutes: 9, cost: 1_300_000)
-        second.agentID = 15
-        model.agentRuns[15] = [second, first]
+        var capHit = ended(
+            419, issue: 8, state: "failed", daysAgo: 0.05, minutes: 26, cost: 3_100_000,
+            reason: "token cap 50,000 reached")
+        capHit.agentID = 15
+        var live = run(427, agent: 15, issue: 8, minutes: 14.4, tokens: 42_000, silentFor: 12 * 60)
+        live.costMicros = 4_200_000
+        live.state = "running"
+        model.runs[419] = nil
+        model.runs[427] = live
+        model.toolNow[427] = "asks to fetch ainkrad.io/press"
+        model.agentRuns[15] = [live, capHit, first]
         var lost = ended(
             409, issue: 49, state: "runner_lost", daysAgo: 0.1, minutes: 3, cost: 200_000, reason: "runner_lost")
         lost.agentID = 8

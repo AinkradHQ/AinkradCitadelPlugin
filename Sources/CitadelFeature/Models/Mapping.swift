@@ -36,6 +36,8 @@ extension Schemas.QuestionState: OpenWord {}
 extension Schemas.RepairAction: OpenWord {}
 extension Schemas.RunnerStatus: OpenWord {}
 extension Schemas.WakeSource: OpenWord {}
+extension Schemas.Effort: OpenWord {}
+extension Schemas.Sandbox: OpenWord {}
 
 /// How an agent is drawn (decisions #61, #63): always the animated figure, never a letter.
 enum AgentLook {
@@ -76,7 +78,28 @@ extension AgentInfo {
             id: agent.id, name: agent.name, role: agent.role, orgRole: agent.orgRole.word, harness: agent.harness.word,
             model: agent.model, runnerTags: agent.runnerTags, status: agent.status.word,
             figure: AgentLook.figure(agent.figureState.word), paletteID: agent.appearance.paletteId,
-            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo)
+            avatarPath: agent.avatarUrl, reportsTo: agent.reportsTo, hiredAt: agent.hiredAt,
+            about: agent.description, effort: agent.effort?.word, sandbox: agent.sandbox?.word,
+            instructions: agent.instructions, guidelines: agent.guidelines, chainPresetID: agent.chainPresetId,
+            queuedWakes: agent.queuedWakes)
+    }
+
+    /// The fields an edit changes, from the agent as the server stored it; its figure stays as it is.
+    mutating func merge(_ saved: Schemas.Agent) {
+        let fresh = AgentInfo(saved)
+        role = fresh.role
+        harness = fresh.harness
+        model = fresh.model
+        runnerTags = fresh.runnerTags
+        reportsTo = fresh.reportsTo
+        about = fresh.about
+        effort = fresh.effort
+        sandbox = fresh.sandbox
+        instructions = fresh.instructions
+        guidelines = fresh.guidelines
+        status = fresh.status
+        chainPresetID = fresh.chainPresetID
+        queuedWakes = fresh.queuedWakes
     }
 }
 
@@ -88,7 +111,15 @@ extension DepartmentInfo {
                 TeamInfo(
                     id: team.id, name: team.name,
                     seats: team.members.map { SeatInfo(agentID: $0.agentId, teamRole: $0.teamRole.word) })
-            })
+            }, about: department.about, headAgentID: department.headAgentId)
+    }
+}
+
+extension TeamInfo {
+    init(_ team: Schemas.Team) {
+        self.init(
+            id: team.id, name: team.name,
+            seats: team.members.map { SeatInfo(agentID: $0.agentId, teamRole: $0.teamRole.word) })
     }
 }
 
@@ -141,7 +172,8 @@ extension ApprovalInfo {
         self.init(
             id: approval.id, kind: approval.kind.word, agentID: approval.agentId, issueID: approval.issueId,
             requestedBy: approval.requestedBy, expiresAt: approval.expiresAt,
-            fields: fields, status: approval.status.word, reply: approval.reply,
+            createdAt: approval.createdAt, decidedAt: approval.decidedAt, fields: fields, status: approval.status.word,
+            reply: approval.reply,
             sprintID: approval.sprintId, lists: lists)
     }
 }
@@ -171,7 +203,9 @@ extension StuckInfo {
         self.init(
             kind: stuck.kind.word, issueID: stuck.issueId, agentID: stuck.agentId, reason: stuck.reason,
             action: stuck.action, repair: stuck.repair.word, lastRepair: stuck.lastRepair?.action,
-            lastRepairAt: stuck.lastRepair?.at, since: stuck.stuckSince)
+            lastRepairAt: stuck.lastRepair?.at, since: stuck.stuckSince, runID: stuck.runId,
+            usualSecs: stuck.usualSecs.map(Int.init),
+            trail: (stuck.trail ?? []).map { TrailInfo(at: $0.at, what: $0.what) })
     }
 }
 
@@ -180,7 +214,8 @@ extension RequirementInfo {
         self.init(
             id: requirement.id, key: requirement.key, title: requirement.title, state: requirement.state.word,
             ownerAgentID: requirement.ownerAgentId, points: Int(tree?.points ?? 0),
-            donePoints: Int(tree?.donePoints ?? 0), percentDone: Int(tree?.percentDone ?? 0), eta: tree?.eta)
+            donePoints: Int(tree?.donePoints ?? 0), percentDone: Int(tree?.percentDone ?? 0), eta: tree?.eta,
+            createdAt: requirement.createdAt, pausedAt: requirement.pausedAt)
     }
 }
 
@@ -193,11 +228,14 @@ extension BudgetInfo {
             case .department(let s): "department:\(s.departmentId)"
             case .project(let s): "project:\(s.projectId)"
             case .sprint(let s): "sprint:\(s.sprintId)"
+            case .issue(let s): "issue:\(s.issueId)"
             }
         self.init(
             id: budget.budgetId, label: label(scope), scope: scope, period: budget.period.word,
             periodKey: budget.periodKey, spent: budget.spent, cap: budget.tokenCap + budget.raised,
-            warnPercent: Int(budget.warnAtPercent), raised: budget.raised, hardStop: budget.hardStop)
+            warnPercent: Int(budget.warnAtPercent), raised: budget.raised, hardStop: budget.hardStop,
+            usdCap: budget.usdCapMicros.map { $0 + (budget.raisedUsdMicros ?? 0) },
+            usdSpent: budget.usdSpentMicros ?? 0, raisedUsd: budget.raisedUsdMicros ?? 0)
     }
 }
 

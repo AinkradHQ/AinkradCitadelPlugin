@@ -15,7 +15,12 @@ final class ArtifactsPage {
     var items: [ArtifactInfo] = []
     var usage: ArtifactUsageInfo?
     var filter = ArtifactFilter()
+    /// The artifact the peek drawer shows.
     var selectedID: Int64?
+    /// The artifact open in Quick Look.
+    var quickLookID: Int64?
+    /// The picker whose menu is open: `agent` or `requirement`.
+    var openPicker: String?
     var isGrid = true
     /// Fetched previews: text (first 64 KiB, as the server cut it) or an image.
     var texts: [Int64: String] = [:]
@@ -46,6 +51,20 @@ struct ArtifactInfo: Identifiable, Equatable, Sendable {
     var isMarkdown: Bool { ext == "md" || ext == "markdown" || mime == "text/markdown" }
     var isImage: Bool { preview == "image" }
     var isText: Bool { preview == "text" }
+
+    /// The type tile it counts under. The server knows `report`, `file`, `screenshot` and `other`; logs and data
+    /// are told by extension, and specs and plans stay reports until the server has those kinds (MISSING S9).
+    var type: String {
+        if ["spec", "plan"].contains(kind) { return kind }
+        if kind == "screenshot" || isImage { return "screenshot" }
+        if ["log", "out", "txt"].contains(ext) && !isMarkdown { return "log" }
+        if ["json", "csv", "tsv", "yaml", "yml", "ndjson", "jsonl"].contains(ext) { return "data" }
+        if kind == "report" || isMarkdown { return "report" }
+        return "file"
+    }
+
+    /// `9f2c…e1`.
+    static func shortHash(_ sha: String) -> String { sha.count > 8 ? "\(sha.prefix(4))…\(sha.suffix(2))" : sha }
 
     /// The tag over the card's corner: "report · md", "png · 1440×900", "log · 84 KB".
     func typeLabel(imageSize: CGSize? = nil) -> String {
@@ -78,12 +97,15 @@ struct ArtifactFilter: Equatable {
     var kind: String?
     var agentID: Int64?
     var issueID: Int64?
+    /// The type tile (`ArtifactInfo.type`).
+    var type: String?
 
     /// `requirementOf` names an artifact's issue's requirement: a screenshot published on CIT-61 belongs to R-12.
     func matches(_ artifact: ArtifactInfo, requirementOf: (Int64?) -> Int64? = { _ in nil }) -> Bool {
         let requirement = artifact.requirementID ?? requirementOf(artifact.issueID)
         return (requirementID == nil || requirement == requirementID) && (kind == nil || artifact.kind == kind)
             && (agentID == nil || artifact.agentID == agentID) && (issueID == nil || artifact.issueID == issueID)
+            && (type == nil || artifact.type == type)
     }
 }
 

@@ -1,236 +1,178 @@
 import AinkradAppKit
-import AppKit
 import SwiftUI
 
-/// What the org filters keep bright; the rest dims so the org keeps its shape.
-enum OrgFilter: String, CaseIterable, Hashable {
-    case all = "All"
-    case working = "Working"
-    case waiting = "Waiting"
-    case paused = "Paused"
-
-    func matches(_ agent: AgentInfo) -> Bool {
-        switch self {
-        case .all: true
-        case .working: [.working, .thinking, .loading].contains(agent.figure)
-        case .waiting: agent.figure == .listening
-        case .paused: agent.isPaused || agent.figure == .sleepy
-        }
-    }
-}
-
-/// Screen 03: company → departments → teams → agents, shown by nesting (decision #32), never connector lines.
+/// Screen 03 (prototype `org.js`): an org-chart canvas — CEO → departments → team clusters of agent figures, joined
+/// by soft curves. Drag to pan, ⌘-scroll / pinch or the zoom buttons to zoom, Fit to see everything; a figure opens
+/// the peek panel, right-click the agent menu; filters dim in place.
 struct OrgView: View {
     let store: CitadelStore
     let model: CompanyModel
-    @State private var filter: OrgFilter = .all
-    @State private var width: CGFloat = 0
-    @State private var proposing = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
+        let page = model.orgPage
+        let layout = OrgLayout(model.departments)
         VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Org", crumb: crumb) {
-                HStack(spacing: skin.size.s8) {
-                    AinkradSegmentedPicker(items: OrgFilter.allCases, selection: $filter) { $0.rawValue }.fixedSize()
-                        .controlSize(.small)
-                    AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "Propose an agent") {
-                        proposing = true
-                    }
-                    .outlineBox()
+            header
+            ZStack {
+                dotGrid
+                AinkradPanZoomCanvas(
+                    camera: Binding(get: { page.camera }, set: { page.camera = $0 }),
+                    worldSize: CGSize(width: layout.width, height: layout.height)
+                ) {
+                    OrgWorld(store: store, model: model, layout: layout)
+                }
+                legend.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(skin.size.s14)
+                zoom.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(skin.size.s14)
+                if let id = page.picked, let agent = model.agents[id] {
+                    OrgPeekPanel(store: store, model: model, agent: agent)
+                        .padding(skin.size.s12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                        .transition(.move(edge: .trailing).combined(with: .offset(x: skin.size.s24)))
                 }
             }
-            ScrollView {
-                VStack(spacing: skin.size.s14) {
-                    if let ceo = model.ceo {
-                        RouterNode(agent: ceo, model: model, line: "Routes new goals to departments · \(ceo.model)") {
-                            store.open(.agent(ceo.id))
-                        }
-                        .opacity(filter.matches(ceo) ? 1 : skin.opacity.o35)
-                    }
-                    HStack(alignment: .top, spacing: skin.size.s14) {
-                        ForEach(model.departments) { department in
-                            DepartmentPanel(store: store, model: model, department: department, filter: filter)
-                                .frame(width: departmentWidth(department))
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .onGeometryChange(for: CGFloat.self) {
-                        $0.size.width
-                    } action: {
-                        width = $0
-                    }
-                }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.bottom, skin.size.s20)
-                .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: filter)
-            }
+            .clipShape(RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous).strokeBorder(
+                    skin.color(.palette("foreground", skin.opacity.o12)), lineWidth: 1)
+            )
+            .animation(
+                reduceMotion
+                    ? nil : skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.9)),
+                value: page.picked
+            )
+            .padding(.horizontal, skin.size.s20)
+            .padding(.bottom, skin.size.s20)
             .offlineDimmed()
         }
-        .ainkradPanelModal(isPresented: $proposing, contentWidth: skin.size.s440) {
-            ProposeAgentSheet(store: store, model: model, isPresented: $proposing)
-        }
+        .orgSheets(store, model)
     }
 
-    /// `18 agents · 7 working · 1 hire pending`.
-    private var crumb: Text {
-        let working = model.agents.values.filter { OrgFilter.working.matches($0) }.count
+    // MARK: - Header
+
+    private var header: some View {
+        let page = model.orgPage
         let pending = model.agents.values.filter(\.isHirePending).count
-        var text = Text("\(Wording.count(model.agents.count, "agent")) · \(working) working").foregroundStyle(
-            skin.color(skin.text.muted))
-        if pending > 0 {
-            text =
-                text + Text(" · ").foregroundStyle(skin.color(skin.text.muted))
-                + Text("\(pending) hire\(pending == 1 ? "" : "s") pending").foregroundStyle(status.warning)
+        let teams = model.departments.reduce(0) { $0 + $1.teams.count }
+        return HStack(alignment: .center, spacing: skin.size.s10) {
+            VStack(alignment: .leading, spacing: skin.size.s2) {
+                Text("Org").citadelFont("t15", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
+                HStack(spacing: skin.size.s6) {
+                    Text(Wording.count(model.agents.count, "agent"))
+                    Text("·")
+                    Text("\(Wording.count(model.departments.count, "department")) · \(Wording.count(teams, "team"))")
+                    if pending > 0 {
+                        Text("·")
+                        HiresLink(count: pending) { page.sheet = .pendingHires }
+                    }
+                }
+                .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1).fixedSize()
+            }
+            Spacer(minLength: skin.size.s10)
+            AinkradGlideTabs(
+                OrgFilter.allCases.map { filter in
+                    AinkradGlideTab(
+                        filter, title: filter.rawValue, systemImage: filter.icon,
+                        count: "\(model.agents.values.filter(filter.matches).count)")
+                }, selection: Binding(get: { page.filter }, set: { page.filter = $0 }), height: skin.size.s32
+            )
+            .frame(width: skin.size.s520)
+            AinkradButton(title: "Structure", style: .secondary) { page.sheet = .structure(page.structureTab) }
+                .fixedSize()
+            AinkradDockButton("New agent", systemImage: "plus", tone: .primary, height: skin.size.s34) {
+                page.sheet = .hire(team: nil, step: 0)
+            }
         }
-        return text
+        .padding(.horizontal, skin.size.s20)
+        .padding(.top, skin.size.s14)
+        .padding(.bottom, skin.size.s10)
     }
 
-    /// Departments share the row by how many agent columns they hold: a big team lays its agents out in two.
-    private func departmentWidth(_ department: DepartmentInfo) -> CGFloat {
-        func weight(_ d: DepartmentInfo) -> CGFloat { (d.agentIDs.count > 6 ? 2 : 1) + 0.5 }
-        let total = model.departments.map(weight).reduce(0, +)
-        let gaps = skin.size.s14 * CGFloat(max(0, model.departments.count - 1))
-        return total > 0 ? max(0, (width - gaps) * weight(department) / total) : 0
+    // MARK: - Canvas furniture
+
+    /// The canvas floor: a 22 pt dot grid over a faint wash.
+    private var dotGrid: some View {
+        Canvas { context, size in
+            let step = skin.size.s22
+            let dot = skin.color(.palette("foreground", skin.opacity.o07))
+            var y: CGFloat = 0
+            while y < size.height {
+                var x: CGFloat = 0
+                while x < size.width {
+                    context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 2, height: 2)), with: .color(dot))
+                    x += step
+                }
+                y += step
+            }
+        }
+        .background(skin.color(.palette("foreground", skin.opacity.o03)))
+        .allowsHitTesting(false)
+    }
+
+    private var furniture: some ShapeStyle { skin.color(.palette("background", skin.opacity.o85)) }
+
+    private var legend: some View {
+        let counted = model.agents.values.filter { $0.orgRole != "ceo" }
+        return HStack(spacing: skin.size.s14) {
+            ForEach(OrgBucket.allCases, id: \.self) { bucket in
+                let n = counted.filter { OrgBucket($0) == bucket }.count
+                if n > 0 {
+                    HStack(spacing: skin.size.s6) {
+                        Circle().fill(bucket.tint(skin)).frame(width: skin.size.s7, height: skin.size.s7)
+                        Text("\(bucket.label) \(n)")
+                    }
+                }
+            }
+        }
+        .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+        .padding(.horizontal, skin.size.s12).frame(height: skin.size.s32)
+        .background(furniture, in: RoundedRectangle(cornerRadius: skin.size.s10))
+        .overlay(
+            RoundedRectangle(cornerRadius: skin.size.s10).strokeBorder(
+                skin.color(.palette("foreground", skin.opacity.o08)), lineWidth: 1))
+    }
+
+    private var zoom: some View {
+        let page = model.orgPage
+        let animate = skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.28))
+        return HStack(spacing: skin.size.s6) {
+            AinkradIconButton(systemName: "minus", size: skin.size.s26, tooltip: "Zoom out") {
+                withAnimation(reduceMotion ? nil : animate) { page.camera.zoom(by: 1 / 1.2) }
+            }
+            Text("\(page.camera.percent)%").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
+                .frame(width: skin.size.s44)
+            AinkradIconButton(systemName: "plus", size: skin.size.s26, tooltip: "Zoom in") {
+                withAnimation(reduceMotion ? nil : animate) { page.camera.zoom(by: 1.2) }
+            }
+            AinkradButton(title: "Fit", style: .secondary) {
+                withAnimation(reduceMotion ? nil : animate) { page.camera.fit() }
+            }
+            .compact().fixedSize()
+        }
+        .padding(skin.size.s4)
+        .background(furniture, in: RoundedRectangle(cornerRadius: skin.size.s12))
+        .overlay(
+            RoundedRectangle(cornerRadius: skin.size.s12).strokeBorder(
+                skin.color(.palette("foreground", skin.opacity.o08)), lineWidth: 1))
     }
 }
 
-/// The CEO above everything, the CTO in its department's head: routers say what they do.
-struct RouterNode: View {
-    let agent: AgentInfo
-    let model: CompanyModel
-    let line: String
+/// `1 hire pending ›`: amber, underlined on hover; opens the pending hires sheet.
+private struct HiresLink: View {
+    let count: Int
     let open: () -> Void
-    @Environment(\.ainkradSkin) private var skin
+    @State private var hovering = false
+    @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
-        AinkradCard(onTap: open) {
-            HStack(spacing: skin.size.s10) {
-                AgentFigure(agent: agent, model: model, size: skin.size.s32)
-                VStack(alignment: .leading, spacing: skin.size.s1) {
-                    HStack(alignment: .firstTextBaseline, spacing: skin.size.s4) {
-                        Text(agent.name).citadelFont("t13", weight: "semibold")
-                            .foregroundStyle(skin.color(skin.text.primary))
-                        Text(agent.orgRole.uppercased()).citadelFont("t9_5", weight: "semibold")
-                            .foregroundStyle(skin.color(skin.text.faint))
-                    }
-                    Text(line).citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
-                }
-            }
+        AinkradTapArea(help: "Review pending hires", action: open) {
+            Text("\(Wording.count(count, "hire")) pending ›").underline(hovering).foregroundStyle(status.warning)
         }
-        .rimTint(.accentViolet)
-        .fixedSize()
-        .ainkradContextMenu(OrgMenu.items(agent))
-    }
-}
-
-private struct DepartmentPanel: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    let department: DepartmentInfo
-    let filter: OrgFilter
-    @Environment(\.ainkradSkin) private var skin
-
-    /// The CTO heads the department its reports work in.
-    private var head: AgentInfo? {
-        model.agents.values.first { candidate in
-            candidate.orgRole == "cto"
-                && department.agentIDs.contains { model.agents[$0]?.reportsTo == candidate.id }
-        }
-    }
-
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s12) {
-                HStack(spacing: skin.size.s10) {
-                    Text(department.name).citadelFont("t14", weight: "bold").foregroundStyle(
-                        skin.color(skin.text.primary))
-                    AinkradBadge(
-                        text:
-                            "\(department.teams.count) team\(department.teams.count == 1 ? "" : "s") · \(department.agentIDs.count) agents"
-                    )
-                    Spacer(minLength: skin.size.s8)
-                    if let head {
-                        RouterNode(agent: head, model: model, line: head.model) { store.open(.agent(head.id)) }
-                            .opacity(filter.matches(head) ? 1 : skin.opacity.o35)
-                    } else {
-                        Text("routed by the CEO").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                    }
-                }
-                ForEach(department.teams) { team in
-                    TeamPanel(store: store, model: model, team: team, filter: filter)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct TeamPanel: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    let team: TeamInfo
-    let filter: OrgFilter
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-
-    private var project: ProjectInfo? { model.projects.first { $0.teamID == team.id } }
-
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s6) {
-                HStack(spacing: skin.size.s8) {
-                    Text(team.name).citadelFont("t13", weight: "semibold").foregroundStyle(
-                        skin.color(skin.text.primary))
-                    if let project {
-                        (Text("· project ").foregroundStyle(skin.color(skin.text.faint))
-                            + Text(project.key).foregroundStyle(theme.accentSecondary)
-                            .font(skin.font(AinkradFontToken(sizeKey: "t12", mono: "family"))))
-                            .citadelFont("t12")
-                    }
-                    Spacer(minLength: skin.size.s8)
-                    if let badge { AinkradBadge(text: badge, tint: theme.accentSecondary) }
-                }
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: skin.size.s190), spacing: skin.size.s4, alignment: .leading)],
-                    alignment: .leading, spacing: skin.size.s4
-                ) {
-                    ForEach(team.seats, id: \.agentID) { seat in
-                        if let agent = model.agents[seat.agentID] {
-                            AgentRow(store: store, model: model, agent: agent, seat: seat)
-                                .opacity(filter.matches(agent) ? 1 : skin.opacity.o35)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    /// `Sprint S4 · day 6`, or the project's flow.
-    private var badge: String? {
-        guard let project else { return nil }
-        if let sprint = model.sprint, sprint.projectKey == project.key {
-            let day = sprint.startsOn.map {
-                (Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? 0) + 1
-            }
-            return "\(Wording.sprint(key: nil, name: sprint.name))\(day.map { " · day \($0)" } ?? "")"
-        }
-        return project.mode
-    }
-}
-
-enum OrgMenu {
-    static func items(_ agent: AgentInfo, open: (() -> Void)? = nil) -> [AinkradMenuItem] {
-        var items: [AinkradMenuItem] = []
-        if let open { items.append(AinkradMenuItem(title: "Open", systemName: "person", action: open)) }
-        items.append(
-            AinkradMenuItem(title: "Copy id", systemName: "doc.on.doc") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(String(agent.id), forType: .string)
-            })
-        return items
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

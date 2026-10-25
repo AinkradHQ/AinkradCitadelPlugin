@@ -7,6 +7,7 @@ extension CitadelStore {
     func loadProjectsPage() {
         guard let server, let model else { return }
         let page = model.projectsPage
+        loadProjectLogos(using: server)
         Task {
             for project in model.projects {
                 if let repos = await server.repos(project: project.id) { page.repos[project.id] = repos }
@@ -40,6 +41,7 @@ extension CitadelStore {
         async let repos = server.repos(project: project)
         async let settings = server.settings(scope: "project:\(project)")
         async let policy = server.policy(project: project)
+        if hasTrancheB { page.preview[project] = await server.profilePreview(project: project) }
         if let profile = await profile { page.profiles[project] = profile }
         if let policy = await policy { page.policies[project] = policy }
         if let repos = await repos { page.repos[project] = repos }
@@ -86,19 +88,36 @@ extension CitadelStore {
         repoChange(project: repo.id) { await $0.removeRepo(repo.id) }
     }
 
-    func addRepo(project: Int64, name: String, url: String, branch: String, forge: String, tokenFile: String) {
+    /// `probe` is the staged check's finding (API minor 18): the repo is saved with the stack and commands it read.
+    func addRepo(
+        project: Int64, name: String, url: String, branch: String, forge: String, tokenFile: String,
+        probe: RepoProbe? = nil
+    ) {
         guard let server, let model else { return }
         let page = model.projectsPage
         let forgeConfig =
             tokenFile.isEmpty ? nil : Schemas.RepoForge(kind: forge, repo: name, tokenFile: tokenFile)
+        let found = hasTrancheB ? probe : nil
         let body = Schemas.RepoBody(
-            defaultBranch: branch.isEmpty ? nil : branch, forge: forgeConfig, name: name, url: url)
+            commands: found.map { .init(build: $0.build, format: $0.format, lint: $0.lint, test: $0.test) },
+            defaultBranch: branch.isEmpty ? nil : branch, forge: forgeConfig, name: name,
+            stack: found?.stack.isEmpty == false ? found?.stack : nil, url: url)
         Task {
             switch await server.addRepo(project: project, body) {
             case .success(let repo): page.repos[project, default: []].append(repo)
             case .failure(let refusal): page.problem = refusal
             }
         }
+    }
+
+    /// "Check": the URL, the token and the stack, before anything is saved. An older server has no check.
+    func probeRepo(
+        project: Int64, name: String, url: String, forge: String, tokenFile: String,
+        done: @escaping @MainActor (Result<RepoProbe, ServerAnswer>) -> Void
+    ) {
+        guard hasTrancheB, let server else { return }
+        let forgeConfig = tokenFile.isEmpty ? nil : Schemas.RepoForge(kind: forge, repo: name, tokenFile: tokenFile)
+        Task { done(await server.probeRepo(project: project, url: url, forge: forgeConfig)) }
     }
 
     /// A repo action that answers with the project's repos; `project` is found from the repo.
@@ -174,17 +193,23 @@ extension CitadelStore {
 
     /// "＋ New project": the new project joins the list, selected; a refusal (a taken key) stays in the sheet.
     func createProject(
-        name: String, key: String, mode: String, done: @escaping @MainActor (ActionFailure?) -> Void
+        name: String, key: String, mode: String, team: Int64? = nil, icon: String? = nil, color: String? = nil,
+        teams: [Int64] = [], done: @escaping @MainActor (ActionFailure?) -> Void
     ) {
         guard let server, let model else { return }
         let name = name.trimmingCharacters(in: .whitespaces)
         let key = key.trimmingCharacters(in: .whitespaces).uppercased()
         Task {
-            switch await server.createProject(company: model.companyID, name: name, key: key, mode: mode) {
+            // Identity and several teams are API minor 18's; an older server is sent the name, key, mode and one team.
+            let identity = hasTrancheB
+            switch await server.createProject(
+                company: model.companyID, name: name, key: key, mode: mode, team: identity ? teams.first ?? team : team,
+                icon: identity ? icon : nil, color: identity ? color : nil, teams: identity ? teams : [])
+            {
             case .success(let project):
                 model.projects.append(project)
                 done(nil)
-                selectProject(project.id)
+                openProject(project.id)
             case .failure(let answer):
                 done(ActionFailure(title: "Couldn't create \(key)", answer: answer, outcome: "No project was made."))
             }

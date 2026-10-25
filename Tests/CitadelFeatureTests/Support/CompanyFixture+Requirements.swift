@@ -24,20 +24,30 @@ extension CompanyFixture {
 
     static func requirementsPage(_ model: CompanyModel) {
         func requirement(
-            _ id: Int64, _ title: String, _ state: String, owner: Int64, points: Int, done: Int
+            _ id: Int64, _ title: String, _ state: String, owner: Int64, points: Int, done: Int, ago: TimeInterval,
+            eta: String? = nil
         ) -> RequirementInfo {
             RequirementInfo(
                 id: id, key: "R-\(id)", title: title, state: state, ownerAgentID: owner, points: points,
-                donePoints: done, percentDone: points == 0 ? 0 : done * 100 / points, eta: nil)
+                donePoints: done, percentDone: points == 0 ? 0 : done * 100 / points, eta: eta,
+                createdAt: now.addingTimeInterval(-ago))
         }
+        // data.js REQS: ages 4m · 22m · 1h · 3h · 4m · 5d.
         model.requirements = [
-            requirement(12, "Phone alerts when I'm needed", "in_progress", owner: 1, points: 31, done: 5),
-            requirement(11, "Audit log of approvals", "plan_review", owner: 3, points: 13, done: 0),
-            requirement(10, "Launch blog post for 1.0", "in_progress", owner: 14, points: 7, done: 5),
-            requirement(9, "Quest reads from the server", "planning", owner: 1, points: 0, done: 0),
-            requirement(8, "Never miss events on reconnect", "in_progress", owner: 3, points: 18, done: 15),
-            requirement(7, "Org chart + hiring flow", "done", owner: 1, points: 21, done: 21),
+            requirement(
+                12, "Phone alerts when I'm needed", "in_progress", owner: 1, points: 31, done: 5, ago: 4 * 60,
+                eta: "2026-10-27"),
+            requirement(11, "Audit log of approvals", "plan_review", owner: 3, points: 13, done: 0, ago: 22 * 60),
+            requirement(
+                10, "Launch blog post for 1.0", "in_progress", owner: 14, points: 7, done: 5, ago: 3600,
+                eta: "2026-10-30"),
+            requirement(9, "Quest reads from the server", "planning", owner: 1, points: 0, done: 0, ago: 3 * 3600),
+            requirement(
+                8, "Never miss events on reconnect", "in_progress", owner: 3, points: 18, done: 15, ago: 4 * 60,
+                eta: "2026-10-29"),
+            requirement(7, "Org chart + hiring flow", "done", owner: 1, points: 21, done: 21, ago: 5 * 86_400),
         ]
+        trancheB1Requirements(model)
         model.approvals.append(
             ApprovalInfo(
                 id: 30, kind: "plan_approval", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil,
@@ -47,12 +57,31 @@ extension CompanyFixture {
             (62, "CIT-62", "APNs push sender"), (58, "CIT-58", "Device registration"),
             (63, "CIT-63", "List + revoke keys"), (66, "CIT-66", "Rate limits on auth"),
             (116, "AMC-16", "Alert settings pane"), (117, "AMC-17", "Deep link to approval"),
-            (70, "CIT-70", "R-12 intake"),
+            (70, "CIT-69", "R-12 intake"),
         ] {
             model.issues[id] = IssueInfo(id: id, key: key, title: title, projectID: 1, requirementID: 12)
         }
         for id in [Int64(61), 57] { model.issues[id]?.requirementID = 12 }
+        model.issues[57]?.title = "QA: rate-limit device key auth"
+        model.issuePRs[61] = [
+            IssuePRInfo(
+                repoID: 1, repo: "citadel", state: "open", title: "Runner lease heartbeat", number: 61, url: nil,
+                head: "feat/cit-61", base: "development", checks: "success", checksNote: nil),
+            IssuePRInfo(
+                repoID: 2, repo: "ainkrad-citadel-plugin", state: "open", title: "Lease expiry banner", number: 14,
+                url: nil, head: "feat/cit-61", base: "development", checks: "success", checksNote: nil),
+        ]
+        var qaRun = ended(428, issue: 61, state: "succeeded", daysAgo: 0.03, minutes: 9, cost: 600_000)
+        qaRun.diffRepos = [
+            RepoDiffInfo(repo: "citadel", files: 7, insertions: 214, deletions: 38),
+            RepoDiffInfo(repo: "ainkrad-citadel-plugin", files: 3, insertions: 52, deletions: 9),
+        ]
+        model.runs[428] = qaRun
+        model.artifactsPage.items = artifacts
+        model.artifactsPage.texts[101] = qaReport
         model.issueRepos[62] = ["citadel", "ainkrad-citadel-plugin"]
+        // `chat`/`reqs`: Kestrel is the only one of R-12's assignees working right now ("1 working").
+        for id in [Int64(8), 9, 11] { model.agents[id]?.figure = .idle }
         let kestrel = QuestionInfo(
             id: 7, agentID: 4, issueID: 62, issueKey: "CIT-62", requirementID: 12, runID: nil,
             text:
@@ -68,6 +97,14 @@ extension CompanyFixture {
         let day = now.addingTimeInterval(-3 * 86_400)
         for (id, hue) in [(Int64(102), 0.55), (103, 0.42), (107, 0.6)] {
             model.artifactsPage.images[id] = shot(hue: hue)
+        }
+        // "15 permissions decided inside runs": Bash ×13 · WebFetch ×2.
+        let permissions: [ThreadItem] = (0..<15).map { index in
+            .approval(
+                ApprovalInfo(
+                    id: 200 + Int64(index), kind: "permission_escalation", agentID: 4, issueID: 54, requestedBy: 4,
+                    expiresAt: nil, fields: ["tool": index < 13 ? "Bash" : "WebFetch"], status: "approved"),
+                at: day.addingTimeInterval(Double(3600 + index * 60)))
         }
         let page = model.requirementsPage
         page.isLoaded = true
@@ -94,6 +131,7 @@ extension CompanyFixture {
                         lists: ["tasks": (1...9).map { ["key": "CIT-\($0)", "epic": "\($0 % 3)"] }]),
                     at: day.addingTimeInterval(52 * 60)),
                 .question(wren, answer: "yes, end them"),
+            ] + permissions + [
                 .message(
                     CommentInfo(
                         id: 3, issueID: 61, agentID: 9,
@@ -132,7 +170,7 @@ extension CompanyFixture {
                         task(
                             54, "CIT-54", "Notification events", "done", agent: 4, points: 3, time: 6000, tokens: 96_000
                         ),
-                        task(61, "CIT-61", "Lease heartbeat", "in_review", agent: 8, points: 3, prs: 2),
+                        task(61, "CIT-61", "Runner lease heartbeat", "in_review", agent: 8, points: 3, prs: 2),
                         task(62, "CIT-62", "APNs push sender", "todo", agent: 4, points: 8),
                         task(60, "CIT-60", "Push for blocked work", "blocked", agent: 4, points: 3),
                     ]),
@@ -140,9 +178,10 @@ extension CompanyFixture {
                     id: 2, projectID: 1, title: "Device keys", points: 9, donePoints: 2,
                     tasks: [
                         task(
-                            58, "CIT-58", "Device registration", "done", agent: 5, points: 2, time: 3000, tokens: 40_000
+                            58, "CIT-58", "Device registration", "done", agent: 5, points: 2, time: 1320,
+                            tokens: 118_000
                         ),
-                        task(57, "CIT-57", "QA: rate-limit auth", "in_progress", agent: 9, points: 2),
+                        task(57, "CIT-57", "QA: rate-limit device key auth", "in_progress", agent: 9, points: 2),
                         task(63, "CIT-63", "List + revoke keys", "todo", agent: 5, points: 3),
                         task(66, "CIT-66", "Rate limits on auth", "todo", agent: 5, points: 2),
                     ]),
@@ -158,6 +197,7 @@ extension CompanyFixture {
                 version: 1, added: [("CIT-60", 3)], removed: [], pointsApproved: 28, pointsNow: 31),
             intakeIssueID: 70, planVersion: 1)
         for (index, key) in ["CIT-E1", "CIT-E2", "AMC-E1"].enumerated() { page.plans[12]?.epics[index].key = key }
+        otherRequirements(model)
     }
 
     static var artifacts: [ArtifactInfo] {

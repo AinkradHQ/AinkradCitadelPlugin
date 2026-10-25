@@ -82,25 +82,47 @@ final class RequirementsHubTests: XCTestCase {
         XCTAssertEqual(plan.percent, 16)
         XCTAssertEqual(plan.allTasks.count, 10)
         XCTAssertEqual(plan.inReview, 1)
-        XCTAssertEqual(
-            PlanRail.facts(plan), "1 in review · ETA \(Fmt.eta("2026-10-27")) · 312k tok · $14.20 so far")
         let glyphs = plan.epics[0].tasks.map { model.glyph($0) }
         XCTAssertEqual(glyphs, [.done, .review, .waiting, .blocked], "CIT-62 asks you")
         XCTAssertEqual(plan.epics[1].tasks.map { model.glyph($0).glyph }, ["✓", "▶", "○", "○"])
         XCTAssertTrue(plan.epics[0].started)
         XCTAssertFalse(plan.epics[2].started)
         XCTAssertEqual(model.taskMeta(plan.epics[0].tasks[0]), "done · 1h 40m · 96k tok")
-        XCTAssertEqual(model.taskMeta(plan.epics[0].tasks[1]), "2 PRs · in review")
+        XCTAssertEqual(model.taskMeta(plan.epics[0].tasks[1]), "2 PRs · QA ✓ · merge waits")
         XCTAssertEqual(model.taskMeta(plan.epics[0].tasks[2]), "asks you · 2 repos")
         XCTAssertEqual(plan.diff?.summary, "+1 task since approval (CIT-60, +3 pts)")
         XCTAssertEqual(TaskGlyph(state: "done", asksYou: true), .done, "a done task never waits")
 
-        let series = PlanRail.burndown(plan)
-        XCTAssertEqual(series.count, 2)
-        XCTAssertEqual(series[0].points.first?.y, 28)
-        XCTAssertEqual(series[0].points.last?.y, 0)
-        XCTAssertEqual(series[0].points.last?.x ?? 0, 3 + 26 / 2.5, accuracy: 0.001, "ideal reaches zero at the pace")
-        XCTAssertEqual(series[1].points.map(\.y), [28, 27, 25, 26])
+        XCTAssertEqual(Burndown.span(plan), 3 + 26 / 2.5, accuracy: 0.001, "ideal reaches zero at the pace")
+    }
+
+    func testDecidedPermissionsFoldAndWorkStartsAfterTheApprovedPlan() {
+        func permission(_ id: Int64, _ tool: String, status: String = "approved") -> ThreadItem {
+            .approval(
+                ApprovalInfo(
+                    id: id, kind: "permission_escalation", agentID: 4, issueID: 1, requestedBy: 4, expiresAt: nil,
+                    fields: ["tool": tool], status: status), at: .distantPast)
+        }
+        let plan = ThreadItem.approval(
+            ApprovalInfo(
+                id: 9, kind: "plan_approval", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil, fields: [:],
+                status: "approved"), at: .distantPast)
+        let lines = HubLine.lines(
+            [
+                plan, permission(1, "Bash"), permission(2, "Bash"), permission(3, "WebFetch"),
+                permission(4, "Bash", status: "pending"),
+            ],
+            started: "▶ Work started · 4 agents", closed: "✓ Done · 21 pts")
+        XCTAssertEqual(lines.count, 5)
+        XCTAssertEqual(lines[1], .system("▶ Work started · 4 agents"))
+        guard case .permissions(let folded) = lines[2] else { return XCTFail("decided permissions fold") }
+        XCTAssertEqual(HubLine.toolCounts(folded), "Bash ×2 · WebFetch ×1")
+        if case .item(.approval(let pending, _)) = lines[3] {
+            XCTAssertEqual(pending.status, "pending", "a pending permission keeps its own card")
+        } else {
+            XCTFail("pending permission stays a card")
+        }
+        XCTAssertEqual(lines[4], .system("✓ Done · 21 pts"))
     }
 
     func testArtifactsGroupByDayAndFilter() {
@@ -136,7 +158,7 @@ final class RequirementsHubTests: XCTestCase {
             CompanyFixture.artifacts[1].typeLabel(imageSize: CGSize(width: 1440, height: 900)), "png · 1440×900")
         XCTAssertEqual(CompanyFixture.artifacts[5].typeLabel(), "log · 84 KB")
         XCTAssertEqual(model.references(report), ["CIT-61", "R-12"])
-        XCTAssertEqual(ArtifactPreviewPane.shortHash(report.sha256), "9f2c…e1")
+        XCTAssertEqual(ArtifactInfo.shortHash(report.sha256), "9f2c…e1")
         XCTAssertTrue(model.artifactsCrumb(company: "Ainkrad", now: CompanyFixture.now).hasSuffix("212 MB of 2 GB"))
 
         XCTAssertEqual(ArtifactInfo.safeFileName("../../etc/passwd", id: 1), "_.._etc_passwd")

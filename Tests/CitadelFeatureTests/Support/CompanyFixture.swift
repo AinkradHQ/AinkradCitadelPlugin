@@ -233,6 +233,17 @@ enum CompanyFixture {
             ended(387, issue: 31, state: "cancelled", daysAgo: 3, minutes: 2, cost: 80_000),
             ended(380, issue: 35, state: "succeeded", daysAgo: 4, minutes: 12, cost: 900_000),
         ]
+        // Eight weeks of finished runs for the Success tile: two a week, one failing now and then.
+        model.agentRuns[4, default: []] += (1...7).flatMap { week -> [RunInfo] in
+            let base = Double(week * 7)
+            return [
+                ended(
+                    500 + Int64(week) * 2, issue: 38, state: week == 3 ? "failed" : "succeeded", daysAgo: base + 1,
+                    minutes: 14, cost: 900_000),
+                ended(
+                    501 + Int64(week) * 2, issue: 35, state: "succeeded", daysAgo: base + 3, minutes: 11, cost: 700_000),
+            ]
+        }
         model.transcripts[418] = transcript
     }
 

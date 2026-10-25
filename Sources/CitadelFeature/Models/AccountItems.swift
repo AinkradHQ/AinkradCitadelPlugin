@@ -32,6 +32,16 @@ final class AccountsPage {
     var showsAllFallbacks = false
     /// Why the last "Add account" was refused, in the server's words.
     var addFailure: ActionFailure?
+    /// The runners and their logins: an account logged out on one of them reads "logged out on a runner".
+    var runners: [RunnerInfo] = []
+    /// The company's values of the `fallback.on_*` triggers and `account.at_limit`.
+    var companySettings: [String: ScopedSetting] = [:]
+    /// Every agent's fallbacks (its own entry excluded), for the shared chains on Presets.
+    var agentFallbacks: [Int64: [FallbackEntry]] = [:]
+    /// Fallback chains: "presets" (the chains several agents share) or "agents" (one agent's chain).
+    var chainsTab = "presets"
+    /// The inset drawer open over the screen.
+    var drawer: AccountDrawer?
 
     /// The accounts on screen: the company's, or the whole pool.
     func visible(company: Int64) -> [PoolAccount] {
@@ -50,6 +60,8 @@ struct PoolAccount: Identifiable, Equatable, Sendable {
         case healthy
         case atLimit = "at limit"
         case flaky, unhealthy, disabled
+        /// Logged out on at least one runner (derived from `Runner.logins`, never from the account alone).
+        case partial = "logged out on a runner"
     }
 
     let id: Int64
@@ -203,6 +215,8 @@ struct FallbackEntry: Identifiable, Equatable, Sendable {
     var model: String
     /// The agent's own entry: always first, never moved or removed.
     var isOwn = false
+    /// A preset entry pinned to one account of the pool (API minor 18); `nil`: any.
+    var accountID: Int64? = nil
 }
 
 extension FallbackEntry {

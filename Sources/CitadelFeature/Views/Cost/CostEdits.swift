@@ -1,66 +1,6 @@
 import AinkradAppKit
 import SwiftUI
 
-/// By department: the period's spend cut by department (`getSpendBreakdown`), biggest first.
-struct ByDepartmentTile: View {
-    let model: CompanyModel
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        let rows = model.costByDepartment.sorted { $0.totals.tokens > $1.totals.tokens }
-        let top = Double(rows.map(\.totals.tokens).max() ?? 1)
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "By department")
-                if rows.isEmpty { faint("No runs in this period") }
-                ForEach(rows, id: \.id) { row in
-                    BreakdownRow(
-                        name: Text(model.departments.first { $0.id == row.id }?.name ?? "No department")
-                            .foregroundStyle(skin.color(skin.text.primary)),
-                        value: Double(row.totals.tokens), max: top, amount: row.totals.amount)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
-
-    private func faint(_ text: String) -> some View {
-        Text(text).citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-    }
-}
-
-/// By agent · top 5: each agent as its figure, its spend, "All 18 →" to the org.
-struct ByAgentTile: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        let rows = model.costByAgent.sorted { $0.totals.tokens > $1.totals.tokens }
-        let top = Double(rows.map(\.totals.tokens).max() ?? 1)
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "By agent · top 5", action: "All \(model.agents.count) →") { store.screen = .org }
-                if rows.isEmpty {
-                    Text("No runs in this period").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-                }
-                ForEach(rows.prefix(5), id: \.id) { row in
-                    let agent = model.agent(row.id)
-                    HStack(spacing: skin.size.s8) {
-                        if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s18) }
-                        BreakdownRow(
-                            name: Text(agent?.name ?? "Agent").foregroundStyle(skin.color(skin.text.primary)),
-                            value: Double(row.totals.tokens), max: top, amount: row.totals.amount,
-                            tone: row.totals.costMicros == 0 && row.totals.unpricedTokens > 0
-                                ? .warning : .accentSecondary)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
-}
-
 extension SpendTotals {
     /// A breakdown row's amount: dollars when any run was priced, "unpriced" when only unpriced, else tokens.
     var amount: String {
@@ -70,50 +10,114 @@ extension SpendTotals {
     }
 }
 
-/// "Set a price…": harness, model and its dollars per million tokens; from now on, runs before stay unpriced.
+/// Cost › Set a price (`costPrice`): the model and its dollars per million tokens, starting from the model that
+/// has no price (API minor 18). "Past runs too" re-costs its unpriced runs; "From now on" (and any older server)
+/// prices the next ones only.
 struct SetPriceForm: View {
     let store: CitadelStore
+    let unpriced: [UnpricedModelInfo]
     @Binding var isPresented: Bool
-    @State private var harness = "opencode"
-    @State private var modelName = ""
+    @State private var harness: String
+    @State private var modelName: String
     @State private var input = ""
     @State private var output = ""
     @State private var cache = ""
+    @State private var applyPast = true
     @State private var problem: PriceProblem?
     @State private var history: [PriceVersionInfo] = []
     @Environment(\.ainkradSkin) private var skin
 
+    init(store: CitadelStore, unpriced: [UnpricedModelInfo] = [], isPresented: Binding<Bool>) {
+        self.store = store
+        self.unpriced = unpriced
+        self._isPresented = isPresented
+        let first = unpriced.first
+        self._harness = State(
+            initialValue: first.map { PriceDraft.harnesses.contains($0.harness) ? $0.harness : "opencode" }
+                ?? "opencode")
+        self._modelName = State(initialValue: first?.model ?? "")
+    }
+
+    private var tranche: Bool { store.serverSupports(minor: CitadelStore.trancheBMinor) }
+    /// The runs the typed model has without a price, when the server listed it.
+    private var pending: UnpricedModelInfo? {
+        unpriced.first { $0.model == modelName.trimmingCharacters(in: .whitespaces) && $0.harness == harness }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: skin.size.s12) {
-            Text("Set a price").citadelFont("t15", weight: "semibold")
-            Text("Runs from now on are priced; runs before stay unpriced. Dollars per million tokens.")
-                .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
-            AinkradFormRow(title: "Harness") {
-                AinkradSegmentedPicker(items: PriceDraft.harnesses, selection: $harness) {
-                    AgentLook.harnessName($0)
-                }
-                .fixedSize()
+        let amber = skin.color(skin.palette.warning)
+        AinkradDrawerPanel(
+            style: .form, onClose: { isPresented = false },
+            header: { AinkradDrawerCrumb(["Cost", "Set a price"], monospaced: true) }
+        ) {
+            AinkradDrawerHero(
+                tint: amber, title: modelName.isEmpty ? "Unpriced model" : modelName,
+                subtitle:
+                    "via \(AgentLook.harnessName(harness)) · until a price exists its runs count as tokens only — never as $0"
+            ) {
+                Image(systemName: "exclamationmark.triangle").citadelFont("t20").foregroundStyle(amber)
+                    .frame(width: skin.size.s52, height: skin.size.s52)
+                    .background(
+                        amber.opacity(skin.opacity.o18),
+                        in: RoundedRectangle(cornerRadius: skin.size.s15, style: .continuous))
+            } trailing: {
+                EmptyView()
             }
-            AinkradFormRow(title: "Model") { AinkradTextField(text: $modelName, placeholder: "qwen3-coder") }
-            AinkradFormRow(title: "Input") { AinkradTextField(text: $input, placeholder: "0.30").monospaced() }
-            AinkradFormRow(title: "Output") { AinkradTextField(text: $output, placeholder: "1.20").monospaced() }
-            AinkradFormRow(title: "Cache read") { AinkradTextField(text: $cache, placeholder: "0").monospaced() }
+            AinkradDrawerSection(title: "Model", hint: "as the harness reports it") {
+                AinkradSegmentedPicker(items: PriceDraft.harnesses, selection: $harness) { AgentLook.harnessName($0) }
+                    .fixedSize()
+                AinkradTextField(text: $modelName, placeholder: "qwen3-coder").monospaced()
+                if unpriced.count > 1 {
+                    AinkradMenuButton(
+                        items: unpriced.map { item in
+                            AinkradMenuItem(
+                                title: "\(item.model) · \(Wording.count(Int(item.runs), "run"))", systemName: nil
+                            ) {
+                                harness = PriceDraft.harnesses.contains(item.harness) ? item.harness : harness
+                                modelName = item.model
+                            }
+                        }
+                    ) { Text("Unpriced models") }
+                    .fixedSize()
+                }
+            }
+            AinkradDrawerSection(title: "Price per 1M tokens · USD") {
+                HStack(spacing: skin.size.s8) {
+                    AinkradTextField(text: $input, placeholder: "0.40").monospaced()
+                    AinkradTextField(text: $output, placeholder: "1.20").monospaced()
+                    AinkradTextField(text: $cache, placeholder: "0").monospaced()
+                }
+                AinkradDrawerHint("input · output · cache read")
+            }
+            AinkradDrawerSection(title: "Apply to") {
+                AinkradOptionGrid(
+                    options: [
+                        AinkradOption(
+                            id: "past", title: "Past runs too", detail: "re-cost the unpriced runs of this model",
+                            isEnabled: tranche, help: tranche ? nil : store.help(minor: CitadelStore.trancheBMinor)),
+                        AinkradOption(id: "now", title: "From now on", detail: "runs before stay unpriced"),
+                    ], columns: 2, isOn: { ($0 == "past") == (applyPast && tranche) }
+                ) { applyPast = $0 == "past" }
+            }
             if !history.isEmpty {
-                VStack(alignment: .leading, spacing: skin.size.s3) {
-                    Text(skin.labelCased("Earlier prices")).citadelFont("t10", weight: "semibold")
-                        .foregroundStyle(skin.color(skin.text.muted))
+                AinkradDrawerSection(title: "Earlier prices") {
                     ForEach(history.reversed(), id: \.version) {
                         Text($0.line).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
                     }
                 }
             }
+            AinkradDrawerHint(
+                "Audited · company setting. "
+                    + (applyPast && tranche
+                        ? "\(pending.map { Wording.count(Int($0.runs), "run") } ?? "Its unpriced runs") move from unpriced to priced."
+                        : "Runs from now on move from unpriced to priced."))
             if let problem { AinkradBanner(message: problem.message, status: .danger) }
-            HStack(spacing: skin.size.s8) {
-                Spacer()
-                AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
-                AinkradButton(title: "Set price") { save() }.fixedSize()
-                    .disabled(modelName.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
+        } footer: {
+            Spacer()
+            AinkradDockButton("Cancel") { isPresented = false }
+            AinkradDockButton(
+                "Save price", tone: .primary, isEnabled: !modelName.trimmingCharacters(in: .whitespaces).isEmpty
+            ) { save() }
         }
         .task(id: priced) {
             let name = modelName.trimmingCharacters(in: .whitespaces)
@@ -128,75 +132,24 @@ struct SetPriceForm: View {
     private func save() {
         switch PriceDraft.parse(harness: harness, model: modelName, input: input, output: output, cache: cache) {
         case .success(let price):
-            store.setPrice(price)
+            store.savePrice(price, pastToo: applyPast && tranche)
             isPresented = false
         case .failure(let why): problem = why
         }
     }
 }
 
-/// A budget's Edit: its cap in tokens and its warn % (empty inherits), refused out of bounds — never clamped.
-struct EditBudgetForm: View {
-    let store: CitadelStore
-    let budget: BudgetInfo
-    let inherited: String
-    @Binding var isPresented: Bool
-    @State private var cap: String
-    @State private var warn: String
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradStatusColors) private var status
-
-    init(store: CitadelStore, budget: BudgetInfo, inherited: String, overridden: Bool, isPresented: Binding<Bool>) {
-        self.store = store
-        self.budget = budget
-        self.inherited = inherited
-        self._isPresented = isPresented
-        self._cap = State(initialValue: Fmt.tokens(budget.cap))
-        self._warn = State(initialValue: overridden ? "\(budget.warnPercent)" : "")
-    }
-
-    var body: some View {
-        let edit = BudgetEdit.parse(cap: cap, warn: warn)
-        VStack(alignment: .leading, spacing: skin.size.s12) {
-            Text("\(budget.label) · \(budget.period)").citadelFont("t15", weight: "semibold")
-            AinkradFormRow(title: "Cap", help: "Tokens; approved raises included.") {
-                AinkradTextField(text: $cap, placeholder: "2M").monospaced()
-            }
-            AinkradFormRow(title: "Warn at", help: "50–99%; empty inherits \(inherited).") {
-                AinkradTextField(text: $warn, placeholder: inherited).monospaced()
-            }
-            if case .failure(let why) = edit {
-                Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
-            }
-            HStack(spacing: skin.size.s8) {
-                AinkradButton(title: "Delete budget", style: .ghost) {
-                    store.deleteBudget(budget)
-                    isPresented = false
-                }
-                .borderless().fixedSize()
-                Spacer()
-                AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
-                AinkradButton(title: "Save") {
-                    guard case .success(let edit) = edit else { return }
-                    store.setBudget(budget, cap: edit.cap, warnPercent: edit.warnPercent)
-                    isPresented = false
-                }
-                .fixedSize()
-                .disabled((try? edit.get()) == nil)
-            }
-        }
-    }
-}
-
-/// "＋ New budget": a scope (the company, a department, project or agent), a period, its cap and warn %.
+/// Cost › New budget (`costNewBudget`): scope, target, period and a cap in dollars or tokens (API minor 18; older
+/// servers: tokens, no issue scope); warn inherits the company's.
 struct NewBudgetForm: View {
     let store: CitadelStore
     let model: CompanyModel
     @Binding var isPresented: Bool
+    @State private var kind = "company"
     @State private var scope: String
     @State private var period = "month"
     @State private var cap = ""
-    @State private var warn = ""
+    @State private var unit: BudgetUnit
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -205,82 +158,125 @@ struct NewBudgetForm: View {
         self.model = model
         self._isPresented = isPresented
         self._scope = State(initialValue: "company:\(model.companyID)")
+        self._unit = State(initialValue: store.serverSupports(minor: CitadelStore.trancheBMinor) ? .dollars : .tokens)
     }
 
-    /// Every scope a budget can take here, labelled as the budget rows read.
-    private var scopes: [(scope: String, label: String)] {
-        [("company:\(model.companyID)", "Company")]
-            + model.departments.map { ("department:\($0.id)", $0.name) }
-            + model.projects.map { ("project:\($0.id)", "\($0.key) · \($0.name)") }
-            + model.agents.values.sorted { $0.name < $1.name }.map { ("agent:\($0.id)", $0.name) }
+    private var tranche: Bool { store.serverSupports(minor: CitadelStore.trancheBMinor) }
+
+    /// Every target of the chosen kind, labelled as the budget cards read.
+    private var targets: [(scope: String, label: String)] {
+        switch kind {
+        case "department": model.departments.map { ("department:\($0.id)", $0.name) }
+        case "project": model.projects.map { ("project:\($0.id)", "\($0.key) · \($0.name)") }
+        case "agent": model.agents.values.sorted { $0.name < $1.name }.map { ("agent:\($0.id)", $0.name) }
+        case "issue":
+            model.issues.values.filter { !["done", "cancelled"].contains($0.state) }.sorted { $0.key < $1.key }
+                .map { ("issue:\($0.id)", "\($0.key) · \($0.title)") }
+        default: [("company:\(model.companyID)", "Company")]
+        }
     }
 
     var body: some View {
-        let edit = BudgetEdit.parse(cap: cap, warn: warn)
-        let label = scopes.first { $0.scope == scope }?.label ?? scope
-        VStack(alignment: .leading, spacing: skin.size.s12) {
-            Text("New budget").citadelFont("t15", weight: "semibold")
-            AinkradFormRow(title: "Scope") {
+        let edit = BudgetEdit.parse(cap: cap, warn: "", unit: unit)
+        let label = targets.first { $0.scope == scope }?.label ?? targets.first?.label ?? "Company"
+        AinkradDrawerPanel(
+            style: .form, onClose: { isPresented = false },
+            header: { AinkradDrawerCrumb(["Cost", "New budget"], monospaced: true) }
+        ) {
+            AinkradDrawerSection(title: "Scope") {
+                AinkradOptionGrid(
+                    options: ["company", "department", "project", "agent", "issue"].map {
+                        AinkradOption(
+                            id: $0, title: $0.capitalized, detail: "", isEnabled: $0 != "issue" || tranche,
+                            help: $0 == "issue" && !tranche ? store.help(minor: CitadelStore.trancheBMinor) : nil)
+                    }, columns: 5, isOn: { $0 == kind }
+                ) { picked in
+                    kind = picked
+                    scope = targets.first?.scope ?? ""
+                }
+            }
+            AinkradDrawerSection(title: "Target") {
                 AinkradMenuButton(
-                    items: scopes.map { item in
+                    items: targets.map { item in
                         AinkradMenuItem(title: item.label, systemName: nil) { scope = item.scope }
                     }
                 ) { Text(label) }
-            }
-            AinkradFormRow(title: "Period") {
-                AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) {
-                    $0.capitalized
-                }
+                .disabled(targets.count < 2)
                 .fixedSize()
             }
-            AinkradFormRow(title: "Cap", help: "Tokens; runs stop at it until you approve a raise.") {
-                AinkradTextField(text: $cap, placeholder: "2M").monospaced()
+            AinkradDrawerSection(title: "Period") {
+                AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) { $0.capitalized }
+                    .fixedSize()
             }
-            AinkradFormRow(title: "Warn at", help: "50–99%; empty inherits the company's.") {
-                AinkradTextField(text: $warn, placeholder: "80").monospaced()
-            }
-            if !cap.isEmpty, case .failure(let why) = edit {
-                Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
-            }
-            HStack(spacing: skin.size.s8) {
-                Spacer()
-                AinkradButton(title: "Cancel", style: .ghost) { isPresented = false }.fixedSize()
-                AinkradButton(title: "Add budget") {
-                    guard case .success(let edit) = edit else { return }
-                    store.createBudget(
-                        scope: scope, label: label, period: period, cap: edit.cap, warnPercent: edit.warnPercent)
-                    isPresented = false
+            AinkradDrawerSection(
+                title: "Cap",
+                hint: tranche
+                    ? "dollars or tokens" : "tokens · dollar caps: \(store.help(minor: CitadelStore.trancheBMinor))"
+            ) {
+                if tranche {
+                    AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }.fixedSize()
                 }
-                .fixedSize()
-                .disabled((try? edit.get()) == nil)
+                AinkradTextField(text: $cap, placeholder: unit == .dollars ? "$120" : "2M").monospaced()
+                if !cap.isEmpty, case .failure(let why) = edit {
+                    Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
+                }
+            }
+            AinkradDrawerHint(
+                "Warn at inherits the company \(model.limits["budget.warn_percent"]?.value ?? 80)% — edit it on the card to override. Counts from the start of the period."
+            )
+        } footer: {
+            Spacer()
+            AinkradDockButton("Cancel") { isPresented = false }
+            AinkradDockButton("Create budget", tone: .primary, isEnabled: (try? edit.get()) != nil && !scope.isEmpty) {
+                guard case .success(let edit) = edit else { return }
+                store.addBudget(scope: scope, label: label, period: period, cap: edit.cap, usdCap: edit.usdCap)
+                isPresented = false
             }
         }
     }
 }
 
-/// A budget edit as typed: the cap in tokens (`2M`, `900k`, `1500`) and the warn % (`nil` inherits).
+/// A budget edit as typed: the cap in tokens (`2M`, `900k`, `1500`) or dollars (`$900`, `1.5k`), and the warn %
+/// (`nil` inherits). A dollar edit leaves `cap` 0 — the caller keeps the budget's own token cap.
 struct BudgetEdit: Equatable {
     var cap: Int64
+    var usdCap: Int64?
     var warnPercent: Int?
 
+    init(cap: Int64, usdCap: Int64? = nil, warnPercent: Int?) {
+        self.cap = cap
+        self.usdCap = usdCap
+        self.warnPercent = warnPercent
+    }
+
     enum Problem: Error, Equatable {
-        case cap, warn
+        case cap, dollars, warn
 
         var message: String {
             switch self {
             case .cap: "The cap is a token count, 0 or more (2M, 900k)."
+            case .dollars: "The cap is a dollar amount, 0 or more ($900, 1.5k)."
             case .warn: "Warn at is 50–99%, or empty to inherit."
             }
         }
     }
 
-    static func parse(cap: String, warn: String) -> Result<BudgetEdit, Problem> {
-        guard let tokens = ScopedSetting.parse(cap, unit: "tokens"), tokens >= 0 else { return .failure(.cap) }
+    static func parse(cap: String, warn: String, unit: BudgetUnit = .tokens) -> Result<BudgetEdit, Problem> {
+        var tokens: Int64 = 0
+        var dollars: Int64?
+        switch unit {
+        case .tokens:
+            guard let parsed = ScopedSetting.parse(cap, unit: "tokens"), parsed >= 0 else { return .failure(.cap) }
+            tokens = parsed
+        case .dollars:
+            guard let parsed = BudgetUnit.parseDollars(cap) else { return .failure(.dollars) }
+            dollars = parsed
+        }
         let typed = warn.trimmingCharacters(in: .whitespaces)
-        if typed.isEmpty { return .success(BudgetEdit(cap: tokens, warnPercent: nil)) }
+        if typed.isEmpty { return .success(BudgetEdit(cap: tokens, usdCap: dollars, warnPercent: nil)) }
         guard let percent = ScopedSetting.parse(typed, unit: "percent"), (50...99).contains(percent) else {
             return .failure(.warn)
         }
-        return .success(BudgetEdit(cap: tokens, warnPercent: Int(percent)))
+        return .success(BudgetEdit(cap: tokens, usdCap: dollars, warnPercent: Int(percent)))
     }
 }

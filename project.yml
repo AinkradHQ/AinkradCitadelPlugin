@@ -34,7 +34,9 @@ packages:
     # 141d5b8: the Citadel kit options (#123) — card rimTint, tone stacked bars, nav counts, banner action,
     # sentence-case stat labels. Matches the host's pin once AinkradHQ/Ainkrad chore/appkit-pin-141d5b8 merges;
     # never sideload into a host behind it.
-    revision: 141d5b80468a5aa43e688c2716e1cc715b17564f
+    # 20cb62d: the Citadel prototype parity components (#124) — the shell, every screen's parts, drawers,
+    # choice cards, charts, gauges; additive, abi-check clean. Needs a host on 20cb62d or later.
+    revision: 20cb62dae52062fb59723ab435b47fab89b55d26
   # The generated Citadel client (swift-openapi-generator output, committed) — see its Package.swift.
   # Statically linked into the bundle with its runtime and URLSession transport; no swift-nio.
   CitadelClient:

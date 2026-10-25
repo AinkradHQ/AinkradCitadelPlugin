@@ -81,15 +81,16 @@ extension CitadelServer {
 /// Screen 14's API minor 7 writes: a new project, a decision on an agent's proposal, and the profile's history.
 extension CitadelServer {
     /// "＋ New project": a malformed or taken key is a 409 with the server's reason.
-    func createProject(company: Int64, name: String, key: String, mode: String) async -> Result<
-        ProjectInfo, ServerAnswer
-    > {
-        let body = Schemas.NewProject(key: key, mode: .init(value1: .init(rawValue: mode), value2: mode), name: name)
+    func createProject(
+        company: Int64, name: String, key: String, mode: String, team: Int64? = nil, icon: String? = nil,
+        color: String? = nil, teams: [Int64] = []
+    ) async -> Result<ProjectInfo, ServerAnswer> {
+        let body = Schemas.NewProject(
+            color: color, icon: icon, key: key, mode: .init(value1: .init(rawValue: mode), value2: mode), name: name,
+            teamId: team, teamIds: teams.isEmpty ? nil : teams)
         return await attempt({ try await client.createProject(path: .init(id: company), body: .json(body)) }) {
             guard case .ok(let ok) = $0 else { return nil }
-            let project = try ok.body.json
-            return ProjectInfo(
-                id: project.id, key: project.key, name: project.name, teamID: project.teamId, mode: project.mode.word)
+            return ProjectInfo(try ok.body.json)
         }
     }
 

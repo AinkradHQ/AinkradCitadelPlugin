@@ -71,20 +71,24 @@ extension CitadelServer {
         await act { try await client.retryRun(path: .init(id: run), body: .json(.init(runnerId: runner))) }
     }
 
-    /// A model's price from now on, dollars per million tokens.
-    func setPrice(_ price: PriceDraft) async -> ServerAnswer? {
+    /// A model's price, dollars per million tokens: from now on, or (`pastToo`, API minor 18) the runs that have
+    /// no dollars yet as well.
+    func setPrice(_ price: PriceDraft, pastToo: Bool = false) async -> ServerAnswer? {
         await act {
             try await client.setPrice(
                 body: .json(
                     .init(
-                        cacheUsdPerMtok: price.cache, harness: .init(value1: .init(rawValue: price.harness)),
-                        inputUsdPerMtok: price.input, model: price.model, outputUsdPerMtok: price.output)))
+                        applyFrom: pastToo ? .init(value1: .past) : nil, cacheUsdPerMtok: price.cache,
+                        harness: .init(value1: .init(rawValue: price.harness)), inputUsdPerMtok: price.input,
+                        model: price.model, outputUsdPerMtok: price.output)))
         }
     }
 
-    /// Creates or changes the budget for a scope and period: its cap (tokens, the raises excluded) and its warn %
-    /// (`nil` inherits `budget.warn_percent`).
-    func setBudget(company: Int64, _ budget: BudgetInfo, cap: Int64, warnPercent: Int?) async -> ServerAnswer? {
+    /// Creates or changes the budget for a scope and period: its cap (tokens, the raises excluded), its dollar cap
+    /// (`usdCap`, millionths, API minor 18; `nil` clears it) and its warn % (`nil` inherits `budget.warn_percent`).
+    func setBudget(company: Int64, _ budget: BudgetInfo, cap: Int64, usdCap: Int64?, warnPercent: Int?) async
+        -> ServerAnswer?
+    {
         guard let scope = BudgetInfo.wireScope(budget.scope) else {
             return ServerAnswer(status: 400, code: "bad_scope", message: "Unknown budget scope \(budget.scope)")
         }
@@ -96,14 +100,16 @@ extension CitadelServer {
                 body: .json(
                     .init(
                         hardStop: budget.hardStop, period: period, scope: scope, tokenCap: max(0, cap - budget.raised),
+                        usdCapMicros: usdCap.map { max(0, $0 - budget.raisedUsd) },
                         warnAtPercent: warnPercent.map(Int32.init))))
         }
     }
 
-    /// "＋ New budget": a cap for a scope (`company:1`, `project:2`, …) and period; `warnPercent` `nil` inherits.
-    func createBudget(company: Int64, scope: String, period: String, cap: Int64, warnPercent: Int?) async
-        -> ServerAnswer?
-    {
+    /// "＋ New budget": a cap for a scope (`company:1`, `project:2`, …) and period, in tokens and/or dollars
+    /// (`usdCap`, millionths); `warnPercent` `nil` inherits.
+    func createBudget(
+        company: Int64, scope: String, period: String, cap: Int64, usdCap: Int64? = nil, warnPercent: Int?
+    ) async -> ServerAnswer? {
         guard let wire = BudgetInfo.wireScope(scope) else {
             return ServerAnswer(status: 400, code: "bad_scope", message: "Unknown budget scope \(scope)")
         }
@@ -114,7 +120,7 @@ extension CitadelServer {
                 body: .json(
                     .init(
                         period: .init(value1: known, value2: known == nil ? period : nil), scope: wire, tokenCap: cap,
-                        warnAtPercent: warnPercent.map(Int32.init))))
+                        usdCapMicros: usdCap, warnAtPercent: warnPercent.map(Int32.init))))
         }
     }
 
@@ -157,6 +163,7 @@ extension BudgetInfo {
         case "project": return .project(.init(kind: .project, projectId: id))
         case "agent": return .agent(.init(agentId: id, kind: .agent))
         case "sprint": return .sprint(.init(kind: .sprint, sprintId: id))
+        case "issue": return .issue(.init(issueId: id, kind: .issue))
         default: return nil
         }
     }

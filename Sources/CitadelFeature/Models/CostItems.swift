@@ -1,5 +1,6 @@
 import AinkradAppKit
 import Foundation
+import Observation
 
 /// The Cost screen's period switch (screen 09): Today, this week, this month, the active sprint.
 enum CostPeriod: String, CaseIterable, Hashable {
@@ -24,6 +25,14 @@ enum CostPeriod: String, CaseIterable, Hashable {
         let weekAgo = calendar.date(byAdding: .day, value: -6, to: today) ?? today
         return min(start ?? weekAgo, weekAgo)
     }
+}
+
+/// Cost's view state that outlives the view: the open drawer and the breakdown tab.
+@MainActor
+@Observable
+final class CostPage {
+    var drawer: CostDrawer?
+    var breakdownTab = "department"
 }
 
 /// One issue's spend in the period (`getTaskCosts`): tokens by kind, dollars of its priced runs only, wall time.
@@ -52,6 +61,17 @@ struct TaskCostInfo: Identifiable, Equatable, Sendable {
         if unpricedRuns > 0 { return "unpriced" }
         return subscriptionRuns > 0 ? "sub" : Fmt.dollars(micros: 0)
     }
+}
+
+/// A model whose runs have no price (`listUnpriced`, API minor 18): what the Unpriced tile names and the Set a
+/// price drawer starts from.
+struct UnpricedModelInfo: Identifiable, Equatable, Sendable {
+    var id: String { "\(harness)|\(model)" }
+    var harness: String
+    var model: String
+    var runs: Int64
+    var tokens: Int64
+    var accountID: Int64?
 }
 
 /// What this company used of one pool account (decision #41: never another company's share).

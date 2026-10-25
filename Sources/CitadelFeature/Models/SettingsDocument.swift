@@ -17,4 +17,14 @@ struct SettingsDocument: Codable, Equatable, Sendable {
     var lastSeen: Date?
     /// The last event seq read, per `server|company` (`EventCursor.key`) — the stream's resume point.
     var cursors: [String: Int64] = [:]
+    /// How much of the workspace shows through the window (Settings › Appearance); `nil` = the default.
+    var surfaceOpacity: Double?
+
+    static let defaultSurfaceOpacity = 0.55
+    static let surfaceOpacityRange = 0.3...1.0
+
+    /// The window's glass fill opacity, clamped to the legible range.
+    var resolvedSurfaceOpacity: Double {
+        min(max(surfaceOpacity ?? Self.defaultSurfaceOpacity, Self.surfaceOpacityRange.lowerBound), 1)
+    }
 }

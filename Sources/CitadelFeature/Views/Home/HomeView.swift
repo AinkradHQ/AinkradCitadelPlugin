@@ -1,271 +1,314 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Screen 02: what needs me first — account warning, four tiles, open requirements, live runs, then the merged
-/// "needs you" list beside spend. Everything is pushed by the event stream.
+/// Screen 02 (prototype `home.js`): the hero, the account strip, then a two-column bento — what needs you beside
+/// the account limits with the live runs under them, and requirements, team, recent activity and spend on the
+/// right. Everything is pushed by the event stream.
 struct HomeView: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
-    @State private var pageWidth: CGFloat = 0
     @State private var confirmsPause = false
+    @State private var dismissedStrip: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: crumb) {
-                HStack(spacing: skin.size.s8) {
-                    AinkradIconButton(systemName: "plus", size: skin.size.s30, tooltip: "New goal for the CEO") {}
-                        .outlineBox().disabled(true)
-                    AinkradIconButton(
-                        systemName: allPaused ? "play.fill" : "pause.fill", size: skin.size.s30,
-                        tooltip: allPaused ? "Resume all agents" : "Pause all runs"
-                    ) {
-                        if allPaused { store.setCompanyPaused(false) } else { confirmsPause = true }
+        ScrollView {
+            VStack(alignment: .leading, spacing: skin.size.s14) {
+                HomeHero(store: store, model: model) { confirmsPause = true }
+                if let alert = accountAlert, alert.plain != dismissedStrip {
+                    AccountStrip(text: alert.text, open: { store.screen = .accounts }) {
+                        withAnimation(skin.animation(skin.motion.dismiss)) { dismissedStrip = alert.plain }
                     }
-                    .outlineBox().disabled(model.agents.isEmpty)
-                    AinkradMenuButton(items: [
-                        AinkradMenuItem(title: "Open Cost", systemName: "dollarsign") { store.screen = .cost }
-                    ]) {
-                        Image(systemName: "ellipsis")
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                HStack(alignment: .top, spacing: skin.size.s14) {
+                    VStack(alignment: .leading, spacing: skin.size.s14) {
+                        HStack(alignment: .top, spacing: skin.size.s14) {
+                            NeedsYouTile(store: store, model: model, limit: max(4, accountRows))
+                            HomeAccountsTile(store: store, model: model)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        LiveRunsSection(store: store, model: model)
                     }
+                    .frame(maxWidth: .infinity)
+                    VStack(alignment: .leading, spacing: skin.size.s14) {
+                        RequirementsTile(store: store, model: model)
+                        TeamTile(store: store, model: model)
+                        ActivityTile(store: store, model: model)
+                        SpendTile(store: store, model: model)
+                    }
+                    .frame(width: skin.size.s340)
                 }
             }
-            ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s14) {
-                    if let alert = accountAlert { AccountWarning(text: alert) { store.screen = .accounts } }
-                    tiles
-                    if !openRequirements.isEmpty { requirements }
-                    if !model.liveRuns.isEmpty { LiveRunStrip(store: store, model: model) }
-                    HStack(alignment: .top, spacing: skin.size.s14) {
-                        // The mockup's 1.35fr / 1fr columns.
-                        NeedsYouTile(store: store, model: model)
-                            .frame(width: max(0, (pageWidth - skin.size.s14) * 1.35 / 2.35))
-                            .frame(maxHeight: .infinity)
-                        SpendTile(store: store, model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                .onGeometryChange(for: CGFloat.self) {
-                    $0.size.width
-                } action: {
-                    pageWidth = $0
-                }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.top, skin.size.s2)
-                .padding(.bottom, skin.size.s20)
-            }
-            .offlineDimmed()
+            .padding(.horizontal, skin.size.s20)
+            .padding(.top, skin.size.s14)
+            .padding(.bottom, skin.size.s20)
         }
+        .scrollIndicators(.never)
+        .offlineDimmed()
         .ainkradConfirmDialog(
-            isPresented: $confirmsPause, title: "Pause all runs?",
+            isPresented: $confirmsPause, title: "Pause every run?",
             message:
                 "Every agent finishes its current tool call, then parks; new wakes queue until you resume. Nothing is killed.",
             confirmTitle: "Pause all"
         ) { store.setCompanyPaused(true) }
     }
 
-    /// Every agent paused (a hire still pending doesn't count): ⏸ turns into ▶ Resume.
-    private var allPaused: Bool {
-        let hired = model.agents.values.filter { !$0.isHirePending && $0.status != "terminated" }
-        return !hired.isEmpty && hired.allSatisfy(\.isPaused)
-    }
+    private var accountRows: Int { model.accounts.count }
 
-    /// `18 agents · 2 departments · Sprint CIT S4 day 6 of 10 · ● live`.
-    private var crumb: Text {
-        var parts = [Wording.count(model.agents.count, "agent"), Wording.count(model.departments.count, "department")]
-        if let sprint = model.sprint {
-            var text = sprint.title
-            if let start = sprint.startsOn, let end = sprint.endsOn {
-                let day = Calendar.current.dateComponents([.day], from: start, to: Date()).day ?? 0
-                let length = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
-                text += " day \(day + 1) of \(length + 1)"
-            }
-            parts.append(text)
-        }
-        let live = store.streamStatus == .live
-        return Text(parts.joined(separator: " · ")).foregroundStyle(skin.color(skin.text.muted))
-            + Text(verbatim: " · ").foregroundStyle(skin.color(skin.text.muted))
-            + Text(live ? "● live" : "● polling").foregroundStyle(live ? status.success : status.warning)
-    }
-
-    /// "claude-work is at its 5 h limit until 13:05 — runs move on. codex-pro at 86% of its 5 h window."
-    private var accountAlert: String? {
-        let lines = model.accounts.values.sorted { $0.id < $1.id }.compactMap { account -> String? in
+    /// "**claude-work** is at its 5 h limit until 13:05 — skipped, runs move on. **codex-pro** at 86% of its 5 h window."
+    private var accountAlert: (text: Text, plain: String)? {
+        var text = Text("")
+        var plain = ""
+        for account in model.accounts.values.sorted(by: { $0.id < $1.id }) {
             let window = account.windowSecs.map { " \($0 / 3600) h" } ?? ""
+            var rest: String?
             if account.status == "limited" {
                 let until = account.statusUntil.map { " until \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
-                return "\(account.label) is at its\(window) limit\(until) — skipped, runs move to the next account."
+                rest = " is at its\(window) limit\(until) — skipped, runs move to the next account. "
+            } else if let use = account.windowUse, use * 100 >= Double(account.warnPercent ?? 80) {
+                rest = " at \(Int(use * 100))% of its\(window) window. "
             }
-            if let use = account.windowUse, use * 100 >= Double(account.warnPercent ?? 80) {
-                return "\(account.label) at \(Int(use * 100))% of its\(window) window."
-            }
-            return nil
+            guard let rest else { continue }
+            text = text + Text(account.label).bold().foregroundStyle(skin.color(skin.text.primary)) + Text(rest)
+            plain += account.label + rest
         }
-        return lines.isEmpty ? nil : lines.joined(separator: " ")
-    }
-
-    // MARK: - Tiles
-
-    private var tiles: some View {
-        let approvals = model.approvals.count
-        let stuck = model.stuck.count
-        let spend = model.spend
-        return HStack(alignment: .top, spacing: skin.size.s14) {
-            KPITile(
-                label: "Needs you", value: "\(model.needsYouCount)", unit: nil,
-                tone: model.needsYouCount > 0 ? status.warning : nil, rim: model.needsYouCount > 0 ? .warning : nil,
-                detail: Text("\(approvals) approval\(approvals == 1 ? "" : "s") · \(stuck) stuck"))
-            KPITile(
-                label: "Working now", value: "\(model.liveRuns.count)", unit: "runs", tone: nil,
-                detail: Text(
-                    "\(Wording.count(model.busyAgents, "agent")) busy · \(model.idleAgents) idle · \(model.pausedAgents) paused"
-                ))
-            KPITile(
-                label: "Spend today", value: model.spendToday.map { Fmt.dollars(micros: $0.costMicros) } ?? "—",
-                unit: nil, tone: nil, detail: spendDetail(spend))
-            KPITile(
-                label: model.sprint?.title ?? "Sprint",
-                value: model.sprint.map { "\($0.completed)" } ?? "—",
-                unit: model.sprint.map { "/ \($0.committed) pts" }, tone: nil, detail: nil,
-                progress: model.sprint.map { (Double($0.completed), Double(max($0.committed, 1))) })
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func spendDetail(_ spend: SpendInfo?) -> Text {
-        let today = model.spendToday
-        let unpricedRuns = today?.unpricedRuns ?? 0
-        let unpriced =
-            unpricedRuns > 0
-            ? Text("\(unpricedRuns) unpriced run\(unpricedRuns == 1 ? "" : "s")").foregroundStyle(status.warning)
-            : Text("\(Fmt.tokens(today?.tokens ?? 0)) tokens")
-        guard let spend else { return unpriced }
-        return unpriced + Text(" · \(Fmt.tokens(spend.subscriptionTokens)) subscription tokens")
-    }
-
-    // MARK: - Requirements
-
-    private var openRequirements: [RequirementInfo] {
-        model.requirements.filter { $0.state != "done" && $0.state != "cancelled" }
-            .sorted { ($0.state == "plan_review" ? 0 : 1, -$0.id) < ($1.state == "plan_review" ? 0 : 1, -$1.id) }
-    }
-
-    private var requirements: some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            TileHead(title: "Requirements", action: "All \(openRequirements.count) →") { store.screen = .requirements }
-            HStack(alignment: .top, spacing: skin.size.s10) {
-                ForEach(openRequirements.prefix(3), id: \.id) { requirement in
-                    RequirementCard(requirement: requirement, model: model) { store.screen = .requirements }
-                        .frame(maxWidth: .infinity)
-                }
-                ForEach(0..<max(0, 3 - openRequirements.count), id: \.self) { _ in
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
-                }
-            }
-        }
+        return plain.isEmpty ? nil : (text, plain)
     }
 }
 
-/// One of the four tiles: label, a big number with a small unit, a line under it (or a progress bar).
-private struct KPITile: View {
-    let label: String
-    let value: String
-    let unit: String?
-    let tone: Color?
-    var rim: AinkradChartTone?
-    let detail: Text?
-    var progress: (Double, Double)?
+/// The amber account strip: key glyph, the accounts at or near a limit, Accounts, dismiss until it changes.
+private struct AccountStrip: View {
+    let text: Text
+    let open: () -> Void
+    let dismiss: () -> Void
     @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        let amber = skin.color(skin.palette.warning)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
+        HStack(spacing: skin.size.s12) {
+            AinkradIconTile(glyph: "⚿", tint: amber)
+            text.citadelFont("t12_5").foregroundStyle(skin.color(skin.text.muted)).lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            AinkradDockButton("Accounts", action: open)
+            AinkradTapArea(action: dismiss) {
+                Image(systemName: "xmark").citadelFont("t11", weight: "semibold")
+                    .foregroundStyle(skin.color(skin.text.faint)).frame(width: skin.size.s26, height: skin.size.s26)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss until it changes")
+        }
+        .padding(.vertical, skin.size.s10)
+        .padding(.horizontal, skin.size.s14)
+        .background(
+            shape.fill(
+                LinearGradient(
+                    colors: [amber.opacity(skin.opacity.o12), amber.opacity(skin.opacity.o03)], startPoint: .leading,
+                    endPoint: .trailing))
+        )
+        .overlay(shape.strokeBorder(amber.opacity(skin.opacity.o25), lineWidth: 1))
+    }
+}
+
+/// "What needs you now": each row with its one obvious action inline; the row opens the detail.
+struct NeedsYouTile: View {
+    let store: CitadelStore
+    let model: CompanyModel
+    let limit: Int
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s2) {
-                Text(skin.labelCased(label))
-                    .citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted))
-                    .lineLimit(1)
-                HStack(alignment: .firstTextBaseline, spacing: skin.size.s4) {
-                    Text(value)
-                        .citadelFont("t26", weight: "semibold")
-                        .foregroundStyle(tone ?? skin.color(skin.text.primary))
-                        .contentTransition(.numericText())
-                        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: value)
-                    if let unit {
-                        Text(unit).citadelFont("t13", weight: "medium").foregroundStyle(skin.color(skin.text.muted))
+        let items = model.needsItems()
+        AinkradBentoTile {
+            VStack(alignment: .leading, spacing: skin.size.s8) {
+                AinkradSectionHead(
+                    title: "What needs you now", count: items.isEmpty ? nil : "\(items.count)", link: "Open inbox →"
+                ) {
+                    store.screen = .approvals
+                }
+                if items.isEmpty {
+                    zero
+                } else {
+                    VStack(alignment: .leading, spacing: skin.size.s2) {
+                        ForEach(items.prefix(limit)) { item in
+                            NeedsRow(item: item, tint: tint(item.tone)) { perform(item.action, open: $0) }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
-                }
-                if let progress {
-                    AinkradBudgetBar(
-                        label: label, value: progress.0, limit: progress.1, warnFraction: nil, showsHardLimit: false,
-                        tone: .progress(progress.0, of: progress.1)
-                    )
-                    .padding(.top, skin.size.s8)
-                }
-                if let detail {
-                    detail.citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
-                        .fixedSize(horizontal: false, vertical: true)
+                    .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: items.map(\.id))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
-        .rim(rim)
+    }
+
+    private var zero: some View {
+        VStack(spacing: skin.size.s8) {
+            Image(systemName: "checkmark").citadelFont("t18", weight: "bold").foregroundStyle(status.success)
+                .frame(width: skin.size.s40, height: skin.size.s40)
+                .background(status.success.opacity(skin.opacity.o16), in: Circle())
+            Text("Nothing waits on you").citadelFont("t13", weight: "semibold").foregroundStyle(
+                skin.color(skin.text.primary))
+            if let last = model.answeredApprovals.first {
+                Text("Last decision: \(model.summary(last).title)").citadelFont("t11").foregroundStyle(
+                    skin.color(skin.text.faint)
+                )
+                .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, skin.size.s24)
+    }
+
+    private func perform(_ action: NeedsItem.Action, open: Bool) {
+        switch action {
+        case .approve(let approval, _):
+            if open {
+                store.selectedApproval = approval.id
+                store.screen = .approvals
+            } else {
+                store.decide(approval, approve: true)
+                store.toast(AinkradRichToast(title: "Approved", body: model.summary(approval).title, status: .success))
+            }
+        case .openRun(let run): store.open(.run(run))
+        case .openScreen(let screen, _): store.screen = screen
+        case .review(let id):
+            store.selectedApproval = id
+            store.screen = .approvals
+        }
+    }
+
+    private func tint(_ tone: NeedsItem.Tone) -> Color {
+        switch tone {
+        case .accent: skin.color(skin.palette.accentPrimary)
+        case .warning: status.warning
+        case .danger: status.danger
+        }
     }
 }
 
-/// A requirement: key, title, the one thing blocking you, progress by points, ETA, owner.
-private struct RequirementCard: View {
-    let requirement: RequirementInfo
-    let model: CompanyModel
-    let open: () -> Void
+private struct NeedsRow: View {
+    let item: NeedsItem
+    let tint: Color
+    let perform: (_ open: Bool) -> Void
+    @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
-
-    private var needsPlan: Bool { requirement.state == "plan_review" }
 
     var body: some View {
-        AinkradCard(onTap: open) {
-            VStack(alignment: .leading, spacing: skin.size.s6) {
-                HStack(spacing: skin.size.s8) {
-                    Text(requirement.key).citadelFont("t10_5", mono: true).foregroundStyle(theme.accentSecondary)
-                    Text(requirement.title).citadelFont("t13", weight: "medium").lineLimit(1)
-                        .foregroundStyle(skin.color(skin.text.primary))
-                    Spacer(minLength: skin.size.s4)
-                    if needsPlan { AinkradBadge(text: "plan", status: .warning) }
+        HStack(spacing: skin.size.s10) {
+            AinkradIconTile(glyph: item.glyph, tint: tint)
+            VStack(alignment: .leading, spacing: skin.size.s1) {
+                Text(item.title).citadelFont("t13", weight: "medium").foregroundStyle(skin.color(skin.text.primary))
+                    .lineLimit(1)
+                if !item.subtitle.isEmpty {
+                    Text(item.subtitle).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                 }
-                AinkradBudgetBar(
-                    label: requirement.key, value: Double(requirement.donePoints),
-                    limit: Double(max(requirement.points, 1)), warnFraction: nil, showsHardLimit: false,
-                    tone: .progress(Double(requirement.donePoints), of: Double(requirement.points)))
-                meta.citadelFont("t11").lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            button.frame(width: skin.size.s104)
         }
-        .rim(needsPlan ? .warning : nil)
+        .padding(.vertical, skin.size.s8)
+        .padding(.horizontal, skin.size.s10)
+        .background(
+            RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+                .fill(skin.color(.palette("foreground", hovering ? skin.opacity.o05 : 0)))
+        )
+        .offset(x: hovering ? skin.size.s2 : 0)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .onTapGesture { perform(true) }
     }
 
-    private var meta: Text {
-        let faint = skin.color(skin.text.faint)
-        if needsPlan {
-            return Text("\(requirement.points) pts planned · ").foregroundStyle(faint)
-                + Text("approve plan to start").foregroundStyle(status.warning)
+    @ViewBuilder private var button: some View {
+        let height = skin.size.s30
+        switch item.action {
+        case .approve(_, let title):
+            AinkradDockButton(title, tone: .primary, height: height, fillsWidth: true) { perform(false) }
+        case .openScreen(_, let title):
+            AinkradDockButton(title, height: height, fillsWidth: true) { perform(false) }
+        case .openRun:
+            AinkradDockButton("Open run", height: height, fillsWidth: true) { perform(false) }
+        case .review:
+            AinkradDockButton("Review", height: height, fillsWidth: true) { perform(false) }
         }
-        var parts = ["\(requirement.donePoints) / \(requirement.points) pts"]
-        if let eta = requirement.eta { parts.append("ETA \(Fmt.eta(eta))") }
-        if let owner = model.agent(requirement.ownerAgentID) { parts.append("PO \(owner.name)") }
-        return Text(parts.joined(separator: " · ")).foregroundStyle(faint)
     }
 }
 
-/// The amber strip over the tiles when an account is at or near a window limit (E15.15, #11).
-private struct AccountWarning: View {
-    let text: String
-    let open: () -> Void
+/// "Account limits": each account this company uses, its tightest window as a bar with the warn mark, or its
+/// health word.
+private struct HomeAccountsTile: View {
+    let store: CitadelStore
+    let model: CompanyModel
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
-        AinkradBanner(message: text, status: .warning, actionTitle: "Accounts →", action: open)
+        let accounts = model.accounts.values.sorted { $0.id < $1.id }
+        let hot = accounts.filter(isHot).count
+        AinkradBentoTile {
+            VStack(alignment: .leading, spacing: skin.size.s8) {
+                AinkradSectionHead(
+                    title: "Account limits",
+                    count: hot > 0 ? "\(hot) need a look" : accounts.isEmpty ? nil : "\(accounts.count)",
+                    link: "Accounts →"
+                ) { store.screen = .accounts }
+                if accounts.isEmpty {
+                    Text("No accounts assigned to this company yet.").citadelFont("t12")
+                        .foregroundStyle(skin.color(skin.text.faint)).padding(.vertical, skin.size.s10)
+                }
+                ForEach(accounts) { account in row(account) }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    private func isHot(_ account: AccountInfo) -> Bool {
+        account.status != "active" || (account.windowUse ?? 0) * 100 >= Double(account.warnPercent ?? 80)
+    }
+
+    private func row(_ account: AccountInfo) -> some View {
+        let use = account.windowUse ?? 0
+        let warn = Double(account.warnPercent ?? 80) / 100
+        let amber = status.warning
+        return HStack(spacing: skin.size.s10) {
+            HarnessTag(harness: account.label)
+            VStack(alignment: .leading, spacing: skin.size.s1) {
+                Text(account.label).citadelFont("t13", weight: "medium").foregroundStyle(skin.color(skin.text.primary))
+                    .lineLimit(1)
+                health(account).citadelFont("t11").lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: skin.size.s3) {
+                AinkradBudgetBar(
+                    label: account.label, value: use, limit: 1, warnFraction: warn, showsHardLimit: false,
+                    tone: use >= warn ? .warning : nil
+                )
+                .frame(width: skin.size.s96)
+                Text(account.windowUse == nil ? "no cap" : "\(Int(use * 100))%").citadelFont("t10", mono: true)
+                    .foregroundStyle(use >= warn ? amber : skin.color(skin.text.faint))
+            }
+        }
+        .padding(.vertical, skin.size.s6)
+        .padding(.horizontal, skin.size.s4)
+        .contentShape(Rectangle())
+        .onTapGesture { store.screen = .accounts }
+    }
+
+    private func health(_ account: AccountInfo) -> Text {
+        switch account.status {
+        case "limited":
+            let until = account.statusUntil.map { " until \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
+            return Text("◐ at limit\(until)").foregroundStyle(status.warning)
+        case "unhealthy": return Text("● flaky").foregroundStyle(status.danger)
+        case "disabled": return Text("paused").foregroundStyle(skin.color(skin.text.faint))
+        default:
+            let window = account.windowSecs.map { "\($0 / 3600) h window" } ?? "no window"
+            return Text("\(window) · \(account.billing == "subscription" ? "subscription" : "API")")
+                .foregroundStyle(skin.color(skin.text.faint))
+        }
     }
 }

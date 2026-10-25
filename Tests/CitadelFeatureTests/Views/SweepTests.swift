@@ -25,7 +25,7 @@ final class SweepTests: XCTestCase {
         Self.registerHostFonts()
         try FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
 
-        for (theme, skin) in [("neon", AinkradSkin.standard), ("glass", glass)] {
+        for (theme, skin) in [("glass", glass)] {  // Liquid Glass only (Ahmed, 2026-10-24)
             let hostTheme = HostTheme(HostThemeTokens(skin: skin))
             hostTheme.updateStatusColors(
                 HostStatusColors(
@@ -41,7 +41,9 @@ final class SweepTests: XCTestCase {
                             Self.sheet(name, store)
                         }
                         .frame(width: size.width, height: size.height)
-                        .background(skin.color(skin.palette.background))
+                        // As the host draws it: the window's glass fill over the workspace sky.
+                        .background(skin.color(skin.palette.background).opacity(SettingsDocument.defaultSurfaceOpacity))
+                        .background(SweepBackdrop())
                         .ainkradSkin(skin)
                         // As the host: Exo 2 under Neon, the system face under Glass.
                         .environment(
@@ -57,9 +59,13 @@ final class SweepTests: XCTestCase {
     /// Every state, staged on a store that never touches the network.
     private func screens() -> [(String, CitadelStore, CGSize)] {
         let companies = [
-            Components.Schemas.Company(accountIds: [], id: 1, kind: .init(value1: .own), name: "Ainkrad"),
-            Components.Schemas.Company(accountIds: [], id: 2, kind: .init(value1: .client), name: "AutomotiveAi"),
-            Components.Schemas.Company(accountIds: [], id: 3, kind: .init(value1: .client), name: "Optimus"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 1, industries: [], kind: .init(value1: .own), name: "Ainkrad"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 2, industries: [], kind: .init(value1: .client),
+                name: "AutomotiveAi"),
+            Components.Schemas.Company(
+                accountIds: [], description: "", id: 3, industries: [], kind: .init(value1: .client), name: "Optimus"),
         ]
         func store(connectedBefore: Bool, _ stage: (CitadelStore) -> Void) -> CitadelStore {
             let docs = MemoryDocs()
@@ -86,8 +92,11 @@ final class SweepTests: XCTestCase {
                 $0.agentCount = 18
                 $0.phase = .connected
                 $0.streamStatus = .live
+                $0.userName = "Ahmed"
+                $0.apiMinor = 18
                 let model = CompanyFixture.model()
                 stage(model)
+                CompanyFixture.trancheB(model)
                 $0.model = model
                 $0.screen = screen
                 $0.detail = detail
@@ -160,7 +169,18 @@ final class SweepTests: XCTestCase {
         // The mockups' window sizes (Designs/citadel/base.css `.window`, and each screen's override).
         let wide = CGSize(width: 1280, height: 800)
         var all: [(String, CitadelStore, CGSize)] = shots.map { ($0.0, $0.1, small) }
-        all.append(("02-home", company(.home), CGSize(width: 1280, height: 900)))
+        all.append(("02-home", company(.home), CGSize(width: 1400, height: 1060)))
+        let offline = company(.home)
+        offline.phase = .offline(attempt: 4, retryAt: Date().addingTimeInterval(8), reason: "timed out")
+        all.append(("11-b-offline-home", offline, CGSize(width: 1400, height: 900)))
+        all.append(("11-e-empty-company", company(.home) { $0.agents = [:] }, CGSize(width: 1400, height: 900)))
+        let search = company(.home)
+        search.isSearching = true
+        all.append(("01-search", search, CGSize(width: 1400, height: 900)))
+        let searchQuery = company(.home)
+        searchQuery.isSearching = true
+        searchQuery.searchSeed = "kes"
+        all.append(("01-search-query", searchQuery, CGSize(width: 1400, height: 900)))
         all.append(("03-org", company(.org), wide))
         all.append(("04-agent", company(.org, detail: .agent(4), CompanyFixture.agentPage), wide))
         all.append(
@@ -173,7 +193,7 @@ final class SweepTests: XCTestCase {
             store.selectedApproval = id
             all.append(("06-approvals-\(kind)", store, wide))
         }
-        all.append(("07-chat", company(.threads, CompanyFixture.threadsPage), wide))
+        all.append(("07-chat", company(.threads, CompanyFixture.threadsParity), wide))
         all.append(
             (
                 "08-stuck",
@@ -185,8 +205,15 @@ final class SweepTests: XCTestCase {
         all.append(("09-cost", company(.cost, CompanyFixture.costPage), CGSize(width: 1280, height: 1100)))
         let stage: SweepStage = { company($0, detail: $1, $2) }
         all += Self.requirementsShots(stage)
+        all += Self.threadsShots(stage)
         all += Self.settingsShots(stage)
         all += Self.runnersShots(stage)
+        all += Self.approvalsShots(stage)
+        all += Self.projectsShots(stage)
+        all += Self.orgShots(stage)
+        all += Self.costShots(stage)
+        all += Self.runsShots(stage)
+        all += Self.newCompanyShots(stage)
         return all
     }
 
@@ -255,5 +282,26 @@ enum LiveCapture {
         try capture.run()
         capture.waitUntilExit()
         XCTAssertEqual(capture.terminationStatus, 0, "no capture for \(url.lastPathComponent)")
+    }
+}
+
+/// The prototype page's sky (`base.css` body): three soft colour fields over near-black, standing in for the host's
+/// blurred workspace behind a translucent pane.
+struct SweepBackdrop: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color(red: 0.02, green: 0.027, blue: 0.047)
+                RadialGradient(
+                    colors: [Color(red: 0.145, green: 0.388, blue: 0.922).opacity(0.35), .clear],
+                    center: UnitPoint(x: 0.15, y: 0.1), startRadius: 0, endRadius: geo.size.width * 0.55)
+                RadialGradient(
+                    colors: [Color(red: 0.063, green: 0.725, blue: 0.506).opacity(0.25), .clear],
+                    center: UnitPoint(x: 0.85, y: 0.8), startRadius: 0, endRadius: geo.size.width * 0.45)
+                RadialGradient(
+                    colors: [Color(red: 0.659, green: 0.333, blue: 0.969).opacity(0.25), .clear],
+                    center: UnitPoint(x: 0.7, y: 0.2), startRadius: 0, endRadius: geo.size.width * 0.38)
+            }
+        }
     }
 }

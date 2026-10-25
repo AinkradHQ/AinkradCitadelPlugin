@@ -2,243 +2,231 @@ import AinkradAppKit
 import CitadelClient
 import SwiftUI
 
-/// Screen 15: the pool of provider accounts (decision #41) — each card with its windows, companies, drops and
-/// why it is skipped — the Limits tile for the picked account, and an agent's fallback chain beside them.
+/// Which inset drawer the Accounts screen shows.
+enum AccountDrawer: Equatable {
+    case limits(Int64)
+    case relogin(Int64)
+    case add
+    case chain(String)
+    /// A chain preset's editor (`nil`: a new one) and its Assign drawer (API minor 18).
+    case preset(Int64?)
+    case assign(Int64)
+}
+
+/// Screen 15 (prototype `accounts.js`): the pool overview (health donut, headroom per harness, who is on the pool),
+/// the account cards with rings and actions, the fallback chains (shared chains and per agent) and the last
+/// fallbacks; Limits, Re-login and Add account open as inset drawers.
 struct AccountsView: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
-    @State private var adding = false
 
     private var page: AccountsPage { model.accountsPage }
 
     var body: some View {
         let accounts = page.visible(company: model.companyID)
         VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Accounts", crumb: crumb(accounts)) { trailing }
+            PaneTitle(
+                title: "Accounts",
+                crumb: Text("provider account pool · owned by you").foregroundStyle(skin.color(skin.text.muted))
+            ) { trailing }
             ScrollView {
                 if !page.isLoaded {
                     FirstLoadView()
                 } else {
-                    HStack(alignment: .top, spacing: skin.size.s14) {
-                        VStack(spacing: skin.size.s10) {
-                            if accounts.isEmpty {
-                                AinkradEmptyState(
-                                    icon: "person.text.rectangle", title: "No accounts for this company",
-                                    message: "Assign a pool account to it; its runs use only the accounts it is given."
-                                )
-                                .padding(.top, skin.size.s40)
+                    VStack(alignment: .leading, spacing: skin.size.s12) {
+                        if page.showsWholePool { WholePoolNote().transition(.opacity) }
+                        AccountsOverview(model: model, accounts: accounts)
+                        HStack(alignment: .top, spacing: skin.size.s14) {
+                            cards(accounts).frame(maxWidth: .infinity)
+                            VStack(spacing: skin.size.s12) {
+                                FallbackChainsCard(store: store, model: model) { page.drawer = .chain($0) }
+                                LastFallbacksTile(store: store, model: model)
                             }
-                            ForEach(accounts) { account in
-                                AccountCard(store: store, model: model, account: account)
-                            }
-                            if !accounts.isEmpty { AccountLimitsTile(store: store, model: model, accounts: accounts) }
+                            .frame(width: skin.size.s380)
                         }
-                        .frame(maxWidth: .infinity)
-                        VStack(spacing: skin.size.s12) {
-                            FallbackChainTile(store: store, model: model)
-                            LastFallbacksTile(store: store, model: model)
-                        }
-                        .frame(width: skin.size.s320)
                     }
                     .padding(.horizontal, skin.size.s20)
                     .padding(.bottom, skin.size.s20)
                     .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: accounts)
                 }
             }
+            .scrollIndicators(.never)
             .offlineDimmed()
         }
-        .task { store.loadAccountsPage() }
+        .ainkradFloatingDrawer(
+            isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } }),
+            inset: skin.size.s34
+        ) {
+            drawerPanel
+        }
+        .task {
+            store.loadAccountsPage()
+            store.loadChainPresets()
+        }
         // An account event reloads `model.accounts`; the page follows it (pushed, never polled).
         .onChange(of: model.accounts) { _, _ in if page.isLoaded { store.loadAccountsPage() } }
     }
 
+    @ViewBuilder private var drawerPanel: some View {
+        let close: @MainActor @Sendable () -> Void = { page.drawer = nil }
+        switch page.drawer {
+        case .limits(let id):
+            if let account = page.accounts.first(where: { $0.id == id }) {
+                AccountLimitsDrawer(store: store, page: page, account: account, close: close)
+            }
+        case .relogin(let id):
+            if let account = page.accounts.first(where: { $0.id == id }) {
+                ReloginDrawer(store: store, page: page, account: account, close: close)
+            }
+        case .add: AddAccountSheet(store: store, page: page, isPresented: Binding(get: { true }, set: { _ in close() }))
+        case .chain(let id):
+            if let chain = page.sharedChains(Array(model.agents.values)).first(where: { $0.id == id }) {
+                SharedChainDrawer(store: store, model: model, chain: chain, close: close)
+            }
+        case .preset(let id):
+            ChainPresetEditDrawer(
+                store: store, model: model, preset: model.chainPreset(id),
+                assign: { if let id { page.drawer = .assign(id) } }, close: close)
+        case .assign(let id):
+            if let preset = model.chainPreset(id) {
+                ChainPresetAssignDrawer(store: store, model: model, preset: preset, close: close)
+            }
+        case nil: EmptyView()
+        }
+    }
+
+    private func cards(_ accounts: [PoolAccount]) -> some View {
+        Group {
+            if accounts.isEmpty {
+                AinkradEmptyState(
+                    icon: "person.text.rectangle", title: "No accounts for this company",
+                    message: "Assign a pool account to it; its runs use only the accounts it is given."
+                )
+                .padding(.top, skin.size.s40)
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: skin.size.s320), spacing: skin.size.s12, alignment: .top)],
+                    alignment: .leading, spacing: skin.size.s12
+                ) {
+                    ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
+                        AccountCard(store: store, model: model, account: account, index: index) { page.drawer = $0 }
+                    }
+                }
+            }
+        }
+    }
+
     private var trailing: some View {
         HStack(spacing: skin.size.s8) {
-            AinkradSegmentedPicker(
-                items: [false, true],
-                selection: Binding(get: { page.showsWholePool }, set: { page.showsWholePool = $0 }),
-                label: { $0 ? "Whole pool" : "Used by \(store.company?.name ?? "this company")" }
-            )
-            .disabledOptions { $0 && !page.canSeeWholePool }
-            .fixedSize()
-            AinkradButton(title: "+ Add account", style: .secondary) { adding = true }
-                .secondaryAccent().compact().fixedSize()
-                .ainkradSheet(isPresented: $adding) { AddAccountSheet(store: store, page: page, isPresented: $adding) }
+            AinkradDockButton(
+                "Used by \(store.company?.name ?? "this company")", tone: page.showsWholePool ? .plain : .primary
+            ) {
+                page.showsWholePool = false
+            }
+            AinkradDockButton(
+                "Whole pool", tone: page.showsWholePool ? .primary : .plain, isEnabled: page.canSeeWholePool
+            ) {
+                page.showsWholePool = true
+            }
+            AinkradDockButton("Add account", systemImage: "plus", tone: .primary) {
+                page.addFailure = nil
+                page.drawer = .add
+            }
         }
-    }
-
-    /// `pool owned by you · 5 accounts · 3 healthy · 1 at limit · 1 flaky`.
-    private func crumb(_ accounts: [PoolAccount]) -> Text {
-        let muted = skin.color(skin.text.muted)
-        let dot = Text(verbatim: " · ").foregroundStyle(muted)
-        func count(_ health: PoolAccount.Health) -> Int { accounts.filter { $0.health == health }.count }
-        var text =
-            Text("pool owned by you").foregroundStyle(muted) + dot
-            + Text("\(accounts.count) account\(accounts.count == 1 ? "" : "s")").foregroundStyle(muted)
-        let parts: [(PoolAccount.Health, Color)] = [
-            (.healthy, status.success), (.atLimit, status.warning), (.flaky, status.danger),
-            (.unhealthy, status.danger),
-        ]
-        for (health, color) in parts where count(health) > 0 {
-            text = text + dot + Text("\(count(health)) \(health.rawValue)").foregroundStyle(color)
-        }
-        return text
     }
 }
 
-/// An agent's chain: its own (harness, model) first, then its fallbacks — drag to reorder, ✕ to remove, the entry
-/// in use marked "now"; and what makes a run fall back.
-private struct FallbackChainTile: View {
-    let store: CitadelStore
-    let model: CompanyModel
+/// "Whole pool · admin view." — the note above the overview in pool scope.
+private struct WholePoolNote: View {
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-
-    private var page: AccountsPage { model.accountsPage }
 
     var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s10) {
-                HStack(spacing: skin.size.s8) {
-                    TileHead(title: "Fallback chain")
-                    agentPicker
-                }
-                AinkradReorderList(
-                    items: Binding(get: { page.chain }, set: { store.saveChain($0) }), isNumbered: true,
-                    current: current
-                ) { entry in
-                    row(entry)
-                }
-                addFallback
-                Text(skin.labelCased("Fall back when")).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted)).padding(.top, skin.size.s4)
-                // The server falls back on exactly these (E15.3); they are not settings yet.
-                VStack(alignment: .leading, spacing: skin.size.s6) {
-                    HStack(spacing: skin.size.s6) {
-                        AinkradChip(label: "✓ rate-limited").fixedSize()
-                        AinkradChip(label: "✓ out of quota").fixedSize()
-                    }
-                    AinkradChip(label: "✓ model unavailable").fixedSize()
-                }
-                .ainkradTooltip("Set by the server: a turn that fails as unavailable, rate-limited or out of quota")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        let blue = skin.color(skin.palette.accentPrimary)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
+        HStack(spacing: skin.size.s12) {
+            Image(systemName: "info.circle").citadelFont("t13").foregroundStyle(blue)
+                .frame(width: skin.size.s30, height: skin.size.s30)
+                .background(blue.opacity(skin.opacity.o16), in: RoundedRectangle(cornerRadius: skin.size.s9))
+            (Text("Whole pool · admin view. ").bold().foregroundStyle(skin.color(skin.text.primary))
+                + Text("Includes accounts only other companies use; usage stays attributed per company."))
+                .citadelFont("t12_5").foregroundStyle(skin.color(skin.text.muted))
+            Spacer(minLength: 0)
         }
-    }
-
-    @ViewBuilder private var agentPicker: some View {
-        let agents = model.agents.values.sorted { $0.name < $1.name }
-        if let selected = page.chainAgent ?? agents.first?.id {
-            AinkradSelect(
-                items: agents.map(\.id),
-                selection: Binding(get: { selected }, set: { store.showChain(of: $0) }),
-                label: { model.agent($0).map(\.nameDotRole) ?? "Agent" }
-            )
-            .fixedSize()
-        }
-    }
-
-    /// The entry the agent's live run is on now.
-    private var current: FallbackEntry.ID? {
-        guard let agent = page.chainAgent, let run = model.liveRuns.first(where: { $0.agentID == agent }) else {
-            return nil
-        }
-        return "\(run.harness)|\(run.model ?? "")"
-    }
-
-    private func row(_ entry: FallbackEntry) -> some View {
-        VStack(alignment: .leading, spacing: skin.size.s2) {
-            HStack(spacing: skin.size.s6) {
-                AinkradBadge(
-                    text: AgentLook.harnessName(entry.harness),
-                    tint: AgentLook.harness(entry.harness)?.color ?? theme.foreground)
-                Text(entry.model).citadelFont("t13").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
-                Spacer(minLength: skin.size.s4)
-                if entry.id == current {
-                    AinkradBadge(text: "now", tint: theme.accentSecondary)
-                } else if !entry.isOwn {
-                    AinkradIconButton(systemName: "xmark", size: skin.size.s20, tooltip: "Remove from the chain") {
-                        store.saveChain(page.chain.filter { $0.id != entry.id })
-                    }
-                }
-            }
-            Text(entry.isOwn ? "the agent's own harness and model" : "account: pool")
-                .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-        }
-    }
-
-    /// "+ Add fallback": a (harness, model) another agent of the company runs on.
-    @ViewBuilder private var addFallback: some View {
-        let used = Set(page.chain.map(\.id))
-        let candidates = Set(model.agents.values.map { "\($0.harness)|\($0.model)" }).subtracting(used).sorted()
-        AinkradMenuButton(
-            items: candidates.map { id in
-                let parts = id.split(separator: "|", maxSplits: 1).map(String.init)
-                return AinkradMenuItem(
-                    title: "\(AgentLook.harnessName(parts[0])) · \(parts.last ?? "")", systemName: nil
-                ) {
-                    store.saveChain(page.chain + [FallbackEntry(harness: parts[0], model: parts.last ?? "")])
-                }
-            }
-        ) { Text("+ Add fallback") }
-        .disabled(candidates.isEmpty || page.chainAgent == nil)
+        .padding(.horizontal, skin.size.s14)
+        .padding(.vertical, skin.size.s10)
+        .background(shape.fill(blue.opacity(skin.opacity.o08)))
+        .overlay(shape.strokeBorder(blue.opacity(skin.opacity.o20), lineWidth: 1))
     }
 }
 
-/// The newest fallbacks seen on the stream: which run moved, from what to what, and why.
-private struct LastFallbacksTile: View {
+/// The newest fallbacks seen on the stream: figure, "#429 Kestrel · CIT-65", "gpt-5.5 → **Opus 5.5**", the reason.
+struct LastFallbacksTile: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
         let page = model.accountsPage
         let moves = FallbackMove.merged(events: store.recentEvents, runs: page.fallbackRuns)
-        AinkradCard {
+        AinkradBentoTile {
             VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(
-                    title: "Last fallbacks",
-                    action: moves.count > 4 ? (page.showsAllFallbacks ? "Newest" : "All \(moves.count) →") : nil
-                ) { page.showsAllFallbacks.toggle() }
+                HStack {
+                    Text("Last fallbacks").citadelFont("t13", weight: "bold").foregroundStyle(
+                        skin.color(skin.text.primary))
+                    Spacer()
+                    AinkradTapArea(action: { store.screen = .runs }) {
+                        Text("All runs ›").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                    }
+                }
                 if moves.isEmpty {
-                    Text("No recent run has fallen back.").citadelFont("t12")
-                        .foregroundStyle(skin.color(skin.text.faint))
+                    Text("No recent run has fallen back.").citadelFont("t12").foregroundStyle(
+                        skin.color(skin.text.faint))
                 }
                 ForEach(moves.prefix(page.showsAllFallbacks ? moves.count : 4), id: \.run) { move in
-                    VStack(alignment: .leading, spacing: skin.size.s2) {
-                        (Text("run #\(move.run)").foregroundStyle(theme.accentSecondary).font(
-                            skin.font(AinkradFontToken(sizeKey: "t12", mono: "family")))
-                            + Text(heading(move)).foregroundStyle(skin.color(skin.text.muted)))
-                        (Text(move.from.map { "\($0) → " } ?? "→ ").foregroundStyle(skin.color(skin.text.primary))
-                            + Text(move.to).bold().foregroundStyle(skin.color(skin.text.primary))
-                            + Text(move.why.map { " · \($0)" } ?? "").foregroundStyle(status.warning))
-                    }
-                    .citadelFont("t12")
-                    .padding(.horizontal, skin.size.s10)
-                    .padding(.vertical, skin.size.s8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        skin.color(skin.palette.white).opacity(skin.opacity.o05),
-                        in: RoundedRectangle(cornerRadius: skin.size.s8)
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture { store.open(.run(move.run)) }
+                    row(move)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    /// " · Kestrel · CIT-65".
-    private func heading(_ move: FallbackMove) -> String {
+    private func row(_ move: FallbackMove) -> some View {
         let run = model.runs[move.run]
-        let parts = [model.agent(run?.agentID)?.name, model.issue(run?.issueID)?.key].compactMap { $0 }
-        return parts.isEmpty ? "" : " · " + parts.joined(separator: " · ")
+        let agent = model.agent(run?.agentID)
+        return AinkradTapArea(action: { store.open(.run(move.run)) }) {
+            HStack(alignment: .top, spacing: skin.size.s10) {
+                if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s26) }
+                VStack(alignment: .leading, spacing: skin.size.s3) {
+                    (Text("#\(move.run)").foregroundStyle(theme.accentSecondary)
+                        .font(skin.font(AinkradFontToken(sizeKey: "t12", mono: "family")))
+                        + Text(heading(agent: agent, run: run)).foregroundStyle(skin.color(skin.text.primary)))
+                    HStack(spacing: skin.size.s6) {
+                        Text(move.from ?? "—").foregroundStyle(skin.color(skin.text.muted))
+                        Text("→").foregroundStyle(theme.accentSecondary)
+                        Text(move.to).bold().foregroundStyle(skin.color(skin.text.primary))
+                    }
+                    if let why = move.why {
+                        Text(why).citadelFont("t11").foregroundStyle(skin.color(skin.palette.warning))
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .citadelFont("t12")
+            .padding(skin.size.s10)
+            .background(
+                skin.color(.palette("foreground", skin.opacity.o03)),
+                in: RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+            )
+            .ainkradHoverLift(0, cornerRadius: skin.size.s12)
+        }
+    }
+
+    /// " Kestrel · CIT-65".
+    private func heading(agent: AgentInfo?, run: RunInfo?) -> String {
+        let parts = [agent?.name, model.issue(run?.issueID)?.key].compactMap { $0 }
+        return parts.isEmpty ? "" : " " + parts.joined(separator: " · ")
     }
 }
 

@@ -20,17 +20,58 @@ struct ShellView: View {
                     OfflineBar(store: store).padding(.top, skin.size.s10)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                if store.isShowingSettings {
-                    CompanySettingsView(store: store)
-                } else {
-                    content.environment(\.citadelOffline, isOffline ? Offline(store: store, crumb: offlineCrumb) : nil)
+                ZStack {
+                    Group {
+                        if store.isShowingSettings {
+                            CompanySettingsView(store: store)
+                        } else {
+                            content.environment(
+                                \.citadelOffline, isOffline ? Offline(store: store, crumb: offlineCrumb) : nil)
+                        }
+                    }
+                    .id(store.route)
+                    .transition(store.navDirection.transition(skin, reduceMotion: reduceMotion))
                 }
+                .animation(skin.animation(skin.motion.present), value: store.route)
+                .clipped()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .overlay(alignment: .bottom) { failureBanner }
+            .overlay(alignment: .topTrailing) { AinkradRichToastStack(center: store.toasts) }
+        }
+        .background { ShellShortcuts(store: store) }
+        .overlay {
+            if store.isSearching, let model = store.model {
+                Spotlight(store: store, model: model, query: store.searchSeed)
+            }
+        }
+        .animation(
+            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "spring", response: 0.32, damping: 0.8)),
+            value: store.isSearching
+        )
+        // The New requirement sheet opens from any screen (Home, Requirements, ⌘N).
+        .ainkradPanelModal(isPresented: $store.isComposingRequirement, contentWidth: skin.size.s380 * 2) {
+            if let model = store.model { NewRequirementSheet(store: store, model: model) }
+        }
+        // New company: from the switcher menu and ⌘K.
+        .ainkradPanelModal(
+            isPresented: $store.isCreatingCompany, contentWidth: skin.size.s860 + skin.size.s200 - skin.size.s48
+        ) {
+            NewCompanyWizard(store: store)
+        }
+        .overlay {
+            if store.screen == .artifacts, !store.isShowingSettings, let model = store.model,
+                let id = model.artifactsPage.quickLookID,
+                let artifact = model.artifactsPage.items.first(where: { $0.id == id })
+            {
+                ArtifactQuickLook(store: store, model: model, artifact: artifact)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
         }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOffline)
         .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.actionFailure)
+        .animation(
+            reduceMotion ? nil : skin.animation(skin.motion.present), value: store.model?.artifactsPage.quickLookID)
     }
 
     /// Mockup 11 G away from the inbox (which shows it in place of the approval): what the server refused, said
@@ -67,8 +108,6 @@ struct ShellView: View {
             }
         } else if let model = store.model, model.isLoaded {
             screenView(model)
-                .id(store.detail.map { "\($0)" } ?? store.screen.rawValue)
-                .transition(.opacity)
         } else if !isOffline {
             VStack(spacing: 0) {
                 PaneTitle(title: store.company?.name ?? CitadelApp.displayName, crumb: nil)
@@ -81,10 +120,19 @@ struct ShellView: View {
 
     @ViewBuilder
     private func screenView(_ model: CompanyModel) -> some View {
+        // 11 E: a company with no agents shows its onboarding on every screen but the ones that set it up.
+        if model.agents.isEmpty, ![.accounts, .runners].contains(store.screen), store.detail == nil {
+            NoAgentsView(store: store, model: model)
+        } else {
+            routed(model)
+        }
+    }
+
+    @ViewBuilder
+    private func routed(_ model: CompanyModel) -> some View {
         switch (store.detail, store.screen) {
         case (.agent(let id)?, _): AgentView(store: store, model: model, agentID: id)
         case (.run(let id)?, _): RunView(store: store, model: model, runID: id)
-        case (nil, .home) where model.agents.isEmpty: NoAgentsView(store: store, model: model)
         case (nil, .home): HomeView(store: store, model: model)
         case (nil, .org): OrgView(store: store, model: model)
         case (nil, .approvals): ApprovalsView(store: store, model: model)
@@ -180,8 +228,8 @@ private struct OfflineDimmed: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .opacity(offline == nil ? 1 : skin.opacity.o45)
-            .saturation(offline == nil ? 1 : skin.opacity.o60)
+            .saturation(offline == nil ? 1 : skin.opacity.o55)
+            .brightness(offline == nil ? 0 : -skin.opacity.o20)
             .allowsHitTesting(offline == nil)
     }
 }

@@ -117,7 +117,7 @@ struct PoliciesGroup: View {
 
 /// The permission policy's allowlist (API minor 11): what goes ahead without asking — a tool (`Edit`) or
 /// `<tool>:<command prefix>` (`Bash:npm run`). × removes one, "Add…" adds one; the policy is replaced whole.
-private struct AllowlistRow: View {
+struct AllowlistRow: View {
     let store: CitadelStore
     let project: Int64
     let policy: PolicyInfo

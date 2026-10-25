@@ -1,365 +1,245 @@
 import AinkradAppKit
 import SwiftUI
 
-/// One approval: icon + type label, title, who asked; the body for its kind; then the reply and the decision.
-/// Every decision can carry the reply (it goes back to the asker and wakes it); "Reply only" sends it without
-/// deciding, as a comment on the approval's issue.
+/// The decision stage: the hero, the body for the approval's kind (rising in), and the docked reply with the
+/// decision buttons. The reply goes with the decision — and is the reason when you reject. ⌘↵ approves, ⌘⌫
+/// rejects (both work while typing).
 struct ApprovalDetail: View {
     let store: CitadelStore
     let model: CompanyModel
     let approval: ApprovalInfo
+    /// Bumped by R on the list: the reply takes the focus.
+    var replyFocus = 0
     @State private var reply = ""
-    @State private var newCap = ""
+    @State private var newCap: Double = 0
+    @State private var scope: AllowScope = .once
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-    @Environment(\.ainkradStatusColors) private var status
 
     private var isPending: Bool { approval.status == "pending" }
     private var f: [String: String] { approval.fields }
+    private var kind: ApprovalFilter { ApprovalFilter.of(approval) }
 
     var body: some View {
-        let summary = model.summary(approval)
         VStack(alignment: .leading, spacing: 0) {
-            head(summary)
+            hero
+                .padding(.horizontal, skin.size.s14)
+                .padding(.top, skin.size.s14)
+                .padding(.bottom, skin.size.s6)
             ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s12) { content }
-                    .padding(.horizontal, skin.size.s22)
-                    .padding(.bottom, skin.size.s14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: skin.size.s12) {
+                    if !isPending { decided.ainkradRiseIn() }
+                    ApprovalBody(
+                        store: store, model: model, approval: approval, newCap: $newCap, scope: $scope,
+                        isPending: isPending)
+                }
+                .padding(.horizontal, skin.size.s14)
+                .padding(.top, skin.size.s8)
+                .padding(.bottom, skin.size.s14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if isPending { decision } else { answered }
+            .scrollIndicators(.never)
+            if isPending { dock }
+        }
+        .onAppear {
+            store.loadApprovalContext(approval)
+            if let cap = BudgetNumbers(f)?.cap { newCap = Double(cap) * 1.2 }
         }
     }
 
-    // MARK: - Head
+    // MARK: - Hero
 
-    private func head(_ summary: ApprovalSummary) -> some View {
-        HStack(alignment: .top, spacing: skin.size.s12) {
-            TypeGlyph(glyph: summary.glyph, tone: summary.tone, isLarge: true)
+    private var hero: some View {
+        let state =
+            isPending
+            ? HeroState(
+                text: ["waiting on you", approval.askedAgo()].compactMap { $0 }.joined(separator: " · "),
+                tint: kind.tint(skin))
+            : HeroState(
+                text: ["\(approval.status) by you", approval.decidedAgo()].compactMap { $0 }.joined(separator: " · "),
+                tint: approval.status == "approved"
+                    ? skin.color(skin.palette.success) : skin.color(skin.palette.warning))
+        return ApprovalHero(
+            tint: kind.tint(skin), systemImage: kind.systemImage, crumb: ApprovalCard.label(approval),
+            title: heroTitle, state: state, chips: chips, agents: model.involved(approval), model: model)
+    }
+
+    private var heroTitle: String {
+        let key = model.issue(approval.issueID)
+        switch approval.kind {
+        case "sprint_commit":
+            let base = model.summary(approval).title
+            guard let start = f["starts_on"], let end = f["ends_on"] else { return base }
+            return "\(base) · \(Self.day(start)) → \(Self.day(end))"
+        case "pr_merge":
+            guard let key else { return model.summary(approval).title }
+            return "Merge \(key.key) · \(key.title)"
+        case "budget_overrun":
+            guard let numbers = BudgetNumbers(f), numbers.cap > 0 else { return model.summary(approval).title }
+            let percent = Int((Double(numbers.spent) / Double(numbers.cap) * 100).rounded())
+            let what = key?.key ?? "\(f["scope"] ?? "its") budget"
+            return "\(model.replyTarget(approval)) is at \(percent)% of the \(what) cap"
+        case "hire_agent":
+            return "Hire \(f["name"] ?? "an agent"), a \(f["role"] ?? "new") agent"
+        default: return model.summary(approval).title
+        }
+    }
+
+    private var chips: [HeroChip] {
+        let asker = model.agent(approval.requestedBy)
+        let issue = model.issue(approval.issueID)
+        switch approval.kind {
+        case "sprint_commit":
+            return [
+                HeroChip(agent: asker, text: asker?.nameAndRole ?? "", model: model),
+                HeroChip(text: "policy: you approve", model: model),
+            ]
+        case "pr_merge":
+            let head = issue.flatMap { model.issuePRs[$0.id]?.first?.head }
+            return [
+                issue.map { HeroChip(key: $0.key, model: model) },
+                asker.map { HeroChip(text: "\($0.name) verified", model: model) },
+                head.map { HeroChip(text: $0, mono: true, model: model) },
+            ].compactMap { $0 }
+        case "budget_overrun":
+            let agent = model.agent(approval.agentID ?? approval.requestedBy)
+            return [
+                agent.map { HeroChip(agent: $0, text: $0.name, model: model) },
+                issue.map { HeroChip(key: $0.key, text: $0.title, model: model) },
+                HeroChip(text: "\(f["scope"] ?? "budget") · \(f["period"] ?? "period")", model: model),
+            ].compactMap { $0 }
+        case "hire_agent":
+            return [
+                asker.map { HeroChip(agent: $0, text: "proposed by \($0.nameAndRole)", model: model) },
+                model.teamPath(of: approval.agentID).map { HeroChip(text: $0, model: model) },
+            ].compactMap { $0 }
+        case "permission_escalation":
+            return [
+                asker.map { HeroChip(agent: $0, text: $0.name, model: model) },
+                issue.map { HeroChip(key: $0.key, model: model) },
+                f["run"].map { HeroChip(text: "run #\($0) is waiting", model: model) },
+            ].compactMap { $0 }
+        default:
+            return [asker.map { HeroChip(agent: $0, text: $0.nameAndRole, model: model) }].compactMap { $0 }
+        }
+    }
+
+    // MARK: - Answered
+
+    private var decided: some View {
+        let approved = approval.status == "approved"
+        let tint = approved ? skin.color(skin.palette.success) : skin.color(skin.palette.warning)
+        return HStack(spacing: skin.size.s12) {
+            Text(approved ? "✓" : "✕").citadelFont("t15", weight: "bold").foregroundStyle(tint)
+                .frame(width: skin.size.s36, height: skin.size.s36)
+                .background(tint.opacity(skin.opacity.o15), in: RoundedRectangle(cornerRadius: skin.size.s10))
             VStack(alignment: .leading, spacing: skin.size.s2) {
-                Text(skin.labelCased(summary.typeLabel)).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted))
-                Text(summary.title).citadelFont("t16", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.primary)).lineLimit(2)
-                asked.citadelFont("t11").lineLimit(1)
+                Text("\(approved ? "Approved" : "Rejected") by you").citadelFont("t13", weight: "semibold")
+                    .foregroundStyle(skin.color(skin.text.primary))
+                Text(approval.reply.map { "You: \($0)" } ?? "\(model.replyTarget(approval)) was told and woken.")
+                    .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, skin.size.s22)
-        .padding(.top, skin.size.s18)
-        .padding(.bottom, skin.size.s12)
+        .padding(.horizontal, skin.size.s16)
+        .padding(.vertical, skin.size.s14)
+        .background(tint.opacity(skin.opacity.o08), in: RoundedRectangle(cornerRadius: skin.size.s16))
+        .overlay(RoundedRectangle(cornerRadius: skin.size.s16).strokeBorder(tint.opacity(skin.opacity.o25)))
     }
 
-    /// "Mira (PO) asked · CIT-42 · policy: you approve".
-    private var asked: Text {
-        let muted = skin.color(skin.text.muted)
-        var parts: [String] = []
-        if let asker = model.agent(approval.requestedBy) { parts.append("\(asker.nameAndRole) asked") }
-        if let key = model.issue(approval.issueID)?.key { parts.append(key) }
-        if let expires = approval.expiresAt {
-            parts.append("expires \(expires.formatted(date: .omitted, time: .shortened))")
-        }
-        let base = Text(parts.joined(separator: " · ")).foregroundStyle(muted)
-        guard approval.kind == "sprint_commit" else { return base }
-        return base + Text(verbatim: " · policy: ").foregroundStyle(muted)
-            + Text("you approve").foregroundStyle(skin.color(skin.text.primary)).bold()
-    }
+    // MARK: - Dock
 
-    // MARK: - Body by kind
-
-    @ViewBuilder private var content: some View {
-        switch approval.kind {
-        case "sprint_commit", "plan_approval": sprint
-        case "pr_merge": merge
-        case "workflow_push": workflowPush
-        case "budget_overrun": budget
-        case "hire_agent": hire
-        case "permission_escalation": permission
-        default:
-            if let summary = f["summary"] { Quote(who: nil, text: summary) }
+    private var dock: some View {
+        ApprovalDock(
+            reply: $reply, replyFocus: replyFocus,
+            placeholder:
+                "Reply to \(model.replyTarget(approval)) — sent with your decision, and the reason if you reject",
+            onApprove: approve, onReject: { store.decideOnStage(approval, approve: false, reply: reply) }
+        ) {
+            side
+        } decision: {
+            AinkradDockButton(rejectTitle, tone: .danger) {
+                store.decideOnStage(approval, approve: false, reply: reply)
+            }
+            AinkradDockButton(approveTitle, tone: .primary, isEnabled: canApprove, action: approve)
         }
     }
 
-    private var sprint: some View {
-        let rows = approval.lists["issues"] ?? approval.lists["tasks"] ?? []
-        let points = Double(f["points"] ?? "") ?? 0
-        let capacity = f["capacity"].flatMap(Double.init)
-        let project = rows.first?["key"].flatMap { key in
-            model.projects.first { key.hasPrefix("\($0.key)-") }
-        }
-        return VStack(alignment: .leading, spacing: skin.size.s12) {
-            HStack(alignment: .top, spacing: skin.size.s12) {
-                Tile(label: "Points", value: f["points"] ?? "—", unit: capacity.map { "/ \(Int($0)) capacity" }) {
-                    if let capacity {
-                        AinkradBudgetBar(
-                            label: "Points", value: points, limit: capacity, warnFraction: nil, showsHardLimit: false,
-                            tone: points > capacity ? .warning : .success)
-                    }
-                }
-                Tile(
-                    label: "Velocity · last 3",
-                    value: project.flatMap { model.velocity[$0.id] }.map { "\(Int($0))" } ?? "—",
-                    unit: "avg"
-                ) { EmptyView() }
-                .onAppear { if let project { store.loadVelocity(project: project.id) } }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            if !rows.isEmpty {
-                AinkradCard {
-                    VStack(alignment: .leading, spacing: skin.size.s6) {
-                        TileHead(title: Wording.count(rows.count, "issue"))
-                        ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                            HStack(spacing: skin.size.s12) {
-                                Text(row["key"] ?? "").citadelFont("t11", mono: true)
-                                    .foregroundStyle(theme.accentSecondary)
-                                    .frame(width: skin.size.s70, alignment: .leading)
-                                Text(row["title"] ?? "").citadelFont("t12_5", weight: "medium")
-                                    .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
-                                Spacer(minLength: skin.size.s8)
-                                Text(row["points"] ?? "–").citadelFont("t12", mono: true)
-                                    .foregroundStyle(skin.color(skin.text.muted))
-                            }
-                        }
-                    }
-                }
-            }
-            if let goal = f["goal"], !goal.isEmpty { Quote(who: "Goal", text: goal) }
-            if let reason = f["override_reason"], !reason.isEmpty { Quote(who: "Over capacity", text: reason) }
-        }
-    }
-
-    private var merge: some View {
-        let prs = approval.lists["prs"] ?? []
-        return VStack(alignment: .leading, spacing: skin.size.s6) {
-            ForEach(Array(prs.enumerated()), id: \.offset) { index, pr in
-                VStack(alignment: .leading, spacing: skin.size.s4) {
-                    HStack(spacing: skin.size.s10) {
-                        AinkradBadge(text: pr["repo"] ?? "repo", tint: theme.accentSecondary)
-                        Text("PR #\(pr["pr"] ?? "?") · merges \(Self.ordinal(index + 1))").citadelFont(
-                            "t11", mono: true
-                        )
-                        .foregroundStyle(skin.color(skin.text.faint))
-                        Spacer(minLength: skin.size.s8)
-                        if let url = pr["url"].flatMap(URL.init(string:)) {
-                            AinkradButton(title: "Open PR", style: .ghost) { NSWorkspace.shared.open(url) }
-                                .borderless().secondaryAccent().compact().fixedSize()
-                        }
-                    }
-                    // The checks the forge token could not read (it passed on what it could): said, never hidden.
-                    if let note = pr["checks_note"], !note.isEmpty {
-                        Text("Checks: \(note)").citadelFont("t11").foregroundStyle(status.warning)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(skin.size.s10)
-                .background(
-                    skin.color(skin.palette.white).opacity(skin.opacity.o03),
-                    in: RoundedRectangle(cornerRadius: skin.size.s8))
-            }
-            if let notes = f["qa_notes"], !notes.isEmpty {
-                Quote(who: model.agent(approval.requestedBy).map { "\($0.name) (QA)" }, text: notes)
-            }
-            Text("Merging merges every PR in the project's repo order; the issue is done when all are merged.")
-                .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-        }
-    }
-
-    /// API minor 15: the forge token may not change workflow files, so a person pushes the branch.
-    private var workflowPush: some View {
-        let files = (f["files"] ?? "").split(separator: " ").map(String.init)
-        return VStack(alignment: .leading, spacing: skin.size.s10) {
-            VStack(spacing: skin.size.s4) {
-                stat("Repo", f["repo"] ?? "—")
-                stat("Branch", f["branch"] ?? "—")
-                stat("Head", f["sha"].map { String($0.prefix(12)) } ?? "—")
-                if let run = f["run"] { stat("Run", "#\(run)") }
-            }
-            if !files.isEmpty {
-                AinkradCard {
-                    VStack(alignment: .leading, spacing: skin.size.s4) {
-                        TileHead(title: Wording.count(files.count, "workflow file"))
-                        ForEach(files, id: \.self) { file in
-                            Text(file).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.primary))
-                        }
-                    }
-                }
-            }
-            if let rejection = f["rejection"], !rejection.isEmpty { Quote(who: "The forge refused", text: rejection) }
-            if let branch = f["branch"] { AinkradCodeBlock("git push origin \(branch):\(branch)") }
-            Text(
-                "Approve once you have pushed the branch from the issue's worktree with credentials that have the workflow scope: the PR then opens. Reject to have the agent drop the workflow change."
-            )
-            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-        }
-    }
-
-    private var budgetNumbers: (spent: Int64, cap: Int64)? {
-        guard let spent = f["spent"].flatMap(Int64.init), let cap = f["token_cap"].flatMap(Int64.init) else {
-            return nil
-        }
-        return (spent, cap + (f["raised"].flatMap(Int64.init) ?? 0))
-    }
-
-    @ViewBuilder private var budget: some View {
-        if let (spent, cap) = budgetNumbers {
-            VStack(alignment: .leading, spacing: skin.size.s6) {
-                AinkradBudgetBar(
-                    label: "Budget", value: Double(spent), limit: Double(cap), warnFraction: model.warnFraction,
-                    isThick: true)
-                Text(
-                    "\(Fmt.tokens(spent)) spent · warn \(Int(model.warnFraction * 100))% · cap \(Fmt.tokens(cap)) tokens"
-                )
-                .citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
-            }
-            HStack(spacing: skin.size.s12) {
-                Text(skin.labelCased("New cap")).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted))
-                    .frame(width: skin.size.s110, alignment: .leading)
-                AinkradTextField(text: $newCap, placeholder: "\(Fmt.tokens(cap * 6 / 5)) tokens").monospaced()
-            }
-            Text(
-                "Approving raises the cap for this period and the blocked runs resume; Stop at cap keeps them stopped."
-            )
-            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-        } else if let summary = f["summary"] {
-            Quote(who: nil, text: summary)
-        }
-    }
-
-    private var hire: some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            VStack(spacing: skin.size.s4) {
-                stat("Harness · model", "\(AgentLook.harnessName(f["harness"] ?? "")) · \(f["model"] ?? "—")")
-                stat(
-                    "Role",
-                    [f["role"], f["org_role"].flatMap { $0 == "none" ? nil : $0.uppercased() }]
-                        .compactMap { $0 }.joined(separator: " · "))
-                if let tags = f["runner_tags"], !tags.isEmpty { stat("Runner tags", tags) }
-            }
-            if let why = f["justification"], !why.isEmpty {
-                Quote(who: model.agent(approval.requestedBy)?.name, text: why)
-            }
-        }
-    }
-
-    private var permission: some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            AinkradCodeBlock(ToolLine.argument(f).isEmpty ? (f["tool"] ?? "") : ToolLine.argument(f))
-            VStack(spacing: skin.size.s4) {
-                stat("Tool", f["tool"] ?? "—")
-                stat("Run", f["run"].map { "#\($0) · waiting" } ?? "—")
-                stat("Scope options", "once")
-            }
-        }
-    }
-
-    private func stat(_ label: String, _ value: String) -> some View {
-        AinkradStatRow(label: label, value: value).sentenceCaseLabel()
-    }
-
-    // MARK: - Decision
-
-    private var replyWakes: String { "Reply wakes \(model.replyTarget(approval))" }
-
-    private var decision: some View {
-        VStack(alignment: .leading, spacing: skin.size.s8) {
-            AinkradTextField(
-                text: $reply,
-                placeholder:
-                    "Reply to \(model.replyTarget(approval)) — sent with your decision, or alone with “Reply only”")
-            HStack(spacing: skin.size.s8) {
-                Text(replyWakes).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                Spacer(minLength: skin.size.s8)
-                buttons
-            }
-        }
-        .padding(skin.size.s12)
-        .background(theme.surface.opacity(skin.opacity.o35), in: RoundedRectangle(cornerRadius: skin.size.s10))
-        .padding(.horizontal, skin.size.s14)
-        .padding(.bottom, skin.size.s14)
-        .background {
-            // ⌘↵ approves.
-            Button("", action: approve)  // design-lint: allow raw-control hidden ⌘↵ claim
-                .keyboardShortcut(.return, modifiers: .command).hidden()
-        }
-    }
-
-    @ViewBuilder private var buttons: some View {
-        AinkradButton(title: "Reply only", style: .ghost) {
-            store.replyOnly(approval, text: reply)
-            reply = ""
-        }
-        .borderless().secondaryAccent().compact().fixedSize()
-        .disabled(approval.issueID == nil || reply.trimmingCharacters(in: .whitespaces).isEmpty)
-        .ainkradTooltip(approval.issueID == nil ? "This approval has no issue to reply on" : "Sends the reply alone")
+    @ViewBuilder private var side: some View {
         switch approval.kind {
         case "pr_merge":
-            reject("Request changes")
-            primary("Merge \((approval.lists["prs"]?.count ?? 1) > 1 ? "all" : "")")
-        case "budget_overrun":
-            reject("Stop at cap")
-            primary(raise.map { "Raise by \(Fmt.tokens($0))" } ?? "Raise")
-                .disabled(raise == nil)
-        case "hire_agent":
-            reject("Reject")
-            primary("Hire")
-        case "workflow_push":
-            reject("Drop the change")
-            primary("I pushed it")
+            let urls = (approval.lists["prs"] ?? []).compactMap { $0["url"].flatMap(URL.init(string:)) }
+            if !urls.isEmpty {
+                AinkradDockButton(urls.count > 1 ? "Open PRs" : "Open PR", systemImage: "arrow.up.forward.square") {
+                    urls.forEach { NSWorkspace.shared.open($0) }
+                }
+            }
         case "permission_escalation":
             if let run = f["run"].flatMap(Int64.init) {
-                AinkradButton(title: "Open run", style: .ghost) { store.open(.run(run)) }
-                    .borderless().secondaryAccent().compact().fixedSize()
+                AinkradDockButton("Open run", systemImage: "play") { store.open(.run(run)) }
             }
-            reject("Deny")
-            AinkradButton(title: "For \(model.issue(approval.issueID)?.key ?? "issue")", style: .secondary) {
-                store.allowForIssue(approval, reply: reply)
-            }
-            .compact().fixedSize().disabled(approval.issueID == nil)
-            .ainkradTooltip("Allow this call on the issue's runs for a while, without asking again")
-            primary("Allow once")
         default:
-            reject("Reject")
-            primary("Approve ⌘↵")
+            AinkradDockButton("Reply only", isEnabled: approval.issueID != nil) {
+                store.replyOnStage(approval, text: reply) { reply = "" }
+            }
+            .ainkradTooltip(
+                approval.issueID == nil ? "This approval has no issue to reply on" : "Sends the reply alone")
         }
     }
 
-    /// The overrun's raise: the typed new cap less the current one, in tokens ("240k", "1.2M", "300000").
+    private var rejectTitle: String {
+        switch approval.kind {
+        case "pr_merge": "Request changes"
+        case "budget_overrun": "Stop at cap"
+        case "workflow_push": "Drop the change"
+        case "permission_escalation": "Deny"
+        default: "Reject"
+        }
+    }
+
+    private var approveTitle: String {
+        switch approval.kind {
+        case "sprint_commit": return "Commit sprint"
+        case "pr_merge": return (approval.lists["prs"]?.count ?? 1) > 1 ? "Merge both" : "Merge"
+        case "budget_overrun": return "Raise to \(Fmt.tokens(Int64(newCap.rounded())))"
+        case "hire_agent": return "Hire \(f["name"] ?? "")".trimmingCharacters(in: .whitespaces)
+        case "workflow_push": return "I pushed it"
+        case "permission_escalation":
+            switch scope {
+            case .once: return "Allow once"
+            case .issue: return "Allow for \(model.issue(approval.issueID)?.key ?? "the issue")"
+            case .project: return "Allow for project"
+            }
+        default: return "Approve"
+        }
+    }
+
+    /// A raise must lift the cap.
+    private var canApprove: Bool { approval.kind != "budget_overrun" || raise != nil }
+
+    /// The overrun's raise: the slider's new cap less the current one, in whole thousands of tokens.
     private var raise: Int64? {
-        guard let cap = budgetNumbers?.cap, let typed = Self.tokens(newCap), typed > cap else { return nil }
-        return typed - cap
-    }
-
-    private func reject(_ title: String) -> some View {
-        AinkradButton(title: title, style: .danger) {
-            store.decide(approval, approve: false, reply: reply)
-        }
-        .outlined().tintedFill().compact().fixedSize()
-    }
-
-    private func primary(_ title: String) -> some View {
-        AinkradButton(title: title.trimmingCharacters(in: .whitespaces), style: .primary, action: approve)
-            .compact().fixedSize()
+        guard let cap = BudgetNumbers(f)?.cap else { return nil }
+        let typed = Int64((newCap / 1000).rounded()) * 1000
+        return typed > cap ? typed - cap : nil
     }
 
     private func approve() {
         guard isPending else { return }
         if approval.kind == "budget_overrun" {
-            guard let raise else { return }
-            store.decide(approval, approve: true, raiseTokens: raise, reply: reply)
+            guard let raise else {
+                store.toast(AinkradRichToast(title: "New cap must be above the current one", status: .danger))
+                return
+            }
+            store.decideOnStage(approval, approve: true, raiseTokens: raise, reply: reply)
         } else {
-            store.decide(approval, approve: true, reply: reply)
+            store.decideOnStage(approval, approve: true, reply: reply, scope: scope)
         }
     }
 
-    private var answered: some View {
-        HStack(spacing: skin.size.s8) {
-            AinkradBadge(text: approval.status, status: approval.status == "approved" ? .success : .danger)
-            if let reply = approval.reply { Text("You: \(reply)").citadelFont("t12").lineLimit(2) }
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(skin.color(skin.text.muted))
-        .padding(skin.size.s16)
+    /// "2026-10-27" → "Oct 27".
+    static func day(_ text: String) -> String {
+        guard let date = try? Date(text, strategy: Date.ISO8601FormatStyle().year().month().day()) else { return text }
+        return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
     static func ordinal(_ n: Int) -> String {
@@ -381,47 +261,16 @@ struct ApprovalDetail: View {
     }
 }
 
-/// A KPI tile of the detail: label, big value with its unit, and an optional mark under it.
-private struct Tile<Footer: View>: View {
-    let label: String
-    let value: String
-    let unit: String?
-    @ViewBuilder let footer: () -> Footer
-    @Environment(\.ainkradSkin) private var skin
+/// A budget overrun's tokens: spent, and the cap with this period's raises.
+struct BudgetNumbers {
+    let spent: Int64
+    let cap: Int64
 
-    var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s4) {
-                Text(skin.labelCased(label)).citadelFont("t10", weight: "semibold")
-                    .foregroundStyle(skin.color(skin.text.muted))
-                HStack(alignment: .firstTextBaseline, spacing: skin.size.s4) {
-                    Text(value).citadelFont("t24", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-                    if let unit { Text(unit).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)) }
-                }
-                footer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    init?(_ f: [String: String]) {
+        guard let spent = f["spent"].flatMap(Int64.init), let cap = f["token_cap"].flatMap(Int64.init) else {
+            return nil
         }
-    }
-}
-
-/// A quoted note: "**Toma (Lead):** CIT-62 is the risk…".
-struct Quote: View {
-    let who: String?
-    let text: String
-    @Environment(\.ainkradSkin) private var skin
-
-    var body: some View {
-        (Text(who.map { "\($0): " } ?? "").foregroundStyle(skin.color(skin.text.primary)).bold()
-            + Text(text).foregroundStyle(skin.color(skin.text.muted)))
-            .citadelFont("t12")
-            .lineSpacing(skin.size.s3)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, skin.size.s12)
-            .padding(.vertical, skin.size.s8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                skin.color(skin.palette.white).opacity(skin.opacity.o05),
-                in: RoundedRectangle(cornerRadius: skin.size.s8))
+        self.spent = spent
+        self.cap = cap + (f["raised"].flatMap(Int64.init) ?? 0)
     }
 }

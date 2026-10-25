@@ -1,3 +1,4 @@
+import AinkradAppKit
 import Foundation
 
 /// Screen 15: the account pool, its limits (`account:<id>`, decision #56) and agents' fallback chains.
@@ -69,13 +70,16 @@ extension CitadelStore {
         Task {
             if let stored = await server.setFallbacks(agent: agent, ordered) {
                 page.chain = ordered.filter(\.isOwn) + stored
+                noteChainSaved(agent: agent, stored)
             }
         }
     }
 
     /// "+ Add account": sends a checked draft; the new account joins the pool, assigned to no company yet.
     /// Returns at once; `done` runs when the server took it.
-    func addAccount(_ draft: NewAccountDraft, done: @escaping @MainActor () -> Void) {
+    func addAccount(
+        _ draft: NewAccountDraft, companies: [Int64] = [], done: @escaping @MainActor () -> Void
+    ) {
         guard draft.problem == nil, let server, let model else { return }
         let page = model.accountsPage
         page.addFailure = nil
@@ -84,7 +88,15 @@ extension CitadelStore {
             case .success(let account):
                 page.accounts.append(account)
                 done()
+                for company in companies { _ = await server.setAccount(account.id, assigned: true, company: company) }
                 await fillAccounts(model, server: server)
+                if !companies.isEmpty {
+                    toast(
+                        AinkradRichToast(
+                            title: "\(account.label) added",
+                            body: "Assigned to \(Wording.count(companies.count, "company", plural: "companies"))",
+                            status: .success))
+                }
             case .failure(let answer):
                 page.addFailure = ActionFailure(
                     title: "Couldn't add \(draft.label)", answer: answer, outcome: "No account was added.")
@@ -112,6 +124,7 @@ extension CitadelStore {
 
     private func fillAccounts(_ model: CompanyModel, server: CitadelServer) async {
         let page = model.accountsPage
+        let before = page.accounts
         if let pool = await server.poolUsage() {
             page.accounts = pool
             page.canSeeWholePool = true
@@ -135,6 +148,8 @@ extension CitadelStore {
                 if let issue = run.issueID { model.issues[issue] = await server.issue(issue) }
             }
         }
+        toastWarnCrossings(old: before, page: page)
+        await fillAccountExtras(model, server: server)
         if page.pickedAccount == nil { page.pickedAccount = page.visible(company: model.companyID).first?.id }
         let agent = page.chainAgent ?? model.liveRuns.first?.agentID ?? model.agents.keys.min()
         if let agent {

@@ -1,15 +1,15 @@
 import AinkradAppKit
 import SwiftUI
 
-/// Screen 16: every limit as a setting (decision #52) — its bounds, the server default (read-only here, #58), this
-/// company's value and where it comes from, and every value set below (projects, runners, accounts). Runner and
-/// account limits are server-wide / pool-wide, so the company column says so instead of offering a field (#56,
-/// #57). Out-of-bounds input is refused inline, never clamped. Recent changes and the CLI under the table.
+/// Company settings › Limits (screen 16, prototype `settings-limits.js`): every limit as a setting (decision #52) —
+/// how resolution works and the filters, then one card per group with a draggable gauge per row, this company's
+/// value and where it comes from, and the values set below; recent changes and the CLI for the selected row under
+/// them. Runner and account limits are server-wide / pool-wide (#56, #57): their gauge is read-only. Out-of-bounds
+/// input is refused, never clamped.
 struct LimitsView: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     private var page: LimitsPage { model.limitsPage }
@@ -17,164 +17,179 @@ struct LimitsView: View {
 
     var body: some View {
         @Bindable var page = page
-        let sections = page.sections(model.companyID)
-        VStack(alignment: .leading, spacing: 0) {
-            PaneTitle(title: "Limits · \(store.company?.name ?? "Company")", crumb: crumb) {
-                AinkradSearchField(text: $page.search, placeholder: "Find a setting").frame(width: skin.size.s200)
+        let sections = page.sections(model.companyID, expandAll: true)
+        let groups = sections.groups + (sections.more.isEmpty ? [] : [("Other", sections.more)])
+        SettingsScroll {
+            SettingsHero(
+                section: .limits, title: "Limits · \(store.company?.name ?? "Company")",
+                subtitle:
+                    "\(page.server.count) settings · \(page.setHere(model.companyID)) set for this company · \(page.overriddenBelow) overridden below"
+            ) {
+                AinkradSearchField(text: $page.search, placeholder: "Find a setting").frame(width: skin.size.s220)
             }
-            ScrollView {
-                VStack(alignment: .leading, spacing: skin.size.s12) {
-                    chain
-                    filters
-                    AinkradCard {
-                        VStack(alignment: .leading, spacing: 0) {
-                            header
-                            ForEach(sections.groups, id: \.0) { title, rows in
-                                Text(skin.labelCased(title)).citadelFont("t10", weight: "semibold")
-                                    .foregroundStyle(skin.color(skin.text.muted))
-                                    .padding(.top, skin.size.s10).padding(.bottom, skin.size.s2)
-                                    .padding(.horizontal, skin.size.s10)
-                                ForEach(rows) { LimitTableRow(store: store, model: model, row: $0) }
-                            }
-                            more(sections.more)
+            resolution
+            ForEach(groups, id: \.0) { title, rows in
+                SettingsCard {
+                    HStack(spacing: skin.size.s8) {
+                        SectionGlyph(
+                            icon: Self.groupIcon(title), tint: Self.groupTint(title, skin), size: skin.size.s24)
+                        Text(title).citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
+                    }
+                    .padding(.top, skin.size.s10)
+                    .padding(.bottom, skin.size.s6)
+                    VStack(spacing: skin.size.s1) {
+                        ForEach(rows) { row in
+                            LimitRowView(store: store, model: model, row: row, tint: Self.groupTint(title, skin))
                         }
-                        .animation(
-                            reduceMotion ? nil : skin.animation(skin.motion.present),
-                            value: sections.groups.flatMap { $0.1.map(\.id) })
                     }
-                    HStack(alignment: .top, spacing: skin.size.s12) {
-                        changes.frame(maxWidth: .infinity)
-                        cli.frame(maxWidth: .infinity)
-                    }
+                    .padding(.bottom, skin.size.s4)
                 }
-                .padding(.horizontal, skin.size.s20)
-                .padding(.bottom, skin.size.s20)
             }
-            .offlineDimmed()
+            if groups.isEmpty {
+                SettingsCard {
+                    Text("Nothing in this filter").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
+                        .frame(maxWidth: .infinity).padding(skin.size.s18)
+                }
+            }
+            HStack(alignment: .top, spacing: skin.size.s14) {
+                changes.frame(maxWidth: .infinity)
+                cli.frame(maxWidth: .infinity)
+            }
         }
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: groups.flatMap { $0.1.map(\.id) })
         .task { if !page.isLoaded { store.loadLimitsPage() } }
     }
 
-    /// "22 settings · 6 set for this company · 9 overridden below".
-    private var crumb: Text {
-        let muted = skin.color(skin.text.muted)
-        return Text("\(page.server.count) settings · ").foregroundStyle(muted)
-            + Text("\(page.setHere(model.companyID)) set for this company").foregroundStyle(theme.accentSecondary)
-            + Text(" · \(page.overriddenBelow) overridden below").foregroundStyle(muted)
-    }
-
-    /// "Resolution · most specific wins  Server default → Company → Project / Runner / Account", and the filters.
-    private var chain: some View {
-        HStack(spacing: skin.size.s6) {
-            Text("Resolution · most specific wins").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-            step("Server default")
-            arrow("→")
-            step("Company", isHere: true)
-            arrow("→")
-            step("Project")
-            arrow("/")
-            step("Runner")
-            arrow("/")
-            step("Account")
+    static func groupTint(_ title: String, _ skin: AinkradSkin) -> Color {
+        switch title {
+        case "Runs": skin.color(skin.palette.accentPrimary)
+        case "Disk & storage": skin.color(skin.palette.accentViolet)
+        case "Cost & usage": skin.color(skin.palette.success)
+        case "Approvals & knowledge": skin.color(skin.palette.warning)
+        default: skin.color(skin.text.muted)
         }
     }
 
-    private var filters: some View {
-        HStack(spacing: skin.size.s6) {
-            filter(.all, "All")
-            filter(.setHere, "Set here · \(page.setHere(model.companyID))")
-            filter(.overridden, "Overridden below · \(page.overriddenBelow)")
+    static func groupIcon(_ title: String) -> String {
+        switch title {
+        case "Runs": "play.fill"
+        case "Disk & storage": "cylinder"
+        case "Cost & usage": "dollarsign"
+        case "Approvals & knowledge": "checkmark"
+        default: "slider.horizontal.3"
         }
     }
 
-    private func step(_ title: String, isHere: Bool = false) -> some View {
-        Text(title).citadelFont("t11")
-            .foregroundStyle(isHere ? theme.accentSecondary : skin.color(skin.text.primary))
-            .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s3)
-            .background(
-                (isHere
-                    ? theme.accentSecondary.opacity(skin.opacity.o12)
-                    : skin.color(skin.palette.white).opacity(skin.opacity.o05)),
-                in: RoundedRectangle(cornerRadius: skin.size.s6))
-    }
+    // MARK: Resolution and filters
 
-    private func arrow(_ glyph: String) -> some View {
-        Text(glyph).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-    }
-
-    private func filter(_ value: LimitsPage.Filter, _ title: String) -> some View {
-        AinkradToggleButton(
-            isOn: Binding(get: { page.filter == value }, set: { if $0 { page.filter = value } }), title: title)
-    }
-
-    private var header: some View {
-        HStack(spacing: skin.size.s12) {
-            Text("Setting · bounds").frame(width: skin.size.s120, alignment: .leading)
-            Text("\(store.company?.name ?? "Company") (this company)").frame(maxWidth: .infinity, alignment: .leading)
-            Text("Server").frame(width: skin.size.s80, alignment: .leading)
-            Text("Overridden below").frame(width: skin.size.s240, alignment: .leading)
-        }
-        .citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
-        .padding(.horizontal, skin.size.s10).padding(.vertical, skin.size.s6)
-    }
-
-    /// "+ 7 more" — the rest, opened in place.
-    @ViewBuilder private func more(_ rest: [LimitRow]) -> some View {
-        if page.showsMore || !rest.isEmpty {
-            if page.showsMore {
-                ForEach(rest) { LimitTableRow(store: store, model: model, row: $0) }
+    private var resolution: some View {
+        SettingsCard {
+            HStack(spacing: skin.size.s10) {
+                node("gearshape", "Server default", "everyone starts here", isHere: false)
+                arrow
+                node("square", store.company?.name ?? "Company", "this company", isHere: true)
+                arrow
+                node("list.bullet", "Project · runner · account", "most specific wins", isHere: false)
             }
-            HStack(spacing: skin.size.s12) {
-                AinkradButton(title: page.showsMore ? "Fewer" : "+ \(rest.count) more", style: .ghost) {
-                    page.showsMore.toggle()
+            .padding(.top, skin.size.s14)
+            .padding(.bottom, skin.size.s10)
+            HStack(spacing: skin.size.s8) {
+                FilterChip(title: "All", isOn: page.filter == .all) { page.filter = .all }
+                FilterChip(title: "Set here · \(page.setHere(model.companyID))", isOn: page.filter == .setHere) {
+                    page.filter = .setHere
                 }
-                .borderless().compact().fixedSize()
-                if !page.showsMore {
-                    Text(rest.prefix(4).map { $0.name.lowercased() }.joined(separator: ", ") + "…")
-                        .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(2)
+                FilterChip(title: "Overridden below · \(page.overriddenBelow)", isOn: page.filter == .overridden) {
+                    page.filter = .overridden
                 }
             }
-            .padding(.horizontal, skin.size.s4).padding(.vertical, skin.size.s6)
+            .padding(.top, skin.size.s4)
+            .padding(.bottom, skin.size.s12)
         }
     }
 
-    // MARK: - Under the table
+    private func node(_ icon: String, _ title: String, _ detail: String, isHere: Bool) -> some View {
+        let cyan = skin.color(skin.palette.accentSecondary)
+        let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
+        return HStack(spacing: skin.size.s10) {
+            Image(systemName: icon).citadelFont("t13").foregroundStyle(cyan)
+                .frame(width: skin.size.s30, height: skin.size.s30)
+                .background(cyan.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s9))
+            VStack(alignment: .leading, spacing: skin.size.s1) {
+                Text(title).citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
+                    .lineLimit(1)
+                Text(detail).citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, skin.size.s12)
+        .padding(.vertical, skin.size.s10)
+        .frame(maxWidth: .infinity)
+        .background(
+            isHere ? cyan.opacity(skin.opacity.o08) : skin.color(.palette("background", 1)).opacity(skin.opacity.o18),
+            in: shape
+        )
+        .overlay(
+            shape.strokeBorder(
+                isHere ? cyan.opacity(skin.opacity.o40) : skin.color(.palette("foreground", skin.opacity.o06)),
+                lineWidth: 1))
+    }
+
+    private var arrow: some View {
+        let cyan = skin.color(skin.palette.accentSecondary)
+        return HStack(spacing: 0) {
+            LinearGradient(
+                colors: [skin.color(.palette("foreground", skin.opacity.o08)), cyan.opacity(skin.opacity.o50)],
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(height: skin.size.s2)
+            Image(systemName: "arrowtriangle.right.fill").citadelFont("t8").foregroundStyle(
+                cyan.opacity(skin.opacity.o60))
+        }
+        .frame(maxWidth: skin.size.s60)
+    }
+
+    // MARK: Under the groups
 
     private var changes: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "Recent changes", action: "Audit log →") { page.section = .audit }
-                ForEach(page.changes, id: \.seq) { change in
-                    VStack(alignment: .leading, spacing: skin.size.s2) {
-                        changeLine(change).citadelFont("t11").lineLimit(2)
-                        Text(change.at.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
-                            .citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, skin.size.s10).padding(.vertical, skin.size.s8)
-                    .background(
-                        skin.color(skin.palette.white).opacity(skin.opacity.o05),
-                        in: RoundedRectangle(cornerRadius: skin.size.s8))
-                }
+        SettingsCard(title: "Recent changes") {
+            VStack(alignment: .leading, spacing: skin.size.s6) {
+                ForEach(page.changes, id: \.seq) { change in changeRow(change) }
                 if page.changes.isEmpty {
                     Text("Nothing changed yet.").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 }
+                AinkradTapArea {
+                    page.section = .audit
+                } label: {
+                    Text("Audit log ›").citadelFont("t11").foregroundStyle(skin.color(skin.palette.accentSecondary))
+                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, skin.size.s10)
         }
     }
 
-    /// "**You** · stall timeout · CIT 15 min → **10 min**".
-    private func changeLine(_ change: SettingChangeInfo) -> Text {
-        let who = model.agent(change.agentID).map(\.nameAndRole) ?? "You"
+    /// "**You** · stall timeout · CIT ~~15 min~~ → **10 min**" over its time.
+    private func changeRow(_ change: SettingChangeInfo) -> some View {
         let unit = page.server.first { $0.key == change.key }?.unit ?? "count"
         let old = change.old.map { ScopedSetting.format($0, unit: unit) } ?? "inherited"
         let new = change.new.map { ScopedSetting.format($0, unit: unit) } ?? "inherited"
-        let primary = skin.color(skin.text.primary)
-        return Text(who).bold().foregroundStyle(primary)
-            + Text(" · \(LimitNames.name(change.key).lowercased()) · ").foregroundStyle(primary)
-            + Text(scopeName(change.scope)).foregroundStyle(theme.accentSecondary)
-            + Text(" \(old) → ").foregroundStyle(primary) + Text(new).bold().foregroundStyle(primary)
+        let who = model.agent(change.agentID).map(\.nameAndRole) ?? "You"
+        return VStack(alignment: .leading, spacing: skin.size.s4) {
+            HStack(spacing: skin.size.s6) {
+                (Text(who).bold() + Text(" · \(LimitNames.name(change.key).lowercased()) · ")
+                    + Text(scopeName(change.scope)).monospaced())
+                    .citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                DiffChips(old: old, new: new)
+            }
+            Text(change.at.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                .citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, skin.size.s10)
+        .padding(.vertical, skin.size.s9)
+        .background(
+            skin.color(.palette("background", 1)).opacity(skin.opacity.o18),
+            in: RoundedRectangle(cornerRadius: skin.size.s12))
     }
 
     private func scopeName(_ scope: String) -> String {
@@ -188,120 +203,59 @@ struct LimitsView: View {
         }
     }
 
-    /// The same, from the server's CLI (`citadel-server setting …`), for the first value set here.
+    /// The same, from the server's CLI (`citadel-server setting …`), for the selected row.
     private var cli: some View {
-        let key = page.company.first { $0.isSet(at: companyScope) }?.key ?? "run.stall_after_secs"
-        let commands = [
-            "k=\(key) s=\(companyScope)",
-            "c=\"citadel-server setting\"",
-            "$c get $db $k --scope $s",
-            "$c set $db $k <value> --scope $s",
-            "$c reset $db $k --scope $s",
-            "$c history $db $k",
+        let key = page.selected ?? page.company.first { $0.isSet(at: companyScope) }?.key ?? "run.stall_after_secs"
+        let value = page.company.first { $0.key == key }?.text.replacingOccurrences(of: " ", with: "") ?? "<value>"
+        let below = page.below[key]?.first { $0.scope.hasPrefix("project:") }
+        let lines = [
+            "citadel-server setting get $DB \(key)\(below.map { " --scope \($0.scope)" } ?? "")",
+            "citadel-server setting set $DB \(key) \(value) --scope \(companyScope)",
+            "citadel-server setting reset $DB \(key) --scope \(companyScope)",
+            "citadel-server setting history $DB \(key)",
         ]
-        return AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s8) {
-                TileHead(title: "Same from the CLI · API")
-                AinkradCodeBlock(commands.joined(separator: "\n"))
-                Text(
-                    "Every set / reset is audited (who, when, old → new) and validated against the bounds — out-of-range values are refused, never clamped."
-                )
-                .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).fixedSize(
-                    horizontal: false, vertical: true)
+        return SettingsCard(title: "Same from the CLI · API", hint: LimitNames.name(key)) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(lines, id: \.self) { line in
+                    (Text(verbatim: "$ ").foregroundStyle(skin.color(skin.text.faint))
+                        + Text(verbatim: line).foregroundStyle(skin.color(skin.palette.accentSecondary)))
+                        .citadelFont("t11", mono: true).lineSpacing(skin.size.s6).textSelection(.enabled)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, skin.size.s14)
+            .padding(.vertical, skin.size.s12)
+            .background(
+                skin.color(.palette("background", 1)).opacity(skin.opacity.o70),
+                in: RoundedRectangle(cornerRadius: skin.size.s12))
+            Text(
+                "Every set / reset is audited and validated against the bounds — out-of-range values are refused, never clamped."
+            )
+            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).fixedSize(
+                horizontal: false, vertical: true
+            )
+            .padding(.top, skin.size.s8).padding(.bottom, skin.size.s10)
         }
     }
 }
 
-/// One setting: name and bounds with this company's value and its chip (or why there is none), the server value,
-/// and the values set below as chips that open their screen.
-private struct LimitTableRow: View {
-    let store: CitadelStore
-    let model: CompanyModel
-    let row: LimitRow
-    @State private var hovering = false
+/// ~~old~~ → **new** as red / green mono chips.
+struct DiffChips: View {
+    let old: String
+    let new: String
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
-        let page = model.limitsPage
-        let scope = "company:\(model.companyID)"
-        let refused = page.refused[row.id]
-        HStack(spacing: skin.size.s12) {
-            if let company = row.company {
-                AinkradScopedValue(
-                    label: row.name, bounds: row.setting.bounds,
-                    value: Binding(get: { company.text }, set: { store.setLimit(company, scope: scope, text: $0) }),
-                    suffix: refused,
-                    scope: company.chip(at: scope),
-                    validate: { page.check(company, $0) },
-                    onReset: company.isSet(at: scope) ? { store.resetLimit(company, scope: scope) } : nil
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                VStack(alignment: .leading, spacing: skin.size.s1) {
-                    Text(row.name).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
-                    Text(row.setting.bounds).citadelFont("t10").foregroundStyle(skin.color(skin.text.faint))
-                }
-                .frame(width: skin.size.s120, alignment: .leading)
-                Text(row.companyNote ?? "").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Text(row.setting.text).citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
-                .frame(width: skin.size.s80, alignment: .leading)
-                .help("The server default — edited on the server settings page")
-            overrides.frame(width: skin.size.s240, alignment: .leading)
+        HStack(spacing: skin.size.s6) {
+            Text(old).citadelFont("t11", mono: true).foregroundStyle(status.danger)
+                .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s2)
+                .background(status.danger.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s6))
+            Text(verbatim: "→").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+            Text(new).citadelFont("t11", weight: "semibold", mono: true).foregroundStyle(status.success)
+                .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s2)
+                .background(status.success.opacity(skin.opacity.o14), in: RoundedRectangle(cornerRadius: skin.size.s6))
         }
-        .padding(.horizontal, skin.size.s10).padding(.vertical, skin.size.s6)
-        .background(
-            RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous).fill(
-                refused != nil
-                    ? status.danger.opacity(skin.opacity.o07)
-                    : skin.color(skin.palette.white).opacity(hovering ? skin.opacity.o05 : 0))
-        )
-        .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
-        .animation(skin.animation(skin.motion.hover), value: refused)
-    }
-
-    @ViewBuilder private var overrides: some View {
-        if row.overrides.isEmpty {
-            Text("—").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-        } else {
-            HStack(spacing: skin.size.s6) {
-                ForEach(row.overrides, id: \.scope) { item in
-                    OverrideChip(item: item) { store.openOverride(item) }
-                }
-            }
-        }
-    }
-}
-
-/// "CIT **10 min**": a value set below the company; opens its screen.
-private struct OverrideChip: View {
-    let item: LimitOverride
-    let open: () -> Void
-    @State private var hovering = false
-    @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
-
-    var body: some View {
-        (Text(item.owner).foregroundStyle(skin.color(skin.text.muted)) + Text(" ")
-            + Text(item.value).bold().foregroundStyle(skin.color(skin.text.primary)))
-            .citadelFont("t10_5", mono: true).lineLimit(1)
-            .padding(.horizontal, skin.size.s7).padding(.vertical, skin.size.s1)
-            .background(
-                theme.accentSecondary.opacity(hovering ? skin.opacity.o16 : skin.opacity.o08),
-                in: skin.usesNativeGlass
-                    ? AnyShape(Capsule(style: .continuous)) : AnyShape(RoundedRectangle(cornerRadius: skin.size.s4))
-            )
-            .fixedSize()
-            .contentShape(Rectangle())
-            .onHover { hovering = $0 }
-            .onTapGesture(perform: open)
-            .help("Open \(item.owner)")
-            .accessibilityAddTraits(.isButton)
+        .fixedSize()
     }
 }

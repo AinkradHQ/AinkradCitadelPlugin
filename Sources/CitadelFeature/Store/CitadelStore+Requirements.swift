@@ -62,10 +62,12 @@ extension CitadelStore {
     }
 
     /// ＋: a new requirement, as a request the CEO routes.
-    func submitRequirement(title: String, body: String) {
+    /// `extras` (project, priority, criteria) go as fields from API minor 18; an older server gets none of them.
+    func submitRequirement(title: String, body: String, extras: RequestExtras? = nil) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, let server, let model else { return }
-        Task { _ = await server.submitRequest(company: model.companyID, title: title, body: body) }
+        let extras = hasTrancheB ? extras : nil
+        Task { _ = await server.submitRequest(company: model.companyID, title: title, body: body, extras: extras) }
     }
 
     /// "⋯ → Rename…": the hub's list and the thread's title follow.
@@ -111,7 +113,7 @@ extension CitadelStore {
         }
     }
 
-    private func requirementWrite(
+    func requirementWrite(
         _ id: Int64, _ title: String, outcome: String, _ send: @escaping (CitadelServer) async -> ServerAnswer?,
         done: @escaping @MainActor (CompanyModel) -> Void
     ) {

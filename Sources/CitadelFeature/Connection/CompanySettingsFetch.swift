@@ -10,6 +10,24 @@ struct DeviceInfo: Identifiable, Equatable, Sendable {
     var revokedAt: Date?
 }
 
+/// A code to type on a new device, and when it stops working.
+struct PairingCode: Equatable, Sendable {
+    var code: String
+    var expiresAt: Date
+
+    /// `K7Q-2MX`: the six characters in two groups of three, as the prototype shows them.
+    var tiles: [String] {
+        Array(code.uppercased()).map(String.init).enumerated().flatMap { index, ch in index == 3 ? ["-", ch] : [ch] }
+    }
+}
+
+/// The Pair a device drawer: the code asked for, the keys that existed then, and the device that appeared since.
+struct PairingSession: Equatable, Sendable {
+    var code: PairingCode?
+    var knownDevices: Set<Int64>
+    var paired: DeviceInfo?
+}
+
 /// One audited change: what happened (`issue.in_review`), to what, by whom, when.
 struct AuditLine: Identifiable, Equatable, Sendable {
     var id: Int64 { seq }
@@ -51,6 +69,15 @@ extension CitadelServer {
         }
     }
 
+    /// A pairing code, good once for five minutes (API minor 18): a new device sends it with a name to join.
+    func startPairing() async -> Result<PairingCode, ServerAnswer> {
+        await attempt({ try await scoped(to: nil).client.startPairing() }) {
+            guard case .ok(let ok) = $0 else { return nil }
+            let pairing = try ok.body.json
+            return PairingCode(code: pairing.code, expiresAt: pairing.expiresAt)
+        }
+    }
+
     func revokeDevice(_ id: Int64) async -> ServerAnswer? {
         await act { try await scoped(to: nil).client.revokeDevice(path: .init(id: id)) }
     }
@@ -65,12 +92,15 @@ extension CitadelServer {
     }
 
     /// A page of the company's audit log (API minor 16), newest first: rows below `before` (the previous page's
-    /// `next`), only actions starting with `kind` when set. `next` is absent on the last page.
-    func auditLog(before: Int64? = nil, kind: String? = nil) async -> (lines: [AuditLine], next: Int64?)? {
+    /// `next`), only actions starting with `kind` when set, only rows by `actor` (`user`, `agent`, `system`; API minor
+    /// 17) when set. `next` is absent on the last page.
+    func auditLog(before: Int64? = nil, kind: String? = nil, actor: String? = nil) async -> (
+        lines: [AuditLine], next: Int64?
+    )? {
         await read("listAudit") {
             guard
                 case .ok(let ok) = try await client.listAudit(
-                    query: .init(before: before, limit: 100, kind: kind.nonEmpty))
+                    query: .init(before: before, limit: 100, kind: kind.nonEmpty, actor: actor.nonEmpty))
             else { return nil }
             let page = try ok.body.json
             return (page.items.map(AuditLine.init), page.nextBefore)

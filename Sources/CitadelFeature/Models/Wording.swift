@@ -4,6 +4,11 @@ import Foundation
 /// The names screens build from parts, said once: never "Product Owner (Product Owner)", "CEO · CEO",
 /// "Sprint WRK WRK Sprint 1" or "1 departments".
 enum Wording {
+    /// "Sprint CIT S4" → "CIT S4" (the prototype says "sprint CIT S4").
+    static func sprintName(_ title: String) -> String {
+        title.hasPrefix("Sprint ") ? String(title.dropFirst("Sprint ".count)) : title
+    }
+
     /// "3 agents", "1 department", "2 companies" (`plural` for an irregular one).
     static func count(_ n: some BinaryInteger, _ singular: String, plural: String? = nil) -> String {
         "\(n) \(n == 1 ? singular : plural ?? singular + "s")"
@@ -21,6 +26,18 @@ enum Wording {
         return "\(name) (\(detail))"
     }
 
+    /// A role as the prototype writes it: the server stores slugs, people read "Writer", "PO", "QA", "DevOps".
+    static func roleLabel(_ role: String) -> String {
+        let trimmed = role.trimmingCharacters(in: .whitespaces)
+        if let acronym = roleAcronyms[trimmed.lowercased()] { return acronym }
+        guard let first = trimmed.first else { return trimmed }
+        return first.uppercased() + trimmed.dropFirst()
+    }
+
+    private static let roleAcronyms = [
+        "ceo": "CEO", "cto": "CTO", "cmo": "CMO", "coo": "COO", "po": "PO", "qa": "QA", "devops": "DevOps",
+    ]
+
     /// A sprint with its project key and the word "Sprint" each said once: "WRK Sprint 1" (named "Sprint 1" or
     /// "WRK Sprint 1"), "Sprint CIT S4" (named "S4").
     static func sprint(key: String?, name: String) -> String {
@@ -35,6 +52,10 @@ extension AgentInfo {
     var nameAndRole: String { Wording.parenthesized(name, role) }
     /// "Mira · Product Owner"; "CEO" when the name is the role.
     var nameDotRole: String { Wording.name(name, role) }
+    /// The role as the prototype writes it: "Quill · Writer", "Mira · PO", "Toma · Lead".
+    var roleLabel: String { Wording.roleLabel(role) }
+    /// "Quill · Writer" — `nameDotRole` with the server's role slug tidied.
+    var nameDotRoleLabel: String { Wording.name(name, roleLabel) }
 }
 
 extension SprintInfo {

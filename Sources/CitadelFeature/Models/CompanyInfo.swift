@@ -20,6 +20,18 @@ struct AgentInfo: Identifiable, Equatable, Sendable {
     /// The uploaded image's path on the server (decision #61), drawn instead of the orb.
     var avatarPath: String?
     var reportsTo: Int64?
+    /// When it was proposed (`hired_at`; the approval seats it).
+    var hiredAt: Date? = nil
+    /// What the admin wrote, its effort, sandbox, standing instructions and rules (API minor 17); nil from an
+    /// older server, which does not store them.
+    var about: String? = nil
+    var effort: String? = nil
+    var sandbox: String? = nil
+    var instructions: String? = nil
+    var guidelines: [String]? = nil
+    /// The chain preset it uses in place of its own fallbacks, and the wakes waiting for it (API minor 18).
+    var chainPresetID: Int64? = nil
+    var queuedWakes: Int64? = nil
 
     var isPaused: Bool { status == "paused" }
     var isHirePending: Bool { status == "pending_approval" }
@@ -33,6 +45,9 @@ struct DepartmentInfo: Identifiable, Equatable, Sendable {
     let id: Int64
     var name: String
     var teams: [TeamInfo]
+    /// What it does, and the agent that heads it (API minor 17); nil from an older server.
+    var about: String? = nil
+    var headAgentID: Int64? = nil
 
     var agentIDs: [Int64] { teams.flatMap { $0.seats.map(\.agentID) } }
 }
@@ -55,6 +70,10 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var issueID: Int64?
     /// `queued`, `claimed`, `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `runner_lost`.
     var state: String
+    /// The run stopped on its token cap: a budget stop, not a lost run.
+    var isCapHit: Bool { state == "failed" && terminalReason?.contains("cap") == true }
+    /// The run died and left nothing to read: failed (unless it merely hit its cap), lost or timed out.
+    var died: Bool { !isCapHit && ["failed", "runner_lost", "timed_out"].contains(state) }
     var harness: String
     var harnessVersion: String?
     var model: String?
@@ -86,7 +105,7 @@ struct RunInfo: Identifiable, Equatable, Sendable {
     var isLive: Bool { ["queued", "claimed", "running"].contains(state) }
     /// The run's end in the words of screen 04: `cap hit` is a failure the token cap caused.
     var endWord: String {
-        if state == "failed", terminalReason?.contains("cap") == true { return "cap hit" }
+        if isCapHit { return "cap hit" }
         return state.replacingOccurrences(of: "_", with: " ")
     }
 }
@@ -121,6 +140,9 @@ struct ApprovalInfo: Identifiable, Equatable, Sendable {
     var issueID: Int64?
     var requestedBy: Int64
     var expiresAt: Date?
+    /// When it was asked and answered (API minor 17); nil from an older server.
+    var createdAt: Date? = nil
+    var decidedAt: Date? = nil
     /// The payload's flat string and number fields (`name`, `key`, `title`, `tool`, `run`, `points`, …).
     var fields: [String: String]
     /// `pending`, `approved`, `rejected`, `expired`.
@@ -174,6 +196,17 @@ struct StuckInfo: Equatable, Sendable {
     var lastRepairAt: Date?
     /// Since when it has not moved (`stuck_since`), for the card's age.
     var since: Date? = nil
+    /// The run it is about, how long such work usually takes and what happened, as the server tells it (API
+    /// minor 18); nil and empty from an older server.
+    var runID: Int64? = nil
+    var usualSecs: Int? = nil
+    var trail: [TrailInfo] = []
+}
+
+/// One step of a stuck issue's evidence trail.
+struct TrailInfo: Equatable, Sendable {
+    var at: Date
+    var what: String
 }
 
 struct RequirementInfo: Identifiable, Equatable, Sendable {
@@ -188,6 +221,10 @@ struct RequirementInfo: Identifiable, Equatable, Sendable {
     var percentDone: Int = 0
     /// `YYYY-MM-DD`.
     var eta: String?
+    /// When you asked for it (the list's age).
+    var createdAt: Date? = nil
+    /// When it was paused (API minor 18); `nil` while it runs.
+    var pausedAt: Date? = nil
 }
 
 struct BudgetInfo: Identifiable, Equatable, Sendable {
@@ -206,9 +243,20 @@ struct BudgetInfo: Identifiable, Equatable, Sendable {
     var raised: Int64 = 0
     /// Runs stop at the cap, or it only warns.
     var hardStop = true
+    /// Dollars beside the tokens (API minor 18), in millionths, the approved raises included; `nil` without one.
+    var usdCap: Int64?
+    /// Priced dollars spent in the period, in millionths.
+    var usdSpent: Int64 = 0
+    /// Dollars added by approved raises, in millionths; `usdCap` includes them, the stored cap does not.
+    var raisedUsd: Int64 = 0
 
     var warnFraction: Double { Double(warnPercent) / 100 }
-    var fraction: Double { cap > 0 ? Double(spent) / Double(cap) : 0 }
+    /// How much of the cap is used: the larger of the token and the dollar share (the server stops at either).
+    var fraction: Double {
+        let tokens = cap > 0 ? Double(spent) / Double(cap) : 0
+        let dollars = (usdCap ?? 0) > 0 ? Double(usdSpent) / Double(usdCap ?? 1) : 0
+        return max(tokens, dollars)
+    }
 }
 
 struct SpendInfo: Equatable, Sendable {
@@ -229,6 +277,21 @@ struct ProjectInfo: Identifiable, Equatable, Sendable {
     var teamID: Int64?
     /// `scrum` or `kanban`.
     var mode: String
+    /// A symbol or emoji, and `#rrggbb` (API minor 18); `nil` falls back to the project's place in the list.
+    var icon: String? = nil
+    var color: String? = nil
+    /// Where the uploaded logo is read from, when it has one (API minor 18).
+    var logoURL: String? = nil
+    /// Every team on it, the owner (`teamID`) first (API minor 18); empty from an older server.
+    var teamIDs: [Int64] = []
+    /// Runtime limits, stored and shown (API minor 18).
+    var runnerTags: [String] = []
+    var maxParallelRuns: Int? = nil
+    var runTimeoutSecs: Int? = nil
+    var worktreeKeepDays: Int? = nil
+
+    /// The owner first, then the others; the owner alone from an older server.
+    var allTeamIDs: [Int64] { teamIDs.isEmpty ? teamID.map { [$0] } ?? [] : teamIDs }
 }
 
 struct SprintInfo: Equatable, Sendable {

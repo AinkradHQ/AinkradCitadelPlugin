@@ -36,6 +36,10 @@ final class CitadelStore {
     // Set only by the store; internal so previews and the screenshot sweep can stage a state.
     var phase: Phase = .setup
     var companies: [Components.Schemas.Company] = []
+    /// The companies' uploaded logos (API minor 17), loaded like the agents' avatars.
+    let logos = CompanyLogos()
+    /// The projects' uploaded logos (API minor 18).
+    let projectLogos = ProjectLogos()
     var agentCount: Int?
     var latency: Duration?
     /// The server's version (`GET /me`), shown on the connected card.
@@ -50,10 +54,44 @@ final class CitadelStore {
     /// After a first-run connect the card stays up as "Connected" until Open Home.
     var hasOpenedHome: Bool
     /// The window's main pane shows Settings.
-    var isShowingSettings = false
+    var isShowingSettings = false {
+        willSet { if newValue != isShowingSettings { navDirection = .fade } }
+        didSet { recordRoute() }
+    }
+    /// The ⌘K search panel is open.
+    var isSearching = false
+    /// What ⌘K opens with typed in (a deep link, a sweep shot); empty normally.
+    var searchSeed = ""
+    /// The New requirement sheet is open (Home dock, ⌘N, ⌘K action).
+    var isComposingRequirement = false
+    /// The company menu (⌘⇧O) and the keyboard sheet (?) are open.
+    var isSwitchingCompany = false
+    /// The New company wizard is open (switcher menu, ⌘K), and what it has collected.
+    var isCreatingCompany = false
+    var newCompany = NewCompanySession()
+    var isShowingShortcuts = false
+    /// The window's toasts (top-right), shown after an action lands.
+    let toasts = AinkradRichToastCenter()
+
+    func toast(_ toast: AinkradRichToast) { toasts.show(toast) }
+    /// Who the key acts as (`/me` user), for Home's greeting; the server's API minor, for Connect.
+    var userName: String?
+    var apiMinor: Int?
     /// The sidebar's screen, and the agent or run opened from it (screens 04 and 05).
-    var screen: Screen = .home
-    var detail: Detail?
+    var screen: Screen = .home {
+        willSet { if newValue != screen { navDirection = .fade } }
+        didSet { recordRoute() }
+    }
+    var detail: Detail? {
+        willSet { if let newValue, newValue != detail { navDirection = .push } }
+        didSet { recordRoute() }
+    }
+    /// How the next screen change animates, and the back/forward history (⌘[ ⌘]).
+    var navDirection: NavDirection = .fade
+    var history: [Route] = []
+    var historyIndex = -1
+    @ObservationIgnored var isTravelling = false
+    @ObservationIgnored var routePending = false
     /// The approval open in the inbox (06) and the agent thread open on screen 07; `nil` is the first.
     var selectedApproval: Int64?
     var selectedThread: ThreadKey?
@@ -177,9 +215,15 @@ final class CitadelStore {
         phase = .setup
     }
 
-    func openHome() { hasOpenedHome = true }
+    func openHome() {
+        hasOpenedHome = true
+        let who = [company?.name, agentCount.map { "\($0) agents" }].compactMap { $0 }.joined(separator: " · ")
+        toast(
+            AinkradRichToast(
+                title: "Connected to \(host)", body: "\(who) · replayed \(replayed) events", status: .success))
+    }
 
-    func select(company id: Int64) {
+    func select(company id: Int64, announce: Bool = true) {
         guard id != settings.document.companyID, let server else { return }
         saveCursor(force: true)
         remember(company: id)
@@ -190,6 +234,12 @@ final class CitadelStore {
         stream?.stop()
         startStream(server.scoped(to: id))
         Task { agentCount = try? await server.scoped(to: id).agentCount(company: id) }
+        if announce, let name = companies.first(where: { $0.id == id })?.name {
+            toast(
+                AinkradRichToast(
+                    title: "Switched to \(name)", body: "Accounts, runners and cost are per company — nothing is mixed."
+                ))
+        }
     }
 
     func stop() {
@@ -214,6 +264,8 @@ final class CitadelStore {
             let companies = me.companies
             guard !Task.isCancelled else { return }
             serverVersion = me.version
+            userName = me.userName
+            apiMinor = me.apiMinor
             catchUpTotal = cursor.map { Int(max(0, me.latestSeq - $0)) }
             latency = ContinuousClock.now - started
             // Accepted: only now does the key reach the secret store.
@@ -226,6 +278,7 @@ final class CitadelStore {
             }
             serverDraft = address.origin.absoluteString
             self.companies = companies
+            loadCompanyLogos(using: base)
             let pick = await startingCompany(
                 companies, origin: address.origin.absoluteString, sameServer: previousServer == serverDraft,
                 server: base)
@@ -304,6 +357,12 @@ final class CitadelStore {
         case .live, .polling:
             if model?.companyID != company?.id { loadCompany() }
             if phase != .connected {
+                if case .offline = phase {
+                    toast(
+                        AinkradRichToast(
+                            title: "Back online", body: "Replayed \(replayed) events — nothing was missed.",
+                            status: .success))
+                }
                 phase = .connected
                 settings.update {
                     $0.hasConnected = true

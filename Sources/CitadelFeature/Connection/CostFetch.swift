@@ -30,6 +30,18 @@ extension CitadelServer {
         }
     }
 
+    /// The models whose runs have no price, each with its runs and tokens (API minor 18).
+    func unpricedModels(company: Int64) async -> [UnpricedModelInfo]? {
+        await read("listUnpriced") {
+            guard case .ok(let ok) = try await client.listUnpriced(path: .init(id: company)) else { return nil }
+            return try ok.body.json.map {
+                UnpricedModelInfo(
+                    harness: $0.harness.word, model: $0.model, runs: $0.runs, tokens: $0.tokens,
+                    accountID: $0.accountId)
+            }
+        }
+    }
+
     /// Unblocks a blocked issue.
     func unblock(issue: Int64) async -> Bool {
         await transition(issue, .unblock(.init(kind: .unblock)))

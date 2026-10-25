@@ -2,9 +2,9 @@ import AinkradAppKit
 import CitadelClient
 import SwiftUI
 
-/// The screens the sidebar lists (mockups 02–16), in the mockups' order.
+/// The screens the sidebar lists, in the prototype's order (`shell.js` NAV): ⌘1…⌘9 follow it.
 enum Screen: String, CaseIterable, Hashable {
-    case home, requirements, approvals, stuck, org, runs, threads, artifacts, projects, cost, accounts, runners
+    case home, approvals, stuck, requirements, runs, threads, artifacts, org, projects, cost, accounts, runners
 
     var title: String {
         switch self {
@@ -23,68 +23,76 @@ enum Screen: String, CaseIterable, Hashable {
         }
     }
 
+    /// Line icons in one family, as the prototype's stroked set.
     var icon: String {
         switch self {
-        case .home: "scope"
-        case .requirements: "rhombus.fill"
-        case .approvals: "checkmark"
-        case .stuck: "flag.fill"
-        case .org: "rhombus"
-        case .runs: "play.fill"
-        case .threads: "envelope.fill"
-        case .artifacts: "doc.text.fill"
-        case .projects: "square.grid.2x2.fill"
-        case .cost: "dollarsign"
-        case .accounts: "person.text.rectangle"
-        case .runners: "cylinder.split.1x2.fill"
+        case .home: "house"
+        case .approvals: "checkmark.circle"
+        case .stuck: "flag"
+        case .requirements: "doc.text"
+        case .runs: "play.circle"
+        case .threads: "bubble.left"
+        case .artifacts: "square.3.layers.3d"
+        case .org: "point.3.connected.trianglepath.dotted"
+        case .projects: "folder"
+        case .cost: "chart.bar"
+        case .accounts: "key"
+        case .runners: "server.rack"
+        }
+    }
+
+    /// The labelled group a row belongs to; Home stands alone.
+    var section: String? {
+        switch self {
+        case .home: nil
+        case .approvals, .stuck: "Needs you"
+        case .requirements, .runs, .threads, .artifacts: "Work"
+        case .org, .projects: "Company"
+        case .cost, .accounts, .runners: "Operations"
         }
     }
 }
 
-/// Company switcher and settings, search, the screens, and the connection's footer. Told apart from the main pane
-/// by fill, never by a line.
+/// One continuous glass column (no band, no line): the company card, the grouped screens with one gliding pill,
+/// what is live now, and the connection with search and settings at the foot.
 struct Sidebar: View {
     @Bindable var store: CitadelStore
-    @State private var search = ""
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTypography) private var typo
-    @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            HStack(spacing: skin.size.s8) {
-                AinkradWorkspaceSwitcher(
-                    workspaces: store.companies.map(Self.workspace), selection: companySelection,
-                    subtitle: switcherSubtitle, header: "Companies on \(store.host)",
-                    footnote: "Accounts, runners and cost are per company · switching never mixes data")
-                AinkradIconButton(systemName: "gearshape", size: skin.size.s30, tooltip: "Settings") {
-                    store.isShowingSettings.toggle()
+        VStack(alignment: .leading, spacing: 0) {
+            CompanySwitcher(store: store)
+                .padding(.top, skin.size.s12)
+                .padding(.horizontal, skin.size.s10)
+                .padding(.bottom, skin.size.s8)
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Optional rows so Settings can select none of them; every row is a screen.
+                    AinkradNavList(
+                        items: Screen.allCases.map(Optional.some), selection: navSelection, icon: { $0?.icon },
+                        label: { $0?.title ?? "" }
+                    )
+                    .counts { screen in screen.flatMap { store.model?.navCount($0) } }
+                    .sections { $0?.section }
+                    .glidingSelection()
+                    .padding(.horizontal, skin.size.s8)
+                    if let model = store.model, !model.liveRuns.isEmpty, !isOffline { liveNow(model) }
                 }
-                .outlineBox()
             }
-            AinkradSearchField(text: $search, placeholder: "Search agents, issues, runs").keyHint("⌘K")
-            // Optional rows so Settings can select none of them; every row is a screen.
-            AinkradNavList(
-                items: Screen.allCases.map(Optional.some), selection: navSelection, icon: { $0?.icon },
-                label: { $0?.title ?? "" }
-            )
-            .counts { screen in screen.flatMap { store.model?.navCount($0) } }
-            .fixedSize(horizontal: false, vertical: true)
-            if let model = store.model, !model.liveRuns.isEmpty { liveNow(model) }
-            Spacer(minLength: 0)
+            .scrollIndicators(.never)
             footer
         }
-        .padding(.top, skin.size.s12)
-        .padding(.horizontal, skin.size.s12)
-        .padding(.bottom, skin.size.s10)
-        .frame(width: skin.size.s280)
+        .frame(width: skin.size.s220 + skin.size.s8)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(theme.surface.opacity(skin.opacity.o35))
+        .background(skin.color(.palette("foreground", skin.opacity.o03)))
     }
 
-    /// The screen the pane shows: an opened run sits under Runs, an opened agent under Org, and Settings (its own
-    /// sections list) under none.
+    private var isOffline: Bool {
+        if case .offline = store.phase { true } else { false }
+    }
+
+    /// The screen the pane shows: an opened run sits under Runs, an opened agent under Org, and Settings under none.
     private var navSelection: Binding<Screen?> {
         Binding(
             get: { store.isShowingSettings ? nil : store.detail?.screen ?? store.screen },
@@ -96,108 +104,129 @@ struct Sidebar: View {
             })
     }
 
-    private var companySelection: Binding<String> {
-        Binding(
-            get: { store.company.map { String($0.id) } ?? "" },
-            set: { if let id = Int64($0) { store.select(company: id) } })
-    }
-
-    private var switcherSubtitle: String {
-        let others = max(0, store.companies.count - 1)
-        return others == 0 ? "Citadel" : "Citadel · \(others) other compan\(others == 1 ? "y" : "ies")"
-    }
-
-    static func workspace(_ company: Components.Schemas.Company) -> AinkradWorkspace {
-        AinkradWorkspace(
-            id: String(company.id), name: company.name, kind: company.kind.value1 == .client ? .client : .own)
-    }
-
-    /// "Live now": every run in flight, one click from its transcript.
+    /// "Live now": up to four runs in flight, one click from their transcript.
     private func liveNow(_ model: CompanyModel) -> some View {
-        VStack(alignment: .leading, spacing: skin.size.s10) {
-            Text(skin.labelCased("Live now")).citadelFont("t10", weight: "semibold")
-                .foregroundStyle(skin.color(skin.text.muted))
-                .padding(.horizontal, skin.size.s4)
-            ForEach(model.liveRuns.prefix(5)) { run in
+        VStack(alignment: .leading, spacing: skin.size.s1) {
+            Text("Live now").citadelFont("t10_5", weight: "semibold")
+                .foregroundStyle(skin.color(skin.text.faint))
+                .padding(.top, skin.size.s14)
+                .padding(.bottom, skin.size.s5)
+                .padding(.leading, skin.size.s20)
+            ForEach(model.liveRuns.prefix(4)) { run in
                 LiveNowRow(run: run, model: model) { store.open(.run(run.id)) }
+                    .padding(.horizontal, skin.size.s8)
             }
         }
-        .padding(.top, skin.size.s16)
     }
 
-    /// `● citadel.ainkrad.io      live · seq 18,442`.
+    /// `● Connected` (→ Runners) · search · settings.
     private var footer: some View {
-        let (dot, word) = footerState
-        return HStack(spacing: skin.size.s6) {
-            Circle().fill(dot).frame(width: skin.size.s7, height: skin.size.s7)
-            Text(store.host)
-                .font(skin.font(AinkradFontToken(sizeKey: "t11", mono: "family"), typography: typo))
-                .foregroundStyle(skin.color(skin.text.muted))
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: skin.size.s6)
-            Text(word)
-                .font(skin.font(AinkradFontToken(sizeKey: "t11"), typography: typo))
-                .foregroundStyle(skin.color(skin.text.faint))
-                .lineLimit(1)
+        HStack(spacing: skin.size.s4) {
+            AinkradTapArea {
+                store.screen = .runners
+                store.detail = nil
+                store.isShowingSettings = false
+            } label: {
+                HStack(spacing: skin.size.s6) {
+                    Circle().fill(footerState.0).frame(width: skin.size.s7, height: skin.size.s7)
+                    Text(footerState.1).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                }
+            }
+            .buttonStyle(.plain)
+            .help("\(store.host) · \(store.cursor.map { "seq \($0.formatted())" } ?? "")")
+            Spacer(minLength: skin.size.s4)
+            FootButton(icon: "magnifyingglass", tip: "Search · ⌘K", isOn: store.isSearching) {
+                store.isSearching = true
+            }
+            FootButton(icon: "gearshape", tip: "Company settings", isOn: store.isShowingSettings) {
+                store.isShowingSettings.toggle()
+            }
         }
-        .padding(.horizontal, skin.size.s2)
+        .padding(.top, skin.size.s8)
+        .padding(.leading, skin.size.s18)
+        .padding(.trailing, skin.size.s10)
+        .padding(.bottom, skin.size.s10)
     }
 
     private var footerState: (Color, String) {
-        let seq = store.cursor.map { " · seq \($0.formatted())" } ?? ""
         switch (store.phase, store.streamStatus) {
-        case (.offline, _): return (status.warning, "offline · retrying")
-        case (.rejected, _): return (status.danger, "key rejected")
-        case (_, .catchingUp?): return (theme.accentSecondary, "catching up")
-        case (_, .polling?): return (status.warning, "polling\(seq)")
-        case (.connected, _): return (status.success, "live\(seq)")
-        default: return (skin.color(skin.text.faint), "connecting")
+        case (.offline, _): (status.warning, "Offline · retrying")
+        case (.rejected, _): (status.danger, "Key rejected")
+        case (_, .catchingUp?): (skin.color(skin.palette.accentSecondary), "Catching up")
+        case (_, .polling?): (status.warning, "Polling")
+        case (.connected, _): (status.success, "Connected")
+        default: (skin.color(skin.text.faint), "Connecting")
         }
     }
 }
 
+/// A 28 pt footer icon button; `isOn` marks the open surface.
+private struct FootButton: View {
+    let icon: String
+    let tip: String
+    let isOn: Bool
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        AinkradTapArea(action: action) {
+            Image(systemName: icon).citadelFont("t13")
+                .foregroundStyle(skin.color(hovering || isOn ? skin.text.primary : skin.text.muted))
+                .frame(width: skin.size.s28, height: skin.size.s28)
+                .background(
+                    RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
+                        .fill(
+                            isOn
+                                ? skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o20)
+                                : skin.color(.palette("foreground", hovering ? skin.opacity.o07 : 0))))
+        }
+        .buttonStyle(.plain)
+        .help(tip)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// `[orb] Kestrel · Event stream replay   4m` over `CIT-42 ▸ Edit crates/…`.
 private struct LiveNowRow: View {
     let run: RunInfo
     let model: CompanyModel
     let open: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
         let agent = model.agent(run.agentID)
         let issue = model.issue(run.issueID)
-        HStack(alignment: .top, spacing: skin.size.s10) {
-            Circle().fill(theme.accentSecondary).frame(width: skin.size.s7, height: skin.size.s7)
-                .padding(.top, skin.size.s6).breathing(run.state == "running")
-            VStack(alignment: .leading, spacing: skin.size.s2) {
+        let warn = model.waitingApproval(run: run.id) != nil
+        HStack(alignment: .top, spacing: skin.size.s8) {
+            if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s20) }
+            VStack(alignment: .leading, spacing: skin.size.s1) {
                 HStack(spacing: skin.size.s6) {
-                    Text(issue.map { "\(agent?.name ?? "Agent") · \($0.title)" } ?? model.runTitle(run)).citadelFont(
-                        "t13"
-                    )
-                    .foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+                    Text("\(agent?.name ?? "Agent") · \(issue?.title ?? model.runTitle(run))").citadelFont("t12")
+                        .foregroundStyle(warn ? skin.color(skin.palette.warning) : skin.color(skin.text.primary))
+                        .lineLimit(1)
                     Spacer(minLength: skin.size.s4)
-                    Text(Fmt.age(Date().timeIntervalSince(run.startedAt ?? run.queuedAt))).citadelFont(
-                        "t10_5", mono: true
-                    )
-                    .foregroundStyle(skin.color(skin.text.faint))
-                }
-                HStack(spacing: skin.size.s6) {
-                    AinkradBadge(
-                        text: AgentLook.harnessName(run.harness),
-                        tint: AgentLook.harness(run.harness)?.color ?? theme.foreground)
-                    if let issue {
-                        Text(issue.key).citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(Fmt.age(context.date.timeIntervalSince(run.startedAt ?? run.queuedAt)))
+                            .citadelFont("t10", mono: true).foregroundStyle(skin.color(skin.text.faint))
                     }
+                }
+                HStack(spacing: skin.size.s5) {
+                    if let issue {
+                        Text(issue.key).citadelFont("t10", mono: true)
+                            .foregroundStyle(skin.color(skin.palette.accentSecondary))
+                    }
+                    Text("▸ \(model.toolNow[run.id] ?? run.state)").citadelFont("t10", mono: true)
+                        .foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                 }
             }
         }
-        .padding(.horizontal, skin.size.s4)
-        .padding(.vertical, skin.size.s2)
+        .padding(.horizontal, skin.size.s10)
+        .padding(.vertical, skin.size.s6)
         .background(
             RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous)
-                .fill(skin.color(skin.palette.white).opacity(hovering ? skin.opacity.o05 : 0))
+                .fill(skin.color(.palette("foreground", hovering ? skin.opacity.o05 : 0)))
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }

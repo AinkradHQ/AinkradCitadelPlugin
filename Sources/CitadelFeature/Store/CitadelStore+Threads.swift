@@ -6,7 +6,7 @@ extension CitadelStore {
     /// "Reply only": your reply as a comment on the approval's issue, which wakes the asker without deciding.
     func replyOnly(_ approval: ApprovalInfo, text: String) {
         guard let issue = approval.issueID else { return }
-        send(text, on: issue, waking: approval.agentID ?? approval.requestedBy)
+        send(text, on: issue, waking: model?.replyAgent(approval) ?? approval.requestedBy)
     }
 
     /// Sends a message in an agent thread: a comment on the issue. It answers the issue's newest open question
