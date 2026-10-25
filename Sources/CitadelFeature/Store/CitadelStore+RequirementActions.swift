@@ -51,8 +51,8 @@ extension CitadelStore {
     }
 
     /// The New requirement sheet's send: the request goes to the CEO, who routes it.
-    func sendNewRequirement(title: String, body: String) {
-        submitRequirement(title: title, body: body)
+    func sendNewRequirement(title: String, body: String, extras: RequestExtras? = nil) {
+        submitRequirement(title: title, body: body, extras: extras)
         isComposingRequirement = false
         screen = .requirements
         detail = nil

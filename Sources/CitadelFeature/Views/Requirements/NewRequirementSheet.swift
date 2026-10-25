@@ -2,8 +2,9 @@ import AinkradAppKit
 import SwiftUI
 
 /// New requirement (`ACT.newReq`, 760 wide): the CEO it goes to, a big title and the details, "Done when" criteria,
-/// the project and the priority as cards, and what happens next. ⌘↵ sends. The server's request takes a title and
-/// a body only, so criteria, project and priority are written into the body for the CEO to route by.
+/// the project and the priority as cards, and what happens next. ⌘↵ sends. From API minor 18 the request carries
+/// the project, priority and criteria as fields; an older server takes a title and a body only, so they are written
+/// into the body for the CEO to route by.
 struct NewRequirementSheet: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -241,7 +242,10 @@ struct NewRequirementSheet: View {
 
     private func send() {
         guard canSend else { return }
-        store.sendNewRequirement(title: title, body: composedBody)
+        store.sendNewRequirement(
+            title: title,
+            body: store.hasTrancheB ? details.trimmingCharacters(in: .whitespacesAndNewlines) : composedBody,
+            extras: RequestExtras(project: projectID, priority: priority, criteria: criteria))
     }
 }
 

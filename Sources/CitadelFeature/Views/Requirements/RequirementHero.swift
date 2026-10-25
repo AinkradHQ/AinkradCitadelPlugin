@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The requirement's hero (`.rq-hero`): a 58 pt ring, its key and title, the state pill, project, owner, ETA and
 /// who is working on it now, and the action dock — Approve plan / Ask for changes while the plan waits, Plan and
-/// Artifacts (the drawer), Threads. Rename and Cancel (plugin-only) sit behind ⋯. Pause and Mark done wait for
-/// the server (no endpoint yet), so they are not drawn.
+/// Artifacts (the drawer), Threads, and from API minor 18 Pause / Resume and Mark done while it is in progress.
+/// Rename and Cancel (plugin-only) sit behind ⋯.
 struct RequirementHero: View {
     let store: CitadelStore
     let model: CompanyModel
@@ -41,6 +41,9 @@ struct RequirementHero: View {
                     }
                     AinkradFlowLayout(spacing: skin.size.s6) {
                         GlowStatePill(text: RequirementLook.label(requirement.state), tint: tint)
+                        if requirement.pausedAt != nil, store.hasTrancheB {
+                            GlowStatePill(text: "paused", tint: skin.color(skin.palette.warning))
+                        }
                         if let project {
                             ThreadHeroChip {
                                 Image(systemName: "folder").citadelFont("t10")
@@ -121,6 +124,19 @@ struct RequirementHero: View {
         }
         AinkradDockButton("Artifacts", systemImage: "square.3.layers.3d") { page.drawer = [.artifacts] }
         AinkradDockButton("Threads", systemImage: "bubble.left") { store.screen = .threads }
+        if store.hasTrancheB, requirement.state == "in_progress" {
+            AinkradDockSeparator()
+            if requirement.pausedAt == nil {
+                AinkradDockButton("Pause", systemImage: "pause", tone: .warning) {
+                    store.pause(requirement: requirement)
+                }
+            } else {
+                AinkradDockButton("Resume", systemImage: "play", tone: .warning) {
+                    store.resume(requirement: requirement)
+                }
+            }
+            AinkradDockButton("Mark done", systemImage: "checkmark.circle") { store.markDone(requirement: requirement) }
+        }
         if !["done", "cancelled"].contains(requirement.state) {
             AinkradMenuButton(items: [
                 AinkradMenuItem(title: "Rename…", systemName: "pencil") { renaming = true },

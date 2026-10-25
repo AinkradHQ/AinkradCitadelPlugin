@@ -61,11 +61,20 @@ extension CitadelServer {
     }
 
     /// A new request for the CEO to route (the list's ＋); the intake issue it became.
-    func submitRequest(company: Int64, title: String, body: String) async -> Bool {
+    /// From API minor 18 the request also names its project, priority and criteria (`extras`); before, the sheet
+    /// writes them into the body for the CEO to read.
+    func submitRequest(company: Int64, title: String, body: String, extras: RequestExtras? = nil) async -> Bool {
         await read("submitRequest") {
+            let priority = extras.map {
+                Schemas.RequestPriority(value1: .init(rawValue: $0.priority), value2: $0.priority)
+            }
             guard
                 case .ok = try await client.submitRequest(
-                    path: .init(id: company), body: .json(.init(body: body.isEmpty ? nil : body, title: title)))
+                    path: .init(id: company),
+                    body: .json(
+                        .init(
+                            body: body.isEmpty ? nil : body, criteria: extras?.criteria, priority: priority,
+                            projectId: extras?.project, title: title)))
             else { return false }
             return true
         } ?? false
@@ -157,5 +166,29 @@ extension CitadelServer {
             try await client.attachToRequirement(
                 path: .init(id: requirement, name: name), body: .binary(HTTPBody(data)))
         }
+    }
+}
+
+/// What a new requirement names besides its words (API minor 18): the project, `low` / `normal` / `urgent`, and the
+/// acceptance criteria in order.
+struct RequestExtras: Equatable, Sendable {
+    var project: Int64?
+    var priority: String
+    var criteria: [String]
+}
+
+/// API minor 18: pause, resume and finish a requirement. `nil` = done.
+extension CitadelServer {
+    func pause(requirement: Int64) async -> ServerAnswer? {
+        await act { try await client.pauseRequirement(path: .init(id: requirement)) }
+    }
+
+    func resume(requirement: Int64) async -> ServerAnswer? {
+        await act { try await client.resumeRequirement(path: .init(id: requirement)) }
+    }
+
+    /// Refused while any of its issues is open, or when it is not in progress.
+    func finish(requirement: Int64) async -> ServerAnswer? {
+        await act { try await client.finishRequirement(path: .init(id: requirement)) }
     }
 }
