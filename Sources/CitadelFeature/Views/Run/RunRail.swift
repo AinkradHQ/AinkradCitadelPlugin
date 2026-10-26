@@ -45,9 +45,9 @@ struct RunRail: View {
     // MARK: - Tokens vs run cap
 
     private var tokens: some View {
-        let cap = model.limit("run.token_cap", project: project)
-        let meter = RunMeter(run: run, cap: cap?.value, warnFraction: model.warnFraction)
-        let fraction = cap.map { Double(run.tokens) / Double(max($0.value, 1)) }
+        let cap = model.cap(of: run)
+        let meter = RunMeter(run: run, cap: cap, warnFraction: model.warnFraction)
+        let fraction = cap.map { Double(run.tokens) / Double(max($0, 1)) }
         return RunPanel(padding: skin.size.s12) {
             HStack(spacing: skin.size.s12) {
                 AinkradRingGauge(
@@ -60,12 +60,14 @@ struct RunRail: View {
                     .foregroundStyle(skin.color(skin.text.primary))
                 }
                 VStack(alignment: .leading, spacing: skin.size.s2) {
-                    Text("\(Fmt.tokens(run.tokens)) / \(cap.map { Fmt.tokens($0.value) } ?? "—")")
+                    Text("\(Fmt.tokens(run.tokens)) / \(cap.map(Fmt.tokens) ?? "—")")
                         .citadelFont("t17", weight: "semibold")
                         .foregroundStyle(meter.level == .ok ? skin.color(skin.text.primary) : status.warning)
                     Text("tokens vs run cap").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                    if let cap {
-                        CrumbLink(text: "↳ \(Self.scopeWord(cap.source)) limit") { store.goLimits() }
+                    if cap != nil {
+                        let own = model.limits["run.token_cap.agent.\(run.agentID)"] != nil
+                        let source = model.limit("run.token_cap", project: project)?.source
+                        CrumbLink(text: "↳ \(own ? "agent" : Self.scopeWord(source)) limit") { store.goLimits() }
                             .citadelFont("t11")
                     }
                 }
@@ -164,7 +166,6 @@ struct RunRail: View {
                         warnFraction: model.warnFraction)
                 }
                 HStack(spacing: skin.size.s12) {
-                    legend("Sprint", "58% of budget")
                     legend("Runs", "\(cost.runs)")
                 }
             }
@@ -223,6 +224,14 @@ private struct RunRailContext: View {
     let tint: Color
     @Environment(\.ainkradSkin) private var skin
 
+    /// "fallback" once the run left its first entry; else its position in the agent's resolved preset.
+    private var chainWord: String {
+        if run.fallbackReason != nil { return "fallback" }
+        let agent = model.agent(run.agentID)
+        guard let preset = model.chainPreset(agent?.chainPresetID) ?? model.defaultChainPreset else { return "entry 1" }
+        return "entry 1 of \(preset.entries.count)"
+    }
+
     var body: some View {
         let issue = model.issue(run.issueID)
         let policy = issue.flatMap { model.projectsPage.policies[$0.projectID] }
@@ -237,7 +246,9 @@ private struct RunRailContext: View {
                     action: { store.go(.accounts) })
             }
             let baseModel = run.model ?? model.agent(run.agentID)?.model ?? "—"
-            let effort = baseModel.contains("5.5") || baseModel.contains("Opus") ? "high" : "medium"
+            let effort =
+                model.agent(run.agentID)?.effort
+                ?? (baseModel.contains("5.5") || baseModel.contains("Opus") ? "high" : "medium")
             ContextTile(
                 icon: "scope", tint: tint, label: "Model",
                 value: Text("\(baseModel) · \(effort)"),
@@ -256,7 +267,7 @@ private struct RunRailContext: View {
             }
             ContextTile(
                 icon: "list.bullet", tint: tint, label: "Chain",
-                value: Text(run.fallbackReason == nil ? "entry 1 of 4" : "fallback"),
+                value: Text(chainWord),
                 compact: true)
             if let requirement {
                 ContextTile(

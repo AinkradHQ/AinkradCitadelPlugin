@@ -107,7 +107,7 @@ struct RunsHistoryRow: View {
             .contentShape(Rectangle())
         }
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
         .onAppear { grown = true }
     }
 

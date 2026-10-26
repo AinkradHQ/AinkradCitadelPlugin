@@ -8,35 +8,50 @@ struct RunDecision: View {
     let model: CompanyModel
     let run: RunInfo
     @State private var denying = false
+    @State private var confirmsStop = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let who = model.agent(run.agentID)?.name ?? "the agent"
         if let approval = model.waitingApproval(run: run.id) {
             let key = model.issue(run.issueID)?.key
-            card(tint: skin.color(skin.palette.warning), icon: "key", caption: "Permission escalation") {
-                (Text("Let \(who) run ")
-                    + Text(
-                        " \(ToolLine.argument(approval.fields).isEmpty ? ToolLine.line(approval.fields) : ToolLine.argument(approval.fields)) "
-                    ).font(skin.font(AinkradFontToken(sizeKey: "t12", mono: "family"))))
-            } actions: {
-                AinkradDockButton("Deny…", height: skin.size.s30) { denying = true }
-                if let key {
-                    AinkradDockButton("Allow for \(key)", height: skin.size.s30) {
-                        store.allowForIssue(approval, reply: nil)
+            if approval.kind == "budget_overrun" {
+                let ask = approval.fields["ask"]
+                card(tint: skin.color(skin.palette.warning), icon: "dollarsign", caption: "Budget overrun · issue cap")
+                {
+                    Text("\(who) hit the \(key ?? "issue") cap" + (ask.map { " — asks for \($0)" } ?? ""))
+                } actions: {
+                    AinkradDockButton("Stop at cap", height: skin.size.s30) { store.decide(approval, approve: false) }
+                    AinkradDockButton(ask.map { "Raise to \($0)" } ?? "Raise", tone: .primary, height: skin.size.s30) {
+                        store.decide(approval, approve: true)
                     }
+                    .keyboardShortcut(.return, modifiers: [.command])
                 }
-                AinkradDockButton("Allow once ↵", tone: .primary, height: skin.size.s30) {
-                    store.decide(approval, approve: true)
+            } else {
+                card(tint: skin.color(skin.palette.warning), icon: "key", caption: "Permission escalation") {
+                    (Text("Let \(who) run ")
+                        + Text(
+                            " \(ToolLine.argument(approval.fields).isEmpty ? ToolLine.line(approval.fields) : ToolLine.argument(approval.fields)) "
+                        ).font(skin.font(AinkradFontToken(sizeKey: "t12", mono: "family"))))
+                } actions: {
+                    AinkradDockButton("Deny…", height: skin.size.s30) { denying = true }
+                    if let key {
+                        AinkradDockButton("Allow for \(key)", height: skin.size.s30) {
+                            store.allowForIssue(approval, reply: nil)
+                        }
+                    }
+                    AinkradDockButton("Allow once ⌘↵", tone: .primary, height: skin.size.s30) {
+                        store.decide(approval, approve: true)
+                    }
+                    .keyboardShortcut(.return, modifiers: [.command])
                 }
-                .keyboardShortcut(.return, modifiers: [.command])
-            }
-            .ainkradSheet(isPresented: $denying) {
-                PromptSheet(
-                    title: "Deny \(who)'s request?", message: "Your reason goes back to \(who) with the denial.",
-                    placeholder: "Reason (optional)", confirmTitle: "Deny", isDestructive: true, allowsEmpty: true,
-                    text: "", isPresented: $denying
-                ) { store.decide(approval, approve: false, reply: $0) }
+                .ainkradSheet(isPresented: $denying) {
+                    PromptSheet(
+                        title: "Deny \(who)'s request?", message: "Your reason goes back to \(who) with the denial.",
+                        placeholder: "Reason (optional)", confirmTitle: "Deny", isDestructive: true, allowsEmpty: true,
+                        text: "", isPresented: $denying
+                    ) { store.decide(approval, approve: false, reply: $0) }
+                }
             }
         } else if model.look(run).key == "stalled" {
             card(tint: skin.color(skin.palette.danger), icon: "pause", caption: "About to stall") {
@@ -44,13 +59,18 @@ struct RunDecision: View {
                     Text(silentLine(context.date))
                 }
             } actions: {
-                AinkradDockButton("Stop now", tone: .danger, height: skin.size.s30) { store.stopWithToast(run) }
+                AinkradDockButton("Stop now", tone: .danger, height: skin.size.s30) { confirmsStop = true }
                 AinkradDockButton(
                     "Nudge \(model.agent(run.agentID)?.name ?? "")", tone: .primary, height: skin.size.s30
                 ) {
                     store.nudge(run: run)
                 }
             }
+            .ainkradConfirmDialog(
+                isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
+                message: "\(who) is killed mid-step. The worktree and branch are kept; nothing is merged.",
+                confirmTitle: "Stop run", isDestructive: true
+            ) { store.stopWithToast(run) }
         }
     }
 
@@ -167,7 +187,7 @@ struct RunEndSummary: View {
             }
             HStack(spacing: skin.size.s6) {
                 if look.key == "cap_hit" {
-                    AinkradDockButton("Raise the cap", tone: .primary) { store.goLimits() }
+                    AinkradDockButton("Open limits", tone: .primary) { store.goLimits() }
                 } else if look.key != "succeeded", run.runnerID != nil {
                     AinkradDockButton("Retry run", tone: .primary) { store.retry(run: run) }
                 }

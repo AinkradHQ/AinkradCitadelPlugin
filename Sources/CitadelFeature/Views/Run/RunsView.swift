@@ -12,6 +12,7 @@ struct RunsView: View {
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     @State private var confirmsStop = false
+    @State private var confirmsPauseAll = false
 
     private var page: RunsPage { model.runsPage }
 
@@ -27,8 +28,10 @@ struct RunsView: View {
         ZStack {
             VStack(alignment: .leading, spacing: 0) {
                 PaneTitle(title: "Runs", crumb: crumb(now)) {
-                    AinkradDockButton("Pause all", systemImage: "pause", height: skin.size.s30) { store.pauseAll() }
-                        .ainkradTooltip("Pause all runs")
+                    AinkradDockButton("Pause all", systemImage: "pause", height: skin.size.s30) {
+                        confirmsPauseAll = true
+                    }
+                    .ainkradTooltip("Pause all runs")
                 }
                 bar(now).zIndex(2)
                 Group {
@@ -62,6 +65,11 @@ struct RunsView: View {
                 "\(peeked.flatMap { model.agent($0.agentID)?.name } ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
             confirmTitle: "Stop run", isDestructive: true
         ) { if let peeked { store.stopWithToast(peeked) } }
+        .ainkradConfirmDialog(
+            isPresented: $confirmsPauseAll, title: "Pause every run?",
+            message: "Runs finish their current tool call, then stop. Nothing new starts until you resume.",
+            confirmTitle: "Pause all", isDestructive: true
+        ) { store.pauseAll() }
         .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: page.openPicker)
         .onAppear { store.loadRunsPage() }
     }
@@ -117,15 +125,16 @@ struct RunsView: View {
                             columns: [GridItem(.adaptive(minimum: skin.size.s268), spacing: skin.size.s12)],
                             spacing: skin.size.s12
                         ) {
-                            ForEach(live) { run in
+                            ForEach(Array(live.enumerated()), id: \.element.id) { index, run in
                                 LiveRunCard(store: store, model: model, run: run) { store.peek(run: run.id) }
+                                    .ainkradRiseIn(delay: Double(index) * 0.05)
                             }
                         }
                     }
                 }
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     RunsSectionHead(title: "History", count: ended.count, note: retention)
-                    if ended.isEmpty && live.isEmpty {
+                    if ended.isEmpty {
                         empty
                     } else {
                         RunsHistory(store: store, model: model, runs: ended, now: now)
