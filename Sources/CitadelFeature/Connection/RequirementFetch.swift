@@ -143,7 +143,8 @@ extension PlanTree {
                     removed: diff.removed.map { ($0.key, $0.points.map(Int.init)) },
                     pointsApproved: Int(diff.pointsApproved), pointsNow: Int(diff.pointsNow))
             },
-            intakeIssueID: tree.requirement.intakeIssueId, planVersion: Int(tree.requirement.planVersion))
+            intakeIssueID: tree.requirement.intakeIssueId, planVersion: Int(tree.requirement.planVersion),
+            scope: HonestAggregates.scope(tree.burndown.map { $0.scope.map(Int.init) }))
     }
 }
 

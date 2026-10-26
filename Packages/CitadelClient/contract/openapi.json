@@ -1492,6 +1492,15 @@
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "scope": {
+            "description": "Points in scope that day (API minor 19); absent on a sprint's burndown.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -6125,7 +6134,7 @@
             "type": "array"
           },
           "eta": {
-            "description": "`YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done.",
+            "description": "`YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done or\nbefore three days of data.",
             "type": [
               "string",
               "null"
@@ -6139,7 +6148,7 @@
             "type": "array"
           },
           "percent_done": {
-            "description": "By points, rounded down.",
+            "description": "By points, rounded; leaf product tasks only (documentation tasks are left out).",
             "format": "int32",
             "minimum": 0,
             "type": "integer"
@@ -8768,7 +8777,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.18.0"
+    "version": "1.19.0"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -9,6 +9,10 @@ extension CitadelStore {
     /// requirement pause/done, stuck trails (B1) and dollar budgets, chain presets, roles, agent stats,
     /// notifications, device pairing (B2).
     static let trancheBMinor = 18
+    /// The API minor that added `BurndownDay.scope` (R17): the burndown can draw the plan's scope, and a missing ETA
+    /// is "n/a" instead of a gap.
+    static let honestAggregatesMinor = 19
+    var honestAggregates: Bool { serverSupports(minor: Self.honestAggregatesMinor) }
 
     /// Whether the connected server speaks API minor `minor` or newer (false until `/me` has answered).
     func serverSupports(minor: Int) -> Bool { (apiMinor ?? 0) >= minor }

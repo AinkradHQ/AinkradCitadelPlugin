@@ -233,6 +233,8 @@ struct PlanTree: Equatable, Sendable {
     var intakeIssueID: Int64?
     /// The plan version approved (`plan_version`); 0 while unapproved.
     var planVersion: Int
+    /// Points in scope per day, parallel to `burndown`; nil when the server sends none (API < 19).
+    var scope: [Int]? = nil
 
     var allTasks: [PlanTask] { epics.flatMap(\.tasks) + other }
     var inReview: Int { allTasks.filter { $0.state == "in_review" }.count }
@@ -242,6 +244,7 @@ struct PlanTree: Equatable, Sendable {
             && a.doneTasks == b.doneTasks && a.eta == b.eta && a.tokens == b.tokens && a.costMicros == b.costMicros
             && a.burndown.map(\.day) == b.burndown.map(\.day) && a.burndown.map(\.left) == b.burndown.map(\.left)
             && a.epics == b.epics && a.other == b.other && a.diff == b.diff && a.planVersion == b.planVersion
+            && a.scope == b.scope
     }
 }
 
