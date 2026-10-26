@@ -35,6 +35,22 @@ final class RequirementsHubTests: XCTestCase {
         XCTAssertEqual(model.askerName(4), "Kestrel (Dev)")
     }
 
+    func testPendingPlanFallsBackToTheThreadsPendingApproval() throws {
+        let model = model()
+        let r = model.requirements[0]
+        model.approvals.removeAll { $0.kind == "plan_approval" }
+        XCTAssertNil(model.pendingPlan(of: r))
+        let plan = ApprovalInfo(
+            id: 900, kind: "plan_approval", requestedBy: 1, fields: ["requirement": String(r.id)])
+        model.requirementsPage.threads[r.id] = RequirementThread(
+            requirementID: r.id, ownerAgentID: 1, toQuestionID: nil, items: [.approval(plan, at: Date())])
+        XCTAssertEqual(model.pendingPlan(of: r)?.id, 900, "a pending plan only the thread knows")
+        model.approvals.append(
+            ApprovalInfo(
+                id: 901, kind: "plan_approval", requestedBy: 1, fields: ["requirement": String(r.id)]))
+        XCTAssertEqual(model.pendingPlan(of: r)?.id, 901, "the inbox's wins")
+    }
+
     func testTheComposerTargetsTheNewestOpenQuestionUntilCleared() throws {
         let base = Date(timeIntervalSince1970: 1_800_000_000)
         let older = question(1, agent: 5, at: base)

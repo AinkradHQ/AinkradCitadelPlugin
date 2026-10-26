@@ -78,7 +78,7 @@ struct RequirementsView: View {
                 VStack(alignment: .leading, spacing: skin.size.s1) {
                     Text("Requirements").citadelFont("t17", weight: "bold")
                         .foregroundStyle(skin.color(skin.text.primary))
-                    Text("\(openCount) open · \(asksCount) ask you").citadelFont("t11")
+                    Text(verbatim: "\(openCount) open · \(asksCount) ask you").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
                 }
                 Spacer(minLength: skin.size.s8)

@@ -11,6 +11,7 @@ struct PlanRail: View {
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
+    @State private var diffHover = false
 
     private var page: RequirementsPage { model.requirementsPage }
     private var plan: PlanTree? { page.plans[requirement.id] }
@@ -33,10 +34,17 @@ struct PlanRail: View {
                         }
                     }
                     if let diff = plan.diff, let text = diff.summary {
-                        (Text("\(text) · ") + Text("diff vs v\(diff.version)").foregroundStyle(theme.accentSecondary))
-                            .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
-                            .padding(.horizontal, skin.size.s4)
-                            .onTapGesture { page.drawer = [.plan] }
+                        AinkradTapArea(help: "Open the plan", action: { page.drawer = [.plan] }) {
+                            (Text(verbatim: "\(text) · ")
+                                + Text(verbatim: "diff vs v\(diff.version)").foregroundStyle(theme.accentSecondary))
+                                .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                                .padding(.horizontal, skin.size.s4)
+                                .background(
+                                    skin.color(.palette("foreground", diffHover ? skin.opacity.o08 : 0)),
+                                    in: RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous))
+                        }
+                        .citadelHover($diffHover)  // TODO(appkit-A3)
+                        .animation(skin.animation(skin.motion.hover), value: diffHover)
                     }
                 } else if page.threads[requirement.id] != nil || requirement.state == "done" {
                     empty
@@ -63,7 +71,7 @@ struct PlanRail: View {
             Text(done ? "Delivered" : "No plan yet").citadelFont("t14", weight: "semibold")
                 .foregroundStyle(skin.color(skin.text.primary))
             Text(
-                done
+                verbatim: done
                     ? "\(requirement.points) pts shipped."
                     : "The \(model.ownerWord(requirement.ownerAgentID)) is drafting it. No work starts until a plan is approved."
             )
@@ -88,17 +96,18 @@ struct PlanRail: View {
                 AinkradRingGauge(
                     value: Double(plan.percent) / 100, tint: tint, diameter: skin.size.s64, lineWidth: skin.size.s6
                 ) {
-                    Text("\(plan.percent)%").citadelFont("t12", weight: "semibold", mono: true)
+                    Text(verbatim: "\(plan.percent)%").citadelFont("t12", weight: "semibold", mono: true)
                         .foregroundStyle(skin.color(skin.text.primary))
                 }
                 VStack(alignment: .leading, spacing: skin.size.s2) {
-                    (Text("\(plan.donePoints)").font(skin.font(AinkradFontToken(sizeKey: "t18", weight: "bold")))
-                        + Text("/\(plan.points) pts").font(
+                    (Text(verbatim: "\(plan.donePoints)").font(
+                        skin.font(AinkradFontToken(sizeKey: "t18", weight: "bold")))
+                        + Text(verbatim: "/\(plan.points) pts").font(
                             skin.font(AinkradFontToken(sizeKey: "t12", weight: "medium"))
                         )
                         .foregroundStyle(skin.color(skin.text.muted)))
                         .foregroundStyle(skin.color(skin.text.primary))
-                    Text("\(plan.doneTasks) of \(plan.tasks) tasks done").citadelFont("t11")
+                    Text(verbatim: "\(plan.doneTasks) of \(plan.tasks) tasks done").citadelFont("t11")
                     if let eta = plan.eta {
                         Text("ETA \(Fmt.eta(eta)) · \(Fmt.dollars(micros: plan.costMicros)) so far").citadelFont("t11")
                     }
@@ -255,13 +264,10 @@ private struct RailTaskRow: View {
             .contentShape(Rectangle())
         }
         .onHover { hovering = $0 }
+        .animation(skin.animation(skin.motion.hover), value: hovering)
     }
 
-    private func open() {
-        guard let agent = task.assigneeAgentID else { return }
-        store.selectedThread = ThreadKey(agentID: agent, issueID: task.issueID)
-        store.screen = .threads
-    }
+    private func open() { model.requirementsPage.openItem(task.issueID) }
 }
 
 /// The points pill (`.qc-pts`): mono 10/600 on a soft tile.

@@ -96,8 +96,7 @@ struct RequirementCard: View {
                         }
                     }
                     Text(requirement.title).citadelFont("t13", weight: "semibold").lineLimit(1)
-                        .foregroundStyle(
-                            ["in_progress", "done"].contains(requirement.state) ? tint : skin.color(skin.text.primary))
+                        .foregroundStyle(skin.color(skin.text.primary))
                     HStack(spacing: skin.size.s6) {
                         Text(RequirementLook.label(requirement.state)).citadelFont("t11", weight: "medium")
                             .foregroundStyle(tint)
@@ -107,7 +106,8 @@ struct RequirementCard: View {
                         }
                         if requirement.points > 0 {
                             Spacer(minLength: skin.size.s4)
-                            Text("\(requirement.donePoints)/\(requirement.points) pts").citadelFont("t11", mono: true)
+                            Text(verbatim: "\(requirement.donePoints)/\(requirement.points) pts").citadelFont(
+                                "t11", mono: true)
                         }
                     }
                     .citadelFont("t11")

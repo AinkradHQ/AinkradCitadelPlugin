@@ -49,10 +49,19 @@ final class RequirementsPage {
     }
 }
 
-/// What the requirement drawer shows: the plan, the requirement's artifacts, or one artifact.
+/// What the requirement drawer shows: the plan, the requirement's artifacts, one artifact or one work item (an issue id).
 enum RequirementDrawer: Hashable {
     case plan, artifacts
     case artifact(Int64)
+    case item(Int64)
+}
+
+extension RequirementsPage {
+    /// Opens a work item over whatever the drawer shows (the prototype's `data-rq="item:KEY"`): the drawer starts at it
+    /// when closed, and Back returns to what was open.
+    func openItem(_ issueID: Int64) {
+        if drawer.last != .item(issueID) { drawer.append(.item(issueID)) }
+    }
 }
 
 enum RequirementFilter: String, CaseIterable, Hashable {
