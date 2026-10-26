@@ -31,6 +31,11 @@ final class SweepTests: XCTestCase {
                 HostStatusColors(
                     success: skin.color(skin.palette.success), warning: skin.color(skin.palette.warning),
                     danger: skin.color(skin.palette.danger)))
+            // AINKRAD_SWEEP_HOVER="x,y": the pointer rests there (view coordinates), files get a `-hover` suffix.
+            let hover = env["AINKRAD_SWEEP_HOVER"].flatMap { v -> CGPoint? in
+                let p = v.split(separator: ",").compactMap { Double($0) }
+                return p.count == 2 ? CGPoint(x: p[0], y: p[1]) : nil
+            }
             let only = env["AINKRAD_SWEEP_ONLY"].flatMap {
                 $0.isEmpty ? nil : $0.split(separator: ",").map(String.init)
             }
@@ -50,8 +55,9 @@ final class SweepTests: XCTestCase {
                             \.ainkradTypography, AinkradTypography(fontFamilyName: theme == "neon" ? "Exo 2" : nil)
                         )
                         .environment(\.colorScheme, .dark),
-                    size: size,
-                    to: URL(fileURLWithPath: out).appendingPathComponent("\(name)-\(theme).png"))
+                    size: size, hover: hover,
+                    to: URL(fileURLWithPath: out).appendingPathComponent(
+                        "\(name)\(hover == nil ? "" : "-hover")-\(theme).png"))
             }
         }
     }
@@ -262,7 +268,10 @@ enum LiveCapture {
         @objc var _hasActiveAppearanceIgnoringKeyFocus: Bool { true }
     }
 
-    static func shoot(_ view: some View, size: CGSize, to url: URL) throws {
+    /// `hover` is a point in the view's own coordinates (top-left origin): rows that read `citadelSweepPointer` show
+    /// their hover state, deterministically and without moving the real pointer (a synthesized `mouseMoved` does not
+    /// reach SwiftUI's hover tracking).
+    static func shoot(_ view: some View, size: CGSize, hover: CGPoint? = nil, to url: URL) throws {
         let panel = KeyAppearancePanel(
             contentRect: NSRect(origin: CGPoint(x: 200, y: 200), size: size),
             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -272,7 +281,8 @@ enum LiveCapture {
         panel.hasShadow = false
         panel.animationBehavior = .none
         panel.contentView = NSHostingView(
-            rootView: view.environment(\.ainkradMotionBudget, .frozen).environment(\.controlActiveState, .key))
+            rootView: view.environment(\.ainkradMotionBudget, .frozen).environment(\.controlActiveState, .key)
+                .environment(\.citadelSweepPointer, hover))
         panel.orderFrontRegardless()
         defer { panel.orderOut(nil) }
         RunLoop.main.run(until: Date().addingTimeInterval(1))
