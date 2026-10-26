@@ -25,7 +25,7 @@ final class EpicKeyTests: XCTestCase {
             }
         }
         let server = CitadelServer(
-            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_k", company: 1,
+            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_FAKE_fixture", company: 1,
             session: FakeServer.session())
         let read = await server.plan(requirement: 12)
         let plan = try XCTUnwrap(read)

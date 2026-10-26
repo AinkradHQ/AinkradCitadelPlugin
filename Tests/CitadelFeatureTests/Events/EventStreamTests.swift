@@ -18,7 +18,7 @@ final class EventStreamTests: XCTestCase {
 
     private func stream(cursor: Int64?, sockets: FakeSockets, pingTimeout: TimeInterval = 10) throws -> EventStream {
         let server = CitadelServer(
-            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_k", company: 7,
+            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_FAKE_fixture", company: 7,
             session: FakeServer.session())
         var timing = EventStream.Timing()
         timing.pingTimeout = pingTimeout

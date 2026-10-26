@@ -7,7 +7,7 @@ import XCTest
 
 @MainActor
 final class ConnectionTests: XCTestCase {
-    private let key = "ck_dev_SECRETSECRETSECRET7Q2m"
+    private let key = "ck_dev_FAKE_SECRETSECRETSECRET7Q2m"
 
     override func setUp() {
         FakeServer.serve { request in
