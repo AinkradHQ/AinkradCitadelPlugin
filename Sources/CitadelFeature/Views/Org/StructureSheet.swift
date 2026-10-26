@@ -171,6 +171,7 @@ private struct HoverRemove: ViewModifier {
     let remove: (() -> Void)?
     let name: String
     @State private var hovering = false
+    @State private var confirms = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
@@ -179,7 +180,7 @@ private struct HoverRemove: ViewModifier {
             .overlay(alignment: .topTrailing) {
                 if let remove, hovering {
                     AinkradIconButton(
-                        systemName: "xmark", size: skin.size.s22, tooltip: "Delete \(name)", action: remove
+                        systemName: "xmark", size: skin.size.s22, tooltip: "Delete \(name)", action: { confirms = true }
                     )
                     .padding(skin.size.s6)
                     .transition(.opacity)
@@ -187,5 +188,9 @@ private struct HoverRemove: ViewModifier {
             }
             .citadelHover($hovering)
             .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
+            .ainkradConfirmDialog(
+                isPresented: $confirms, title: "Delete \(name)?", message: "Nothing uses it. This cannot be undone.",
+                confirmTitle: "Delete", isDestructive: true
+            ) { remove?() }
     }
 }
