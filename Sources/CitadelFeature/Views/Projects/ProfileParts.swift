@@ -11,20 +11,9 @@ struct ProfileGroup<Trailing: View, Content: View>: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
-        AinkradCard {
-            VStack(alignment: .leading, spacing: skin.size.s4) {
-                HStack(spacing: skin.size.s8) {
-                    Text(title).citadelFont("t13", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-                    if let note {
-                        Text(note).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
-                    }
-                    Spacer(minLength: skin.size.s8)
-                    trailing
-                }
-                .padding(.bottom, skin.size.s4)
-                content
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // One section style across the config drawer: the same card as `ConfigSection`.
+        ConfigSection(title: title, subtitle: note, trailing: { trailing }) {
+            VStack(alignment: .leading, spacing: skin.size.s4) { content }
         }
     }
 }

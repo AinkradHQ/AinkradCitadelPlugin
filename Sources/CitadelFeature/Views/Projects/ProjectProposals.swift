@@ -100,7 +100,7 @@ private struct ProposalCard: View {
                         text: $reason,
                         placeholder:
                             "Why not? — goes back to \(agent?.name ?? "the agent") so it doesn't propose this again",
-                        minHeight: skin.size.s56)
+                        minHeight: skin.size.s56, maxHeight: skin.size.s120, autoFocus: true)
                     HStack(spacing: skin.size.s6) {
                         AinkradButton(title: "Cancel", style: .secondary) { rejecting = false }.compact().fixedSize()
                         AinkradButton(title: "Reject", style: .danger) {

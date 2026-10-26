@@ -18,12 +18,14 @@ struct ProjectOverview: View {
             } second: {
                 ProposalsTile(store: store, facts: facts) { showsHistory = true }
             }
+            .ainkradRiseIn(delay: 0)
             row(left) {
                 issues
             } second: {
                 teams
             }
-            repos
+            .ainkradRiseIn(delay: 0.04)
+            repos.ainkradRiseIn(delay: 0.08)
         }
         .onGeometryChange(for: CGFloat.self) {
             $0.size.width
@@ -155,7 +157,13 @@ struct ProjectOverview: View {
                         ForEach(team.seats, id: \.agentID) { seat in
                             if let agent = facts.model.agents[seat.agentID] { cell(agent, seat: seat) }
                         }
-                        TeamCell(busy: false, action: { store.screen = .org }) {
+                        TeamCell(
+                            busy: false,
+                            action: {
+                                facts.model.orgPage.sheet = .hire(team: team.id, step: 0)
+                                store.screen = .org
+                            }
+                        ) {
                             Text("＋").citadelFont("t13").foregroundStyle(skin.color(skin.text.muted))
                                 .frame(width: skin.size.s34, height: skin.size.s34)
                                 .overlay(
@@ -277,6 +285,7 @@ struct OverviewHead<Trailing: View>: View {
 struct TileLink: View {
     let title: String
     let action: () -> Void
+    @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
 
     init(_ title: String, action: @escaping () -> Void) {
@@ -287,8 +296,10 @@ struct TileLink: View {
     var body: some View {
         AinkradTapArea(action: action) {
             Text(title).citadelFont("t11", weight: "medium", mono: true).foregroundStyle(
-                skin.color(skin.palette.accentSecondary))
+                skin.color(skin.palette.accentSecondary)
+            ).underline(hovering)
         }
+        .citadelHover($hovering)
     }
 }
 

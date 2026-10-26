@@ -10,6 +10,7 @@ struct ProjectHero: View {
     let slim: Bool
     @State private var lean: CGPoint = .zero
     @State private var drift = false
+    @State private var backHover = false
     @State private var size: CGSize = .zero
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -100,8 +101,15 @@ struct ProjectHero: View {
         VStack(alignment: .leading, spacing: skin.size.s4) {
             if !slim {
                 AinkradTapArea(help: "All projects", action: store.closeProject) {
-                    Text("‹ Projects").citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+                    Text("‹ Projects").citadelFont("t11")
+                        .foregroundStyle(skin.color(backHover ? skin.text.primary : skin.text.muted))
                         .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s2)
+                        .background(
+                            RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous).fill(
+                                skin.color(.palette("foreground", backHover ? skin.opacity.o08 : 0)))
+                        )
+                        .citadelHover($backHover)
+                        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: backHover)
                 }
             }
             ProjectsLogoMark(store: store, facts: facts, side: slim ? skin.size.s64 : skin.size.s120)
@@ -177,7 +185,10 @@ struct ProjectHero: View {
             }
             if let profile = facts.profile, profile.budgetBytes > 0 {
                 MetaChip {
-                    Text("profile \(Fmt.tokens(profile.injectedBytes)) / \(Fmt.tokens(profile.budgetBytes)) bytes")
+                    Text(
+                        verbatim:
+                            "profile \(profile.injectedBytes.formatted(.byteCount(style: .file))) / \(profile.budgetBytes.formatted(.byteCount(style: .file)))"
+                    )
                 } tap: {
                     page.drawer = .config(.context)
                 }
@@ -237,10 +248,12 @@ struct ProjectHero: View {
             }
             StatTile {
                 AinkradRingGauge(
-                    value: nil, tint: skin.color(skin.palette.warning), diameter: skin.size.s64, lineWidth: skin.size.s7
+                    value: facts.spendFraction, tint: skin.color(skin.palette.warning), diameter: skin.size.s64,
+                    lineWidth: skin.size.s7
                 ) {
-                    Text("$").citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(
-                        skin.color(skin.text.muted))
+                    Text(verbatim: facts.spendFraction.map { "\(Int($0 * 100))%" } ?? "$")
+                        .citadelFont("t12", weight: "semibold", mono: true)
+                        .foregroundStyle(skin.color(skin.text.muted))
                 }
             } value: {
                 Text(work.monthSpend.map { Fmt.dollars(micros: $0) } ?? "—")

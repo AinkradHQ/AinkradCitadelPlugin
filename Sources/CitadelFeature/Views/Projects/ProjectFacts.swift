@@ -65,6 +65,20 @@ struct ProjectFacts {
         return all.isEmpty ? 0 : Double(all.filter(\.isDone).count) / Double(all.count)
     }
 
+    /// Month spend over the agents' summed monthly dollar caps (0...1); nil when no agent has one.
+    var spendFraction: Double? {
+        let caps = agents.compactMap { model.monthBudget(of: $0.id)?.usdCap }.filter { $0 > 0 }.reduce(0, +)
+        guard caps > 0, let spend = work.monthSpend else { return nil }
+        return min(1, Double(spend) / Double(caps))
+    }
+
+    /// CI across the open pull requests of the project's issues.
+    var ci: String? {
+        ProjectLogic.ci(
+            work.items.flatMap { model.issuePRs[$0.id] ?? [] }.filter { ["open", "merging"].contains($0.state) }
+                .map(\.checks))
+    }
+
     var blocked: Int { work.items.filter(\.isBlocked).count }
     var inReview: Int { work.items.filter { $0.state == "in_review" }.count }
 
