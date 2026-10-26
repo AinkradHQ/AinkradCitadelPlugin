@@ -81,7 +81,12 @@ struct RequirementsTile: View {
                 + Text("approve plan to start").foregroundStyle(status.warning)
         }
         var text = Text("\(requirement.donePoints) / \(requirement.points) pts").foregroundStyle(faint)
-        if let eta = requirement.eta { text = text + Text(" · ETA \(Fmt.eta(eta))").foregroundStyle(faint) }
+        if let eta = HonestAggregates.eta(
+            requirement.eta, supported: store.honestAggregates,
+            showsMissing: !planning && requirement.state != "done")
+        {
+            text = text + Text(verbatim: " · ETA \(eta)").foregroundStyle(faint)
+        }
         if asks > 0, let owner = model.agent(requirement.ownerAgentID) {
             return text + Text(" · \(owner.name) asks you").foregroundStyle(status.warning)
         }

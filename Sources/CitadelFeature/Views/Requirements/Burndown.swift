@@ -5,13 +5,16 @@ import SwiftUI
 /// at the projected end, the points-left line with a soft cyan area under it, a "today" rule and a tip dot.
 struct Burndown: View {
     let plan: PlanTree
+    /// Points in scope per day (API 19+), drawn as a dotted line; nil on an older server.
+    var scope: [Int]? = nil
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
         let tint = skin.color(skin.palette.accentSecondary)
         let left = plan.burndown.map { Double($0.left) }
         Canvas { context, size in
-            guard let start = left.first, start > 0, left.count > 0 else { return }
+            guard let first = left.first, first > 0, left.count > 0 else { return }
+            let start = max(first, Double(scope?.max() ?? 0))
             let last = Double(left.count - 1)
             let days = Self.span(plan)
             let pad = size.height * 0.08
@@ -24,6 +27,16 @@ struct Burndown: View {
             context.stroke(
                 ideal, with: .color(tint.opacity(skin.opacity.o60)),
                 style: StrokeStyle(lineWidth: skin.size.s1_5, dash: [skin.size.s4, skin.size.s4]))
+            if let scope {
+                var scopeLine = Path()
+                for (day, value) in scope.enumerated() {
+                    let p = point(Double(day), Double(value))
+                    day == 0 ? scopeLine.move(to: p) : scopeLine.addLine(to: p)
+                }
+                context.stroke(
+                    scopeLine, with: .color(skin.color(.palette("foreground", skin.opacity.o60))),
+                    style: StrokeStyle(lineWidth: skin.size.s1_5, dash: [skin.size.s2, skin.size.s3]))
+            }
             var line = Path()
             for (day, value) in left.enumerated() {
                 day == 0 ? line.move(to: point(0, value)) : line.addLine(to: point(Double(day), value))

@@ -89,8 +89,8 @@ struct RequirementPlanView: View {
                 }
                 HStack(spacing: skin.size.s10) {
                     VersionBadge(requirement: requirement, plan: plan)
-                    if let eta = plan.eta {
-                        Text("ETA \(Fmt.eta(eta))").citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+                    if let eta = HonestAggregates.eta(plan.eta, supported: store.honestAggregates) {
+                        Text(verbatim: "ETA \(eta)").citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
                     }
                 }
                 HStack(spacing: skin.size.s6) {
@@ -177,7 +177,8 @@ struct RequirementPlanView: View {
                 Text(verbatim: "\(plan.points - plan.donePoints) pts left").citadelFont("t11", mono: true)
                     .foregroundStyle(skin.color(skin.text.faint))
             }
-            Burndown(plan: plan).frame(height: skin.size.s90)
+            Burndown(plan: plan, scope: HonestAggregates.scopeLine(plan, supported: store.honestAggregates))
+                .frame(height: skin.size.s90)
         }
         .padding(.horizontal, skin.size.s14)
         .padding(.vertical, skin.size.s12)

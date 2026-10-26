@@ -2181,21 +2181,29 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/BurndownDay/left`.
             public var left: Swift.Int32
+            /// Points in scope that day (API minor 19); absent on a sprint's burndown.
+            ///
+            /// - Remark: Generated from `#/components/schemas/BurndownDay/scope`.
+            public var scope: Swift.Int32?
             /// Creates a new `BurndownDay`.
             ///
             /// - Parameters:
             ///   - day: `YYYY-MM-DD`.
             ///   - left: Points left at the end of the day.
+            ///   - scope: Points in scope that day (API minor 19); absent on a sprint's burndown.
             public init(
                 day: Swift.String,
-                left: Swift.Int32
+                left: Swift.Int32,
+                scope: Swift.Int32? = nil
             ) {
                 self.day = day
                 self.left = left
+                self.scope = scope
             }
             public enum CodingKeys: String, CodingKey {
                 case day
                 case left
+                case scope
             }
         }
         /// - Remark: Generated from `#/components/schemas/CapacityBody`.
@@ -9360,7 +9368,8 @@ extension Components {
             public var doneTasks: Swift.Int32
             /// - Remark: Generated from `#/components/schemas/RequirementTree/epics`.
             public var epics: [Components.Schemas.TreeEpic]
-            /// `YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done.
+            /// `YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done or
+            /// before three days of data.
             ///
             /// - Remark: Generated from `#/components/schemas/RequirementTree/eta`.
             public var eta: Swift.String?
@@ -9368,7 +9377,7 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/RequirementTree/other`.
             public var other: [Components.Schemas.TreeTask]
-            /// By points, rounded down.
+            /// By points, rounded; leaf product tasks only (documentation tasks are left out).
             ///
             /// - Remark: Generated from `#/components/schemas/RequirementTree/percent_done`.
             public var percentDone: Swift.Int32
@@ -9389,9 +9398,9 @@ extension Components {
             ///   - donePoints:
             ///   - doneTasks:
             ///   - epics:
-            ///   - eta: `YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done.
+            ///   - eta: `YYYY-MM-DD` the rest is done at the pace so far; absent before anything is done or
             ///   - other: Its issues outside the plan: the intake request, the kickoff.
-            ///   - percentDone: By points, rounded down.
+            ///   - percentDone: By points, rounded; leaf product tasks only (documentation tasks are left out).
             ///   - points:
             ///   - pointsPerDay:
             ///   - requirement:

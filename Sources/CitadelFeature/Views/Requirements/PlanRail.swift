@@ -108,14 +108,15 @@ struct PlanRail: View {
                         .foregroundStyle(skin.color(skin.text.muted)))
                         .foregroundStyle(skin.color(skin.text.primary))
                     Text(verbatim: "\(plan.doneTasks) of \(plan.tasks) tasks done").citadelFont("t11")
-                    if let eta = plan.eta {
-                        Text("ETA \(Fmt.eta(eta)) · \(Fmt.dollars(micros: plan.costMicros)) so far").citadelFont("t11")
+                    if let eta = HonestAggregates.eta(plan.eta, supported: store.honestAggregates) {
+                        Text(verbatim: "ETA \(eta) · \(Fmt.dollars(micros: plan.costMicros)) so far").citadelFont("t11")
                     }
                 }
                 .foregroundStyle(skin.color(skin.text.faint))
             }
             if plan.eta != nil, plan.burndown.count > 1 {
-                Burndown(plan: plan).frame(height: skin.size.s70)
+                Burndown(plan: plan, scope: HonestAggregates.scopeLine(plan, supported: store.honestAggregates))
+                    .frame(height: skin.size.s70)
             } else {
                 Text("Burndown starts when the plan is approved.").citadelFont("t11")
                     .foregroundStyle(skin.color(skin.text.faint))
