@@ -159,7 +159,9 @@ struct PendingHiresSheet: View {
                         Text("· \(team.name)").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
                     }
                 }
-                Text("proposed by \(proposer?.name ?? "—")").citadelFont("t11").foregroundStyle(
+                Text("proposed by \(proposer?.name ?? "—")\(OrgPeekPanel.ageSuffix(approval?.createdAt))").citadelFont(
+                    "t11"
+                ).foregroundStyle(
                     skin.color(skin.text.muted))
                 AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
                     ForEach(chips, id: \.self) { chip in
@@ -175,17 +177,18 @@ struct PendingHiresSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(spacing: skin.size.s6) {
                 if let approval {
-                    AinkradButton(title: "Approve") { store.decideHire(approval, approve: true) }
+                    AinkradDockButton("Approve", tone: .primary, height: skin.size.s34, fillsWidth: true) {
+                        store.decideHire(approval, approve: true)
+                    }
                     AinkradDockButton("Reject", tone: .danger, height: skin.size.s34, fillsWidth: true) {
                         rejecting = approval
                     }
-                    AinkradButton(title: "Details", style: .ghost) {
+                    AinkradDockButton("Details", height: skin.size.s34, fillsWidth: true) {
                         store.selectedApproval = approval.id
                         store.screen = .approvals
                         store.detail = nil
                         model.orgPage.sheet = nil
                     }
-                    .borderless()
                 }
             }
             .frame(width: skin.size.s96)

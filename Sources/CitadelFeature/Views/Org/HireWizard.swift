@@ -140,7 +140,10 @@ struct HireWizard: View {
                 Grid(alignment: .leading, horizontalSpacing: skin.size.s12, verticalSpacing: skin.size.s6) {
                     row("Harness", "\(AgentLook.harnessName(draft.harness)) · \(HireCatalog.modelName(draft.model))")
                     row("Budget", "\(draft.budget) tok / mo · warn \(draft.warn)%")
-                    row("Fallback", "\(AgentLook.harnessName(draft.harness)) first")
+                    row(
+                        "Fallback",
+                        (model.chainPreset(draft.chainPresetID) ?? model.defaultChainPreset)?.name
+                            ?? "\(AgentLook.harnessName(draft.harness)) first")
                     row("Reports to", reports?.name ?? "—")
                     row("Sandbox", draft.sandbox)
                     row("Guidelines", "\(draft.guidelines.count) on")

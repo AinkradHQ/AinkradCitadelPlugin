@@ -123,7 +123,7 @@ struct OrgView: View {
                 if n > 0 {
                     HStack(spacing: skin.size.s6) {
                         Circle().fill(bucket.tint(skin)).frame(width: skin.size.s7, height: skin.size.s7)
-                        Text("\(bucket.label) \(n)")
+                        Text(verbatim: "\(bucket.label) \(n)")
                     }
                 }
             }
@@ -143,8 +143,10 @@ struct OrgView: View {
             AinkradIconButton(systemName: "minus", size: skin.size.s26, tooltip: "Zoom out") {
                 withAnimation(reduceMotion ? nil : animate) { page.camera.zoom(by: 1 / 1.2) }
             }
-            Text("\(page.camera.percent)%").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
-                .frame(width: skin.size.s44)
+            Text(verbatim: "\(page.camera.percent)%").citadelFont("t11", mono: true).foregroundStyle(
+                skin.color(skin.text.muted)
+            )
+            .frame(width: skin.size.s44)
             AinkradIconButton(systemName: "plus", size: skin.size.s26, tooltip: "Zoom in") {
                 withAnimation(reduceMotion ? nil : animate) { page.camera.zoom(by: 1.2) }
             }

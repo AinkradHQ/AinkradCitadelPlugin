@@ -9,6 +9,7 @@ struct AgentStage: View {
     let model: CompanyModel
     let agent: AgentInfo
     @State private var cursor: CGPoint = .zero
+    @State private var backHover = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
@@ -21,8 +22,16 @@ struct AgentStage: View {
                     store.open(nil)
                 } label: {
                     Text("‹ Org").citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
+                        .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s2)
+                        .background(
+                            RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous)
+                                .fill(skin.color(.palette("foreground", backHover ? skin.opacity.o08 : 0)))
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .citadelHover($backHover)
+                .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: backHover)
                 AgentFigure(agent: agent, model: model, size: skin.size.s150 - skin.size.s2, isActive: true)
                     .shadow(
                         color: palette.lightColor.opacity(skin.opacity.o45), radius: skin.size.s14, y: skin.size.s14
@@ -244,6 +253,7 @@ private struct StageStat<Visual: View, Words: View>: View {
     @ViewBuilder let text: Words
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
@@ -259,7 +269,7 @@ private struct StageStat<Visual: View, Words: View>: View {
             .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .offset(x: hovering ? -skin.size.s2 : 0)
+        .offset(x: hovering && !reduceMotion ? -skin.size.s2 : 0)
         .onHover { hovering = $0 }
         .animation(skin.animation(skin.motion.hover), value: hovering)
     }
@@ -271,6 +281,7 @@ private struct AgentDock: View {
     let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
+    @State private var rejecting: ApprovalInfo?
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -284,7 +295,7 @@ private struct AgentDock: View {
                         store.decideHire(approval, approve: true)
                     }
                     AinkradDockButton("Reject", systemImage: "xmark.circle", tone: .danger) {
-                        store.decideHire(approval, approve: false)
+                        rejecting = approval
                     }
                 } else if !agent.isHirePending {
                     if agent.isPaused {
@@ -330,6 +341,19 @@ private struct AgentDock: View {
                         page.sheet = .terminate(agent.id)
                     }
                 }
+            }
+        }
+        .overlay {
+            if let approval = rejecting {
+                PromptSheet(
+                    title: "Reject \(agent.name)?",
+                    message: "The proposer is told why; nothing is hired.", placeholder: "Why not (optional)",
+                    confirmTitle: "Reject", isDestructive: true, allowsEmpty: true, text: "",
+                    isPresented: Binding(get: { rejecting != nil }, set: { if !$0 { rejecting = nil } })
+                ) { store.decideHire(approval, approve: false, reply: $0) }
+                .background(
+                    skin.color(.palette("background", skin.opacity.o97)),
+                    in: RoundedRectangle(cornerRadius: skin.size.s14))
             }
         }
     }

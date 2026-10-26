@@ -128,6 +128,7 @@ struct InstructionsEditor: View {
     let template: String?
     var note: String?
     var minHeight: CGFloat?
+    @State private var resetHover = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -156,9 +157,18 @@ struct InstructionsEditor: View {
                         text = template
                     } label: {
                         Text("Reset").citadelFont("t11", mono: true).foregroundStyle(
-                            skin.color(skin.palette.accentSecondary))
+                            skin.color(skin.palette.accentSecondary)
+                        )
+                        .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s2)
+                        .background(
+                            RoundedRectangle(cornerRadius: skin.size.s6).fill(
+                                skin.color(skin.palette.accentSecondary).opacity(resetHover ? skin.opacity.o16 : 0))
+                        )
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .citadelHover($resetHover)
+                    .animation(skin.animation(skin.motion.hover), value: resetHover)
                 }
             }
             .padding(.horizontal, skin.size.s12)
@@ -225,6 +235,7 @@ struct GuidelineCards: View {
 /// The 17 palettes as gradient swatches in a 9-column grid, plus ⟳ for a random one.
 struct PaletteGrid: View {
     @Binding var selection: String
+    @State private var hoverRandom = false
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -235,14 +246,22 @@ struct PaletteGrid: View {
             AinkradTapArea {
                 selection = AinkradFigurePalette.all.filter { $0.id != selection }.randomElement()?.id ?? selection
             } label: {
-                Text("⟳").citadelFont("t18").foregroundStyle(skin.color(skin.text.muted))
-                    .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: skin.size.s10).strokeBorder(
-                            skin.color(.palette("foreground", skin.opacity.o20)),
-                            style: StrokeStyle(lineWidth: 1, dash: [skin.size.s4, skin.size.s3])))
+                Text("⟳").citadelFont("t18").foregroundStyle(
+                    skin.color(hoverRandom ? skin.text.primary : skin.text.muted)
+                )
+                .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
+                .background(
+                    RoundedRectangle(cornerRadius: skin.size.s10).fill(
+                        skin.color(.palette("foreground", hoverRandom ? skin.opacity.o06 : 0)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: skin.size.s10).strokeBorder(
+                        skin.color(.palette("foreground", skin.opacity.o20)),
+                        style: StrokeStyle(lineWidth: 1, dash: [skin.size.s4, skin.size.s3])))
             }
             .buttonStyle(.plain)
+            .citadelHover($hoverRandom)
+            .animation(skin.animation(skin.motion.hover), value: hoverRandom)
             .help("Surprise me")
         }
     }
@@ -280,6 +299,8 @@ struct BudgetFields: View {
     @Binding var budget: String
     @Binding var warn: String
     @Binding var cap: String
+    /// Off where the cap has no server field (an agent's own budget): the card shows but takes no input.
+    var capEnabled = true
     var footnote: String?
     @Environment(\.ainkradSkin) private var skin
 
@@ -290,7 +311,7 @@ struct BudgetFields: View {
             AinkradCardGrid(columns: 3) {
                 number("Monthly budget", $budget, unit: "tok / mo")
                 number("Warn at", $warn, unit: "%")
-                number("Per-run cap", $cap, unit: "tok")
+                number("Per-run cap", $cap, unit: "tok", enabled: capEnabled)
             }
             GeometryReader { geo in
                 Text("warn \(Fmt.tokens(total * Int64(warnPercent) / 100))").citadelFont("t10_5", mono: true)
@@ -327,7 +348,7 @@ struct BudgetFields: View {
         }
     }
 
-    private func number(_ label: String, _ text: Binding<String>, unit: String) -> some View {
+    private func number(_ label: String, _ text: Binding<String>, unit: String, enabled: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: skin.size.s8) {
             Text(label).citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
             HStack(spacing: skin.size.s8) {
@@ -338,6 +359,7 @@ struct BudgetFields: View {
                 .fixedSize()
             }
         }
+        .disabled(!enabled).opacity(enabled ? 1 : skin.opacity.o55)
         .padding(.horizontal, skin.size.s12).padding(.vertical, skin.size.s10)
         .background(
             skin.color(.palette("foreground", skin.opacity.o05)), in: RoundedRectangle(cornerRadius: skin.size.s10)

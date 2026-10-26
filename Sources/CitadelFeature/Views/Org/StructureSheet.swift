@@ -9,6 +9,8 @@ struct StructureSheet: View {
     @Environment(\.ainkradSkin) private var skin
 
     /// The company's roles from API minor 18 (its starter list until it has one of its own), else the built-ins.
+    private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
+
     private var roles: [HireCatalog.Role] {
         store.rolesOn && !model.roles.isEmpty ? model.roles.map(\.catalogRole) : HireCatalog.roles
     }
@@ -53,8 +55,8 @@ struct StructureSheet: View {
     }
 
     private func card<Top: View, Foot: View>(
-        title: String, line: String, open: @escaping () -> Void, @ViewBuilder top: () -> Top,
-        @ViewBuilder foot: () -> Foot
+        title: String, line: String, open: @escaping () -> Void, remove: (() -> Void)? = nil,
+        @ViewBuilder top: () -> Top, @ViewBuilder foot: () -> Foot
     ) -> some View {
         AinkradChoiceCard(height: skin.size.s108, axis: .vertical, action: open) {
             HStack { top() }.frame(height: skin.size.s28)
@@ -64,6 +66,7 @@ struct StructureSheet: View {
             Spacer(minLength: 0)
             HStack(spacing: skin.size.s6) { foot() }.frame(height: skin.size.s20)
         }
+        .modifier(HoverRemove(remove: remove, name: title))
     }
 
     private func department(_ model: CompanyModel, _ department: DepartmentInfo) -> some View {
@@ -72,7 +75,9 @@ struct StructureSheet: View {
             title: department.name,
             line:
                 "\(Wording.count(department.teams.count, "team")) · \(Wording.count(department.agentIDs.count + (head == nil ? 0 : 1), "agent"))",
-            open: { model.orgPage.stack(.department(department.id)) }
+            open: { model.orgPage.stack(.department(department.id)) },
+            remove: department.teams.isEmpty && department.agentIDs.isEmpty && supported
+                ? { store.deleteDepartment(department) {} } : nil
         ) {
             InitialTile(letter: department.name, side: skin.size.s28)
         } foot: {
@@ -90,7 +95,10 @@ struct StructureSheet: View {
         let department = model.departments.first { $0.teams.contains { $0.id == team.id } }
         let line = [department?.name, model.cadence(of: team)?.text, Wording.count(team.seats.count, "agent")]
             .compactMap { $0 }.joined(separator: " · ")
-        return card(title: team.name, line: line, open: { model.orgPage.stack(.team(team.id)) }) {
+        return card(
+            title: team.name, line: line, open: { model.orgPage.stack(.team(team.id)) },
+            remove: team.seats.isEmpty && supported ? { store.deleteTeam(team) {} } : nil
+        ) {
             if let project = model.project(of: team) { KeyChip(key: project.key) }
         } foot: {
             if let lead {
@@ -106,7 +114,11 @@ struct StructureSheet: View {
 
     private func role(_ role: HireCatalog.Role) -> some View {
         let count = model.agents.values.filter { $0.role.lowercased() == role.name.lowercased() }.count
-        return card(title: role.name, line: role.purpose, open: { model.orgPage.stack(.role(role.name)) }) {
+        let stored = model.roles.first { $0.name.lowercased() == role.name.lowercased() }
+        return card(
+            title: role.name, line: role.purpose, open: { model.orgPage.stack(.role(role.name)) },
+            remove: count == 0 && store.rolesOn ? stored.map { stored in { store.deleteRole(stored) {} } } : nil
+        ) {
             AinkradChoiceGlyph(role.symbol)
         } foot: {
             HarnessTag(harness: role.harness, size: skin.size.s20)
@@ -151,5 +163,29 @@ struct Faces: View {
                 if let agent = model.agents[id] { AgentFigure(agent: agent, model: model, size: side) }
             }
         }
+    }
+}
+
+/// A hover ✕ at a card's corner, only for an item nothing uses (no teams or agents, no seats, no agents in the role).
+private struct HoverRemove: ViewModifier {
+    let remove: (() -> Void)?
+    let name: String
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .topTrailing) {
+                if let remove, hovering {
+                    AinkradIconButton(
+                        systemName: "xmark", size: skin.size.s22, tooltip: "Delete \(name)", action: remove
+                    )
+                    .padding(skin.size.s6)
+                    .transition(.opacity)
+                }
+            }
+            .citadelHover($hovering)
+            .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
