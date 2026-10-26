@@ -92,6 +92,8 @@ final class CompanyModel {
     var spend: SpendInfo?
     var budgets: [BudgetInfo] = []
     var requirements: [RequirementInfo] = []
+    /// When the tree was last read, for the Requirements header's "Updated 4s ago".
+    var requirementsAt: Date?
     var sprint: SprintInfo?
     var projects: [ProjectInfo] = []
     /// Each issue's spend to date, as the run rail's "issue so far" needs it.
@@ -240,7 +242,7 @@ final class CompanyModel {
             if action == "run.provider_dropped" || action == "run.fallback" {
                 notes[runID, default: []].append(RunNote(at: at, action: action, text: RunNote.text(action, details)))
             }
-            return [.run(runID), .costs]
+            return Set<Reload>([.run(runID), .costs]).union(requirementReloads)
         case "approval": return [.approvals]
         case "question": return [.questions]
         case "agent": return entity.map { [.agent($0), .org] } ?? [.org]
@@ -267,7 +269,7 @@ final class CompanyModel {
         case "knowledge": return [.knowledge]
         case "account": return [.accounts, .settings]
         case "issue":
-            var reloads: Set<Reload> = [.stuck]
+            var reloads = Set<Reload>([.stuck]).union(requirementReloads)
             if let project = details["project_id"].flatMap(Int64.init), projectsPage.work[project] != nil {
                 reloads.insert(.projectWork(project))
             }
@@ -282,8 +284,18 @@ final class CompanyModel {
             reloads.insert(issues[entity] == nil ? .issue(entity) : .issueFresh(entity))
             if action == "issue.commented", comments[entity] != nil { reloads.insert(.comments(entity)) }
             return reloads
+        // Progress, time and tokens in the requirement tree move with the work (debounced by `schedule`).
+        case "epic", "plan": return requirementReloads
+        case "repair", "lease", "loop_breaker": return [.stuck]
         default: return []
         }
+    }
+
+    /// The requirement tree, and the open requirement's thread and plan.
+    private var requirementReloads: Set<Reload> {
+        var reloads: Set<Reload> = [.requirements]
+        if let open = requirementsPage.selectedID { reloads.insert(.thread(open)) }
+        return reloads
     }
 }
 

@@ -155,8 +155,17 @@ extension CitadelStore {
 
     // MARK: - Reloads the events ask for
 
-    /// Coalesces a burst of events into one round of reads, a quarter second later.
+    /// Coalesces a burst of events into one round of reads, a quarter second later. The requirement tree is the
+    /// heaviest read and moves with every issue and run event, so it is read at most once every 2 s.
     func schedule(_ reloads: Set<Reload>) {
+        if reloads.contains(.requirements), requirementsTask == nil, let model, let server {
+            requirementsTask = Task {
+                try? await Task.sleep(for: .seconds(2))
+                requirementsTask = nil
+                await self.reload(.requirements, model: model, server: server)
+            }
+        }
+        let reloads = reloads.subtracting([.requirements])
         guard !reloads.isEmpty else { return }
         pendingReloads.formUnion(reloads)
         guard reloadTask == nil, let model, let server else { return }
@@ -166,6 +175,15 @@ extension CitadelStore {
             pendingReloads = []
             reloadTask = nil
             for reload in batch { await self.reload(reload, model: model, server: server) }
+        }
+    }
+
+    /// The Requirements header's refresh: the tree and the open thread, now.
+    func refreshRequirements() {
+        guard let model, let server else { return }
+        Task {
+            await reload(.requirements, model: model, server: server)
+            if let open = model.requirementsPage.selectedID { await reloadThread(open, model: model, server: server) }
         }
     }
 
@@ -204,7 +222,11 @@ extension CitadelStore {
             }
             await loadSpendToday(model, server: server)
             await refreshCostTasks(model, server: server)
-        case .requirements: model.requirements = await server.requirements() ?? model.requirements
+        case .requirements:
+            if let read = await server.requirements() {
+                model.requirements = read
+                model.requirementsAt = Date()
+            }
         case .sprint: model.sprint = await server.activeSprint(company: id)
         case .accounts:
             if let accounts = await server.accounts(company: id) {
