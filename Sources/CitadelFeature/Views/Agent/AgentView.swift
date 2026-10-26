@@ -32,13 +32,13 @@ struct AgentView: View {
             } action: {
                 width = $0
             }
-            .overlay {
+            .ainkradFloatingDrawer(
+                isPresented: Binding(get: { page.drawer != nil }, set: { if !$0 { page.drawer = nil } })
+            ) {
                 if let drawer = page.drawer {
                     AgentDrawer(store: store, model: model, agent: agent, drawer: drawer)
-                        .transition(.opacity)
                 }
             }
-            .animation(skin.animation(skin.motion.hover), value: page.drawer)
             .offlineDimmed()
             .orgSheets(store, model)
             .task(id: agentID) { store.loadAgentExtras(agentID) }

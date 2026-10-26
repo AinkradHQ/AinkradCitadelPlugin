@@ -1,77 +1,42 @@
 import AinkradAppKit
 import SwiftUI
 
-/// The agent drawer (prototype `agent.js` agentDrawer): Instructions / Skills / Settings over a scrim, opened at
-/// a section from the dock or a tile; Esc or the scrim closes it.
+/// The agent drawer (prototype `agent.js` agentDrawer): Instructions / Skills / Settings in the kit's floating
+/// drawer, opened at a section from the dock or a tile; Esc, ✕ or the scrim closes it.
 struct AgentDrawer: View {
     let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
     let drawer: OrgPage.Drawer
-    @State private var entered = false
     @Environment(\.ainkradSkin) private var skin
-    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let page = model.orgPage
-        let shape = RoundedRectangle(cornerRadius: skin.size.s20, style: .continuous)
-        ZStack(alignment: .topTrailing) {
-            skin.color(.palette("black", skin.opacity.o35)).contentShape(Rectangle())
-                .onTapGesture { page.drawer = nil }
-            GeometryReader { geo in
-                VStack(spacing: 0) {
-                    HStack(spacing: skin.size.s12) {
-                        AinkradGlideTabs(
-                            OrgPage.DrawerSection.allCases.map { section in
-                                AinkradGlideTab(
-                                    section, title: section.rawValue,
-                                    systemImage: section == .instructions
-                                        ? "doc.text" : section == .skills ? "square.stack.3d.up" : "gearshape",
-                                    count: section == .skills ? "\(page.agentSkills[agent.id]?.count ?? 0)" : nil)
-                            },
-                            selection: Binding(
-                                get: { drawer.section }, set: { page.drawer = .init(section: $0) }),
-                            tint: (agent.palette.lightColor, agent.palette.deepColor))
-                        AinkradIconButton(systemName: "xmark", size: skin.size.s30, tooltip: "Close (Esc)") {
-                            page.drawer = nil
-                        }
-                        .keyboardShortcut(.cancelAction)
-                    }
-                    .padding(.horizontal, skin.size.s16).padding(.vertical, skin.size.s14)
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: skin.size.s14) {
-                                switch drawer.section {
-                                case .instructions: DrawerInstructions(store: store, agent: agent)
-                                case .skills: DrawerSkills(model: model, agent: agent)
-                                case .settings: DrawerSettings(store: store, model: model, agent: agent)
-                                }
-                            }
-                            .padding(.horizontal, skin.size.s16).padding(.bottom, skin.size.s16)
-                        }
-                        .onAppear { scroll(proxy) }
-                        .onChange(of: drawer) { _, _ in scroll(proxy) }
+        AinkradDrawerPanel(
+            spacing: skin.size.s14, onClose: { page.drawer = nil },
+            header: {
+                AinkradGlideTabs(
+                    OrgPage.DrawerSection.allCases.map { section in
+                        AinkradGlideTab(
+                            section, title: section.rawValue,
+                            systemImage: section == .instructions
+                                ? "doc.text" : section == .skills ? "square.stack.3d.up" : "gearshape",
+                            count: section == .skills ? "\(page.agentSkills[agent.id]?.count ?? 0)" : nil)
+                    },
+                    selection: Binding(get: { drawer.section }, set: { page.drawer = .init(section: $0) }),
+                    tint: (agent.palette.lightColor, agent.palette.deepColor))
+            }
+        ) {
+            ScrollViewReader { proxy in
+                VStack(alignment: .leading, spacing: skin.size.s14) {
+                    switch drawer.section {
+                    case .instructions: DrawerInstructions(store: store, agent: agent)
+                    case .skills: DrawerSkills(model: model, agent: agent)
+                    case .settings: DrawerSettings(store: store, model: model, agent: agent)
                     }
                 }
-                .frame(width: min(skin.size.s640 + skin.size.s120, geo.size.width * 0.62))
-                .frame(maxHeight: .infinity)
-                .background(shape.fill(skin.color(.palette("background", skin.opacity.o97))))
-                .clipShape(shape)
-                .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o10)), lineWidth: 1))
-                .shadow(
-                    color: skin.color(.palette("black", skin.opacity.o50)), radius: skin.size.s30, x: -skin.size.s20
-                )
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .padding(.top, skin.size.s80)
-            .padding(.trailing, skin.size.s20)
-            .padding(.bottom, skin.size.s20)
-            .offset(x: entered || reduceMotion ? 0 : skin.size.s60)
-            .opacity(entered || reduceMotion ? 1 : 0)
-        }
-        .onAppear {
-            withAnimation(skin.animation(AinkradAnimationToken(curve: "spring", response: 0.35, damping: 0.8))) {
-                entered = true
+                .onAppear { scroll(proxy) }
+                .onChange(of: drawer) { _, _ in scroll(proxy) }
             }
         }
     }

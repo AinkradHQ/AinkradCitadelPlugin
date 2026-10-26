@@ -7,6 +7,7 @@ struct OrgPeekPanel: View {
     let store: CitadelStore
     let model: CompanyModel
     let agent: AgentInfo
+    @State private var rejecting: ApprovalInfo?
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -45,6 +46,17 @@ struct OrgPeekPanel: View {
                 .padding(skin.size.s12)
         }
         .shadow(color: skin.color(.palette("black", skin.opacity.o40)), radius: skin.size.s20, x: -skin.size.s12)
+        .overlay {
+            if let approval = rejecting {
+                PromptSheet(
+                    title: "Reject \(agent.name)?",
+                    message: "The proposer is told why; nothing is hired.", placeholder: "Why not (optional)",
+                    confirmTitle: "Reject", isDestructive: true, allowsEmpty: true, text: "",
+                    isPresented: Binding(get: { rejecting != nil }, set: { if !$0 { rejecting = nil } })
+                ) { store.decideHire(approval, approve: false, reply: $0) }
+                .background(skin.color(.palette("background", skin.opacity.o97)), in: shape)
+            }
+        }
         .task(id: agent.id) { store.loadPeek(agent.id) }
     }
 
@@ -95,10 +107,15 @@ struct OrgPeekPanel: View {
             Text(approval.map { model.summary($0).title } ?? "Hire \(agent.name)").citadelFont(
                 "t12_5", weight: "medium")
             Text(
-                "proposed by \(approval.flatMap { model.agent($0.requestedBy)?.name } ?? "—") · nothing runs until you approve"
+                "proposed by \(approval.flatMap { model.agent($0.requestedBy)?.name } ?? "—")\(Self.ageSuffix(approval?.createdAt)) · nothing runs until you approve"
             )
             .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
         }
+    }
+
+    /// ` · 2h ago` for the hire request's age; empty from an older server that sends no timestamp.
+    static func ageSuffix(_ created: Date?, now: Date = Date()) -> String {
+        created.map { " · \(Fmt.age(now.timeIntervalSince($0))) ago" } ?? ""
     }
 
     private func nowCard(_ live: RunInfo?, runs: [RunInfo]) -> some View {
@@ -113,11 +130,13 @@ struct OrgPeekPanel: View {
                     Text("▸ \(tool)").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
                         .lineLimit(1).truncationMode(.middle)
                 }
-                if let cap = model.runCap {
+                if let cap = model.cap(of: live) {
                     HStack(spacing: skin.size.s10) {
                         MiniBar(fraction: Double(live.tokens) / Double(max(cap, 1)))
-                        Text("\(Fmt.tokens(live.tokens)) / \(Fmt.tokens(cap))").citadelFont("t10_5", mono: true)
-                            .foregroundStyle(skin.color(skin.text.faint))
+                        Text(verbatim: "\(Fmt.tokens(live.tokens)) / \(Fmt.tokens(cap))").citadelFont(
+                            "t10_5", mono: true
+                        )
+                        .foregroundStyle(skin.color(skin.text.faint))
                     }
                 }
             } else {
@@ -127,7 +146,8 @@ struct OrgPeekPanel: View {
                 Group {
                     if let last {
                         Text(
-                            "last run #\(last.id) on \(model.issue(last.issueID)?.key ?? "—") · \(Fmt.age(Date().timeIntervalSince(last.endedAt ?? last.queuedAt))) ago"
+                            verbatim:
+                                "last run #\(last.id) on \(model.issue(last.issueID)?.key ?? "—") · \(Fmt.age(Date().timeIntervalSince(last.endedAt ?? last.queuedAt))) ago"
                         )
                     } else {
                         Text("no runs yet")
@@ -165,22 +185,17 @@ struct OrgPeekPanel: View {
         return VStack(alignment: .leading, spacing: skin.size.s6) {
             PeekLabel(text: "Chain")
             if let boss = model.agent(agent.reportsTo) {
-                AinkradTapArea {
-                    model.orgPage.picked = boss.id
-                } label: {
-                    HStack(spacing: skin.size.s10) {
-                        AgentFigure(agent: boss, model: model, size: skin.size.s26)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(boss.name).citadelFont("t12_5", weight: "semibold")
-                            Text("reports to · \(boss.role)").citadelFont("t11").foregroundStyle(
-                                skin.color(skin.text.faint))
-                        }
-                        Spacer(minLength: 0)
+                HStack(spacing: skin.size.s10) {
+                    AgentFigure(agent: boss, model: model, size: skin.size.s26)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(boss.name).citadelFont("t12_5", weight: "semibold")
+                        Text("reports to · \(boss.role)").citadelFont("t11").foregroundStyle(
+                            skin.color(skin.text.faint))
                     }
-                    .padding(.vertical, skin.size.s6).padding(.horizontal, skin.size.s8)
-                    .contentShape(Rectangle())
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
+                .padding(.vertical, skin.size.s6).padding(.horizontal, skin.size.s8)
+                .homeHoverRow { model.orgPage.picked = boss.id }
                 .agentHoverCard(store, model, boss)
                 .padding(.horizontal, -skin.size.s8)
             } else {
@@ -203,6 +218,8 @@ struct OrgPeekPanel: View {
             PeekLabel(text: "Setup")
             Grid(alignment: .leading, horizontalSpacing: skin.size.s12, verticalSpacing: skin.size.s7) {
                 kv("Harness", "\(agent.harnessName) · \(agent.model)")
+                kv("Effort", agent.effort ?? "—")
+                kv("Sandbox", agent.sandbox ?? "—")
                 kv("Runners", agent.runnerTags.isEmpty ? "any" : agent.runnerTags.joined(separator: ", "))
                 kv(
                     "Hired",
@@ -262,21 +279,19 @@ struct OrgPeekPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             PeekLabel(text: "Recent runs").padding(.bottom, skin.size.s6)
             ForEach(runs.prefix(3)) { run in
-                AinkradTapArea {
-                    store.open(.run(run.id))
-                } label: {
-                    HStack(spacing: skin.size.s8) {
-                        Text(model.issue(run.issueID)?.key ?? "#\(run.id)").citadelFont("t11", mono: true)
-                            .foregroundStyle(skin.color(skin.palette.accentSecondary))
-                        RunStatePill(run: run)
-                        Spacer()
-                        Text("\(Fmt.age(run.duration)) · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "sub")")
-                            .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
-                    }
-                    .frame(height: skin.size.s32)
-                    .contentShape(Rectangle())
+                HStack(spacing: skin.size.s8) {
+                    Text(model.issue(run.issueID)?.key ?? "#\(run.id)").citadelFont("t11", mono: true)
+                        .foregroundStyle(skin.color(skin.palette.accentSecondary))
+                    RunStatePill(run: run)
+                    Spacer()
+                    Text(
+                        verbatim:
+                            "\(Fmt.age(run.duration)) · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "sub")"
+                    )
+                    .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
                 }
-                .buttonStyle(.plain)
+                .frame(height: skin.size.s32)
+                .homeHoverRow { store.open(.run(run.id)) }
             }
         }
     }
@@ -288,7 +303,7 @@ struct OrgPeekPanel: View {
                     store.decideHire(approval, approve: true)
                 }
                 AinkradDockButton("Reject", tone: .danger, height: skin.size.s34, fillsWidth: true) {
-                    store.decideHire(approval, approve: false)
+                    rejecting = approval
                 }
             } else {
                 if let live {

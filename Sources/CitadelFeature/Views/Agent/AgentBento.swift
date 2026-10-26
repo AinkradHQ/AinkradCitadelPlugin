@@ -16,23 +16,23 @@ struct AgentBento: View {
         let stats = model.stats(of: agent.id)
         let right = VStack(spacing: gap) {
             HStack(alignment: .top, spacing: gap) {
-                BurnTile(model: model, agent: agent, runs: runs)
-                SuccessTile(store: store, stats: stats)
+                BurnTile(model: model, agent: agent, runs: runs).ainkradRiseIn(delay: 0.06)
+                SuccessTile(store: store, stats: stats).ainkradRiseIn(delay: 0.12)
             }
             .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: gap) {
-                HeatTile(stats: stats)
-                ChainTile(store: store, model: model, agent: agent)
+                HeatTile(stats: stats).ainkradRiseIn(delay: 0.18)
+                ChainTile(store: store, model: model, agent: agent).ainkradRiseIn(delay: 0.24)
             }
             .fixedSize(horizontal: false, vertical: true)
-            SkillsTile(model: model, agent: agent)
+            SkillsTile(model: model, agent: agent).ainkradRiseIn(delay: 0.3)
         }
         if wide {
             GeometryReader { geo in
                 let unit = (geo.size.width - gap * 2) / 3.25
                 HStack(alignment: .top, spacing: gap) {
                     NowTile(store: store, model: model, agent: agent).frame(width: unit * 1.25)
-                        .frame(maxHeight: .infinity)
+                        .frame(maxHeight: .infinity).ainkradRiseIn()
                     right
                 }
                 .onGeometryChange(for: CGFloat.self) {
@@ -89,10 +89,19 @@ struct BentoBox<Content: View>: View {
                     lineWidth: 1)
             )
             .contentShape(shape)
-            .offset(y: hovering && !reduceMotion ? -skin.size.s2 : 0)
+            .offset(y: onTap != nil && hovering && !reduceMotion ? -skin.size.s2 : 0)
             .onHover { hovering = $0 }
-            .onTapGesture { onTap?() }
+            .modifier(OptionalTap(action: onTap))
             .animation(skin.animation(skin.motion.hover), value: hovering)
+    }
+}
+
+/// A tap only where there is something to open: a tile with no action stays inert for taps and keys.
+private struct OptionalTap: ViewModifier {
+    let action: (() -> Void)?
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if let action { content.onTapGesture(perform: action) } else { content }
     }
 }
 
@@ -426,11 +435,12 @@ private struct SkillsTile: View {
                 Text("No skills reach this agent yet.").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
             }
             AinkradFlowLayout(spacing: skin.size.s6, lineSpacing: skin.size.s6) {
-                ForEach(skills) { skill in
+                ForEach(Array(skills.enumerated()), id: \.element.id) { index, skill in
                     SkillChip(skill: skill) {
                         model.orgPage.selectedSkill = skill.name
                         model.orgPage.drawer = .init(section: .skills)
                     }
+                    .ainkradRiseIn(delay: Double(index) * 0.03)
                 }
             }
         }
@@ -443,6 +453,7 @@ private struct SkillChip: View {
     let open: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let scale = 0.85 + Double(skill.version % 4) * 0.12
@@ -462,7 +473,7 @@ private struct SkillChip: View {
                 RoundedRectangle(cornerRadius: skin.size.s9).strokeBorder(blue.opacity(skin.opacity.o20), lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .offset(y: hovering ? -skin.size.s2 : 0)
+        .offset(y: hovering && !reduceMotion ? -skin.size.s2 : 0)
         .onHover { hovering = $0 }
         .animation(skin.animation(skin.motion.hover), value: hovering)
     }

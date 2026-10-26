@@ -32,6 +32,7 @@ struct TeamSheet: View {
     @State private var key = ""
     @State private var sprint = false
     @Environment(\.ainkradSkin) private var skin
+    @FocusState private var nameFocus: Bool
 
     private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
 
@@ -42,7 +43,10 @@ struct TeamSheet: View {
             tile: shown.isEmpty ? "NEW" : shown, title: current == nil ? "New team" : "Edit team",
             line: "A team sits in a department, works one project, and has one lead."
         ) {
-            field("Name") { AinkradTextField(text: $name, placeholder: "Payments") }
+            field("Name") {
+                AinkradTextField(text: $name, placeholder: "Payments", focus: $nameFocus)
+                    .task { nameFocus = true }
+            }
             field("Department") {
                 AinkradCardGrid(columns: 2) {
                     ForEach(model.departments) { item in
@@ -79,6 +83,7 @@ struct TeamSheet: View {
             field("Project key") {
                 HStack(spacing: skin.size.s12) {
                     AinkradTextField(text: $key, placeholder: "PAY").monospaced().frame(width: skin.size.s110)
+                        .disabled(true)
                     (Text("Issues read ")
                         + Text("\(shown.isEmpty ? "PAY" : shown)-1").foregroundStyle(
                             skin.color(skin.palette.accentSecondary)) + Text(", ")
@@ -96,6 +101,7 @@ struct TeamSheet: View {
                         sprint = false
                     }
                 }
+                .disabled(true)
             }
             if let current, !current.seats.isEmpty {
                 field("Members") {
@@ -115,7 +121,7 @@ struct TeamSheet: View {
                     }
                 }
             }
-            Text("The project key and cadence belong to the team's project; they are not sent from here.")
+            Text("The project key and cadence belong to the team's project; they are read-only here.")
                 .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
             if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
         } foot: {
@@ -172,6 +178,7 @@ struct DepartmentSheet: View {
     @State private var head: Int64?
     @State private var about = ""
     @Environment(\.ainkradSkin) private var skin
+    @FocusState private var nameFocus: Bool
 
     private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
 
@@ -182,7 +189,10 @@ struct DepartmentSheet: View {
             title: current.map { "Edit \($0.name)" } ?? "New department",
             line: "A department groups teams under one head manager, who reports to the CEO."
         ) {
-            field("Name") { AinkradTextField(text: $name, placeholder: "Sales") }
+            field("Name") {
+                AinkradTextField(text: $name, placeholder: "Sales", focus: $nameFocus)
+                    .task { nameFocus = true }
+            }
             field("Head manager") {
                 AinkradCardGrid(columns: 4) {
                     ForEach(pool(current)) { agent in
@@ -259,6 +269,7 @@ struct RoleSheet: View {
     @State private var budget: Int64 = 5_000_000
     @State private var instructions = ""
     @Environment(\.ainkradSkin) private var skin
+    @FocusState private var nameFocus: Bool
 
     private static let symbols = [
         "chevron.left.forwardslash.chevron.right", "checkmark.shield", "star", "doc.text", "server.rack", "pencil",
@@ -273,7 +284,10 @@ struct RoleSheet: View {
             line: "A role is a template — new agents in it start with these defaults."
         ) {
             HStack(alignment: .top, spacing: skin.size.s8) {
-                field("Name") { AinkradTextField(text: $name, placeholder: "Security") }
+                field("Name") {
+                    AinkradTextField(text: $name, placeholder: "Security", focus: $nameFocus)
+                        .task { nameFocus = true }
+                }
                 field("Purpose") { AinkradTextField(text: $purpose, placeholder: "Audits code and dependencies") }
             }
             field("Icon") {
@@ -308,10 +322,10 @@ struct RoleSheet: View {
             }
         } foot: {
             if let stored {
-                AinkradButton(title: "Delete", style: .ghost) {
+                AinkradButton(title: "Delete", style: .danger) {
                     store.deleteRole(stored) { model.orgPage.close() }
                 }
-                .borderless().fixedSize().disabled(!store.rolesOn)
+                .fixedSize().disabled(!store.rolesOn)
             }
             Spacer()
             AinkradButton(title: "Cancel", style: .ghost) { model.orgPage.close() }.borderless().fixedSize()

@@ -13,6 +13,7 @@ struct HireStepPane: View {
     var roles = HireCatalog.roles
     /// The server stores chain presets (API minor 18): the fallback chain picker lists them.
     var presetsOn = false
+    @FocusState private var nameFocus: Bool
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -109,7 +110,9 @@ struct HireStepPane: View {
         head("Details", "Who it is, who it answers to, and how much it may touch.")
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                AinkradTextField(text: $draft.name, placeholder: "Name").citadelFont("t20", weight: "semibold")
+                AinkradTextField(text: $draft.name, placeholder: "Name", focus: $nameFocus)
+                    .citadelFont("t20", weight: "semibold")
+                    .task { nameFocus = true }
                 Dice(roll: rollName)
             }
             .padding(.horizontal, skin.size.s8).padding(.top, skin.size.s6)

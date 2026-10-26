@@ -22,9 +22,6 @@ struct DrawerSettings: View {
     @Environment(\.ainkradSkin) private var skin
 
     private var supported: Bool { store.serverSupports(minor: CitadelStore.structureMinor) }
-    private var modelChanged: Bool {
-        harness != agent.harness || wire != agent.model || effort != (agent.effort ?? "medium")
-    }
     private var accessChanged: Bool {
         sandbox != (agent.sandbox ?? "workspace-write") || tags != Set(agent.runnerTags) || boss != agent.reportsTo
     }
@@ -39,14 +36,21 @@ struct DrawerSettings: View {
         return model.agents.values.filter { !below.contains($0.id) && $0.status == "active" }.sorted { $0.id < $1.id }
     }
 
-    private func saveRow(_ title: String, changed: Bool, save: @escaping () -> Void) -> some View {
-        HStack {
-            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
-            Spacer()
-            AinkradButton(title: title, action: save).compact().fixedSize()
-                .disabled(!supported || !changed)
-                .help(store.help(ready: "Saves with PATCH /agents/{id}"))
-        }
+    /// The model edit a pick makes, or `nil` when nothing changed or the harness and model do not belong together
+    /// yet (a new harness keeps the old model until one of its own is picked).
+    static func modelPatch(harness: String, wire: String, effort: String, agent: AgentInfo) -> AgentPatch? {
+        let pairChanged = harness != agent.harness || wire != agent.model
+        guard pairChanged || effort != (agent.effort ?? "medium") else { return nil }
+        if pairChanged, HireCatalog.models[harness]?.contains(where: { $0.wire == wire }) != true { return nil }
+        return AgentPatch(harness: harness, model: wire, effort: effort)
+    }
+
+    private func applyAccess() {
+        guard supported, accessChanged else { return }
+        store.edit(
+            agent,
+            AgentPatch(sandbox: sandbox, runnerTags: tags.sorted(), reportsTo: boss != agent.reportsTo ? boss : nil),
+            title: "Access updated", body: "Applies from the next run.")
     }
 
     var body: some View {
@@ -55,11 +59,13 @@ struct DrawerSettings: View {
             HarnessCards(model: model, selection: $harness)
             ModelCards(harness: harness, selection: $wire)
             EffortCards(selection: $effort)
-            saveRow("Save model", changed: modelChanged) {
-                store.edit(
-                    agent, AgentPatch(harness: harness, model: wire, effort: effort), title: "Model updated",
-                    body: "Applies from the next run.")
-            }
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
+        }
+        .onChange(of: [harness, wire, effort]) { _, _ in
+            guard supported,
+                let patch = Self.modelPatch(harness: harness, wire: wire, effort: effort, agent: agent)
+            else { return }
+            store.edit(agent, patch, title: "Model updated", body: "Applies from the next run.")
         }
         .id("model")
         DrawerTile(
@@ -114,7 +120,7 @@ struct DrawerSettings: View {
                     AinkradTextField(text: $budget, placeholder: "$120").monospaced()
                 }
             } else {
-                BudgetFields(budget: $budget, warn: $warn, cap: $cap)
+                BudgetFields(budget: $budget, warn: $warn, cap: $cap, capEnabled: false)
             }
             HStack {
                 NeedsServer(text: "The per-run cap is set per company or project; an agent scope needs the server.")
@@ -146,20 +152,20 @@ struct DrawerSettings: View {
                     }
                 }
             }
-            saveRow("Save access", changed: accessChanged) {
-                store.edit(
-                    agent,
-                    AgentPatch(
-                        sandbox: sandbox, runnerTags: tags.sorted(),
-                        reportsTo: boss != agent.reportsTo ? boss : nil), title: "Access updated",
-                    body: "Applies from the next run.")
-            }
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
         }
+        .onChange(of: sandbox) { _, _ in applyAccess() }
+        .onChange(of: tags) { _, _ in applyAccess() }
+        .onChange(of: boss) { _, _ in applyAccess() }
         .id("access")
         DrawerTile(title: "About") {
             AinkradTextArea(
                 text: $about, placeholder: "What this agent is for — shown on its profile", minHeight: skin.size.s60)
-            saveRow("Save description", changed: about != (agent.about ?? "")) {
+            if !supported { NeedsServer(text: CitadelStore.needsServerUpdate) }
+        }
+        // The text area has no blur callback; leaving the drawer or its tab is the blur.
+        .onDisappear {
+            if supported, about != (agent.about ?? "") {
                 store.edit(agent, AgentPatch(about: about), title: "Description saved")
             }
         }

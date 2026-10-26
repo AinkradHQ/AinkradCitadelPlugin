@@ -60,7 +60,9 @@ struct OrgNode<Content: View>: View {
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
 
-    var body: some View {
+    var body: some View { AinkradTapArea(action: tap) { card } }
+
+    @ViewBuilder private var card: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s16, style: .continuous)
         let violet = skin.color(skin.palette.accentViolet)
         HStack(spacing: skin.size.s12) { content }
@@ -94,7 +96,6 @@ struct OrgNode<Content: View>: View {
             .opacity(isDimmed ? skin.opacity.o20 : 1)
             .saturation(isDimmed ? 0.2 : 1)
             .onHover { hovering = $0 }
-            .onTapGesture(perform: tap)
             .animation(skin.animation(skin.motion.hover), value: hovering)
     }
 }
@@ -144,10 +145,10 @@ private struct DepartmentNode: View {
                             width: skin.size.s7, height: skin.size.s7
                         )
                         .shadow(color: skin.color(skin.palette.accentSecondary), radius: skin.size.s4)
-                        Text("\(busy)")
+                        Text(verbatim: "\(busy)")
                     }
                 }
-                Text("\(department.agentIDs.count)")
+                Text(verbatim: "\(department.agentIDs.count)")
                     .frame(minWidth: skin.size.s24, minHeight: skin.size.s22)
                     .padding(.horizontal, skin.size.s2)
                     .background(
@@ -200,6 +201,7 @@ private struct TeamCluster: View {
     let model: CompanyModel
     let team: TeamInfo
     let cols: Int
+    @State private var assignHover = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -223,12 +225,18 @@ private struct TeamCluster: View {
                     } label: {
                         Text("★ assign lead").citadelFont("t11").foregroundStyle(status.warning)
                             .padding(.horizontal, skin.size.s8).frame(height: skin.size.s22)
+                            .background(
+                                status.warning.opacity(assignHover ? skin.opacity.o12 : 0),
+                                in: RoundedRectangle(cornerRadius: skin.size.s6)
+                            )
                             .overlay(
                                 RoundedRectangle(cornerRadius: skin.size.s6).strokeBorder(
                                     status.warning.opacity(skin.opacity.o45),
                                     style: StrokeStyle(lineWidth: 1, dash: [skin.size.s3, skin.size.s2])))
                     }
                     .buttonStyle(.plain)
+                    .citadelHover($assignHover)
+                    .animation(skin.animation(skin.motion.hover), value: assignHover)
                 }
                 if let cadence = model.cadence(of: team) {
                     AinkradStatePill(
@@ -268,8 +276,17 @@ struct AgentBubble: View {
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
+        AinkradTapArea(
+            help: "\(agent.name) · \(agent.role)\(isLead ? " · team lead" : "") · \(bucket.label)",
+            action: { model.orgPage.picked = agent.id }
+        ) { card }
+    }
+
+    private var bucket: OrgBucket { OrgBucket(agent) }
+
+    @ViewBuilder private var card: some View {
         let page = model.orgPage
-        let bucket = OrgBucket(agent)
+        let bucket = bucket
         let selected = page.picked == agent.id
         let dimmed = !page.filter.matches(agent)
         VStack(spacing: skin.size.s2) {
@@ -309,12 +326,9 @@ struct AgentBubble: View {
         .saturation(dimmed ? 0.2 : 1)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { page.picked = agent.id }
         .ainkradContextMenu(AgentMenu.items(store: store, model: model, agent: agent))
-        .help("\(agent.name) · \(agent.role)\(isLead ? " · team lead" : "") · \(bucket.label)")
         .animation(skin.animation(skin.motion.hover), value: hovering)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder private func ring(_ bucket: OrgBucket) -> some View {
@@ -336,7 +350,9 @@ private struct AddBubble: View {
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
 
-    var body: some View {
+    var body: some View { AinkradTapArea(help: "Add an agent to \(team)", action: add) { card } }
+
+    @ViewBuilder private var card: some View {
         VStack(spacing: skin.size.s2) {
             Text("＋").citadelFont("t13")
                 .foregroundStyle(hovering ? skin.color(skin.palette.accentPrimary) : skin.color(skin.text.muted))
@@ -355,8 +371,6 @@ private struct AddBubble: View {
         .frame(width: OrgLayout.cell, alignment: .top)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture(perform: add)
-        .help("Add an agent to \(team)")
         .animation(skin.animation(skin.motion.hover), value: hovering)
     }
 }

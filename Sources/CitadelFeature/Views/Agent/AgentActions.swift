@@ -171,6 +171,7 @@ struct AppearanceSheet: View {
     let model: CompanyModel
     let agent: AgentInfo
     @State private var picked = ""
+    @State private var hoverPalette: String?
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -180,22 +181,42 @@ struct AppearanceSheet: View {
                 .foregroundStyle(skin.color(skin.text.muted))
             AinkradCardGrid(columns: 6) {
                 ForEach(AinkradFigurePalette.all) { palette in
-                    VStack(spacing: skin.size.s4) {
-                        AinkradAgentFigure(
-                            name: agent.name, state: .idle, palette: palette, harness: agent.figureHarness,
-                            size: skin.size.s48)
-                        Text(palette.name).citadelFont("t10_5").lineLimit(1)
+                    AinkradTapArea {
+                        picked = palette.id
+                    } label: {
+                        VStack(spacing: skin.size.s4) {
+                            AinkradAgentFigure(
+                                name: agent.name, state: .idle, palette: palette, harness: agent.figureHarness,
+                                size: skin.size.s48)
+                            Text(palette.name).citadelFont("t10_5").lineLimit(1)
+                        }
+                        .foregroundStyle(
+                            picked == palette.id ? skin.color(skin.text.primary) : skin.color(skin.text.muted)
+                        )
+                        .padding(.vertical, skin.size.s8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: skin.size.s10).fill(
+                                picked == palette.id
+                                    ? skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o30)
+                                    : skin.color(
+                                        .palette("foreground", hoverPalette == palette.id ? skin.opacity.o06 : 0)))
+                        )
+                        .contentShape(Rectangle())
                     }
-                    .foregroundStyle(picked == palette.id ? skin.color(skin.text.primary) : skin.color(skin.text.muted))
-                    .padding(.vertical, skin.size.s8)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: skin.size.s10).fill(
-                            picked == palette.id
-                                ? skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o30) : .clear)
+                    .buttonStyle(.plain)
+                    .citadelHover(
+                        Binding(
+                            get: { hoverPalette == palette.id },
+                            set: {
+                                if $0 {
+                                    hoverPalette = palette.id
+                                } else if hoverPalette == palette.id {
+                                    hoverPalette = nil
+                                }
+                            })
                     )
-                    .contentShape(Rectangle())
-                    .onTapGesture { picked = palette.id }
+                    .animation(skin.animation(skin.motion.hover), value: hoverPalette)
                 }
             }
             SheetButtons(confirm: "Use palette") {
@@ -232,7 +253,8 @@ struct ReassignSheet: View {
                         Text(issue.title).citadelFont("t12").lineLimit(1)
                         Spacer()
                         if let points = issue.points {
-                            Text("\(points) pts").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                            Text(verbatim: "\(points) pts").citadelFont("t11").foregroundStyle(
+                                skin.color(skin.text.faint))
                         }
                     }
                     .padding(.horizontal, skin.size.s10).frame(height: skin.size.s34)

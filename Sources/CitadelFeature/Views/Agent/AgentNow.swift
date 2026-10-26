@@ -43,11 +43,11 @@ struct LiveNow: View {
                 HStack {
                     Text("\(AgentLook.harnessName(run.harness)) · \(run.model ?? agent.model)")
                     Spacer()
-                    Text("run #\(run.id)")
+                    Text(verbatim: "run #\(run.id)")
                 }
                 .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
                 Spacer(minLength: skin.size.s8)
-                ForEach(Array(done.enumerated()), id: \.element.id) { _, call in
+                ForEach(Array(done.enumerated()), id: \.element.id) { index, call in
                     HStack(spacing: skin.size.s8) {
                         Text(call.status == .failed ? "✕" : "✓")
                             .foregroundStyle(
@@ -58,6 +58,7 @@ struct LiveNow: View {
                         Text("\(call.name) \(call.argument)").lineLimit(1).truncationMode(.middle)
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .ainkradRiseIn(delay: Double(index) * 0.05)
                 }
                 HStack(spacing: skin.size.s2) {
                     Text("▸ \(now)").foregroundStyle(cyan).lineLimit(1).truncationMode(.middle)
@@ -71,9 +72,10 @@ struct LiveNow: View {
             .background(
                 skin.color(.palette("black", skin.opacity.o28)), in: RoundedRectangle(cornerRadius: skin.size.s12))
             HStack(spacing: skin.size.s10) {
-                MiniBar(fraction: Double(run.tokens) / Double(max(model.runCap ?? run.tokens, 1)))
+                MiniBar(fraction: Double(run.tokens) / Double(max(model.cap(of: run) ?? run.tokens, 1)))
                 Text(
-                    "\(Fmt.tokens(run.tokens)) tok · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")"
+                    verbatim:
+                        "\(Fmt.tokens(run.tokens)) tok · \(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")"
                 )
                 .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
             }
@@ -150,7 +152,8 @@ struct IdleNow: View {
                             Text("Approve the hire to seat it in its team.")
                         } else if let last {
                             Text(
-                                "Last run #\(last.id) on \(model.issue(last.issueID)?.key ?? "—") · \(Fmt.age(Date().timeIntervalSince(last.endedAt ?? last.queuedAt))) ago"
+                                verbatim:
+                                    "Last run #\(last.id) on \(model.issue(last.issueID)?.key ?? "—") · \(Fmt.age(Date().timeIntervalSince(last.endedAt ?? last.queuedAt))) ago"
                             )
                         } else {
                             Text("It wakes when an issue is assigned.")
@@ -172,7 +175,7 @@ struct IdleNow: View {
                         Text(issue.title).citadelFont("t12").lineLimit(1)
                         Spacer()
                         if let points = issue.points {
-                            Text("\(points) pts").citadelFont("t11", mono: true).foregroundStyle(
+                            Text(verbatim: "\(points) pts").citadelFont("t11", mono: true).foregroundStyle(
                                 skin.color(skin.text.faint))
                         }
                     }
@@ -238,6 +241,7 @@ private struct RunCard: View {
     let run: RunInfo
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s14, style: .continuous)
@@ -258,7 +262,7 @@ private struct RunCard: View {
                 HStack {
                     Text(Fmt.age(run.duration))
                     Spacer()
-                    Text("\(Fmt.tokens(run.tokens)) tok")
+                    Text(verbatim: "\(Fmt.tokens(run.tokens)) tok")
                     Spacer()
                     Text(run.costMicros.map { Fmt.dollars(micros: $0) } ?? "unpriced")
                 }
@@ -270,7 +274,8 @@ private struct RunCard: View {
                             flagged ? tint : skin.color(skin.palette.accentSecondary).opacity(skin.opacity.o70)
                         )
                         .frame(
-                            width: geo.size.width * min(1, Double(run.tokens) / Double(max(model.runCap ?? 200_000, 1)))
+                            width: geo.size.width
+                                * (model.cap(of: run).map { min(1, Double(run.tokens) / Double(max($0, 1))) } ?? 0)
                         )
                     }
                 }
@@ -289,7 +294,7 @@ private struct RunCard: View {
             .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .offset(y: hovering ? -skin.size.s3 : 0)
+        .offset(y: hovering && !reduceMotion ? -skin.size.s3 : 0)
         .onHover { hovering = $0 }
         .animation(skin.animation(skin.motion.hover), value: hovering)
     }
