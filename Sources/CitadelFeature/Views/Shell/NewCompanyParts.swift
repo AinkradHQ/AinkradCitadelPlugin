@@ -23,6 +23,7 @@ struct NewCompanyChip: View {
     let action: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let blue = skin.color(skin.palette.accentPrimary)
@@ -50,7 +51,7 @@ struct NewCompanyChip: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: isOn)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: isOn)
     }
 }
 
@@ -60,6 +61,7 @@ struct NewCompanyLogoTile: View {
     let pick: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s18, style: .continuous)
@@ -85,7 +87,7 @@ struct NewCompanyLogoTile: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 
@@ -96,6 +98,7 @@ struct NewCompanySwatch: View {
     let pick: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
@@ -110,7 +113,7 @@ struct NewCompanySwatch: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 
@@ -119,6 +122,7 @@ struct NewCompanyDice: View {
     let roll: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         AinkradTapArea(help: "Suggest another name", action: roll) {
@@ -134,7 +138,7 @@ struct NewCompanyDice: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 
@@ -201,10 +205,7 @@ struct NewCompanyTagCards: View {
     }
 
     private func runnerChip(_ runner: RunnerInfo) -> some View {
-        let tint =
-            runner.status == "online"
-            ? skin.color(skin.palette.success)
-            : runner.status == "unhealthy" ? skin.color(skin.palette.warning) : skin.color(skin.text.faint)
+        let tint = RunnerLook(runner: runner).tint(skin)
         return HStack(spacing: skin.size.s5) {
             Circle().fill(tint).frame(width: skin.size.s6, height: skin.size.s6)
             Text(runner.name).citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.muted))
