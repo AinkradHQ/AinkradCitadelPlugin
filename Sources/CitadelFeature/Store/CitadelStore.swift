@@ -108,6 +108,7 @@ final class CitadelStore {
     @ObservationIgnored var server: CitadelServer?
     @ObservationIgnored var pendingReloads: Set<Reload> = []
     @ObservationIgnored var reloadTask: Task<Void, Never>?
+    @ObservationIgnored var requirementsTask: Task<Void, Never>?
     @ObservationIgnored private var stream: EventStream?
     @ObservationIgnored private var work: Task<Void, Never>?
     @ObservationIgnored private var connectAttempt = 0

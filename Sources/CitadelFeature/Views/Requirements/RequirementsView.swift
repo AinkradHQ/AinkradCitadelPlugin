@@ -69,6 +69,32 @@ struct RequirementsView: View {
         .onChange(of: model.requirements.map(\.id), initial: true) { _, ids in page.noteArrivals(ids) }
     }
 
+    @State private var refreshHover = false
+
+    /// "Updated 4s ago", ticking; nothing until the tree was read once.
+    @ViewBuilder private var updatedCaption: some View {
+        if let at = model.requirementsAt {
+            TimelineView(.periodic(from: .now, by: 5)) { context in
+                Text(verbatim: "Updated \(Fmt.age(context.date.timeIntervalSince(at))) ago").citadelFont("t11")
+                    .foregroundStyle(skin.color(skin.text.faint))
+            }
+        }
+    }
+
+    private var refreshButton: some View {
+        Image(systemName: "arrow.clockwise").citadelFont("t13")
+            .foregroundStyle(skin.color(refreshHover ? skin.text.primary : skin.text.faint))
+            .frame(width: skin.size.s30, height: skin.size.s30)
+            .background(Circle().fill(skin.color(.palette("foreground", refreshHover ? skin.opacity.o05 : 0))))
+            .contentShape(Circle())
+            .citadelHover($refreshHover)
+            .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: refreshHover)
+            .onTapGesture { store.refreshRequirements() }
+            .accessibilityLabel("Refresh requirements")
+            .accessibilityAddTraits(.isButton)
+            .help("Refresh now")
+    }
+
     private var openCount: Int { model.requirementList(.open).count }
     private var asksCount: Int { model.requirementList(.open).reduce(0) { $0 + model.waitingCount($1) } }
 
@@ -80,8 +106,10 @@ struct RequirementsView: View {
                         .foregroundStyle(skin.color(skin.text.primary))
                     Text(verbatim: "\(openCount) open · \(asksCount) ask you").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
+                    updatedCaption
                 }
                 Spacer(minLength: skin.size.s8)
+                refreshButton
                 AinkradDockButton("New", systemImage: "plus", tone: .primary, height: skin.size.s30) {
                     store.isComposingRequirement = true
                 }

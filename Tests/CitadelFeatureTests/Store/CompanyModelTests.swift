@@ -145,8 +145,8 @@ final class CompanyModelTests: XCTestCase {
                 ))
         }
         XCTAssertEqual(try audit("approval.approved"), [.approvals])
-        XCTAssertEqual(try audit("run.succeeded", run: 418), [.run(418), .costs])
-        XCTAssertEqual(try audit("issue.blocked", entity: 77), [.stuck, .issue(77)])
+        XCTAssertEqual(try audit("run.succeeded", run: 418), [.run(418), .costs, .requirements])
+        XCTAssertEqual(try audit("issue.blocked", entity: 77), [.stuck, .requirements, .issue(77)])
         XCTAssertEqual(try audit("budget.warning"), [.costs])
         XCTAssertEqual(try audit("requirement.plan_submitted"), [.requirements, .questions])
         XCTAssertEqual(try audit("weather.sunny"), [])

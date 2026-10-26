@@ -121,10 +121,10 @@ final class InboxTests: XCTestCase {
         let at = Date()
         XCTAssertEqual(
             model.audited(action: "issue.commented", entity: 8, kind: "issue", run: nil, details: [:], at: at),
-            [.stuck, .issueFresh(8), .comments(8)])
+            [.stuck, .requirements, .issueFresh(8), .comments(8)])
         XCTAssertEqual(
             model.audited(action: "issue.commented", entity: 77, kind: "issue", run: nil, details: [:], at: at),
-            [.stuck, .issue(77)], "an unloaded thread is not read")
+            [.stuck, .requirements, .issue(77)], "an unloaded thread is not read")
         XCTAssertEqual(
             model.audited(action: "question.asked", entity: 3, kind: nil, run: nil, details: [:], at: at),
             [.questions])
