@@ -57,6 +57,7 @@ struct LiveRunCard: View {
     var onOpen: (() -> Void)?
     @State private var hovering = false
     @State private var nudging = false
+    @State private var confirmsStop = false
     @State private var nudge = ""
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
@@ -120,6 +121,13 @@ struct LiveRunCard: View {
             skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.75)), value: hovering
         )
         .onTapGesture { if let onOpen { onOpen() } else { store.open(.run(run.id)) } }
+        .accessibilityAddTraits(.isButton)
+        .ainkradConfirmDialog(
+            isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
+            message:
+                "\(agent?.name ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
+            confirmTitle: "Stop run", isDestructive: true
+        ) { store.stopWithToast(run) }
         .ainkradPanelModal(isPresented: $nudging, contentWidth: skin.size.s420) { nudgeSheet }
     }
 
@@ -138,7 +146,10 @@ struct LiveRunCard: View {
             switch state.tone {
             case .warning?: AinkradStatePill(text: "waiting on you", tint: status.warning)
             case .danger?: AinkradStatePill(text: "stalling", tint: status.danger)
-            default: AinkradStatePill(text: "running", tint: skin.color(skin.palette.accentSecondary), dot: true)
+            default:
+                AinkradStatePill(
+                    text: model.look(run).word, tint: skin.color(skin.palette.accentSecondary),
+                    dot: run.state == "running")
             }
         }
     }
@@ -216,13 +227,13 @@ struct LiveRunCard: View {
                             body: agent.map { "\($0.name) continues" }, status: .success))
                 }
             } else if state.tone == .danger {
-                AinkradDockButton("Stop", tone: .danger, height: height, fillsWidth: true) { store.stop(run: run.id) }
+                AinkradDockButton("Stop", tone: .danger, height: height, fillsWidth: true) { confirmsStop = true }
                 AinkradDockButton("Nudge \(agent?.name ?? "")", tone: .primary, height: height, fillsWidth: true) {
                     nudge = "You've been quiet for a while — post where you are and what's blocking you."
                     nudging = true
                 }
             } else {
-                AinkradDockButton("Stop", height: height, fillsWidth: true) { store.stop(run: run.id) }
+                AinkradDockButton("Stop", height: height, fillsWidth: true) { confirmsStop = true }
                 AinkradDockButton("Transcript", height: height, fillsWidth: true) { store.open(.run(run.id)) }
             }
         }

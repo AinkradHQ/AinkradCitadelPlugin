@@ -47,7 +47,8 @@ struct PeekSteps: View {
         RunPanel {
             HStack(spacing: skin.size.s8) {
                 Text("Steps").citadelFont("t12_5", weight: "semibold").foregroundStyle(skin.color(skin.text.primary))
-                Text("\(done.count) done").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+                Text(verbatim: "\(done.count) done" + (planned.isEmpty ? "" : " · \(planned.count) planned"))
+                    .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 Spacer(minLength: skin.size.s4)
                 ForEach(mix.prefix(5), id: \.0) { name, count in
                     let tint = Hue(ToolLook.hue(name)).color(skin)

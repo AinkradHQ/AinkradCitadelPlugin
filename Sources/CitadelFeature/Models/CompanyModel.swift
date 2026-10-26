@@ -87,6 +87,8 @@ final class CompanyModel {
     var costByAgent: [ScopeSpend] = []
     var costByDepartment: [ScopeSpend] = []
     var stuck: [StuckInfo] = []
+    /// True once the engine's stuck read has answered, so an empty list means "nothing stuck", not "not loaded".
+    var stuckLoaded = false
     var spend: SpendInfo?
     var budgets: [BudgetInfo] = []
     var requirements: [RequirementInfo] = []

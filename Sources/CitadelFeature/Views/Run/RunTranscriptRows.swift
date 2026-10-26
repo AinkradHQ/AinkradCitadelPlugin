@@ -176,7 +176,7 @@ struct RunToolCard: View {
                     .padding(.leading, skin.size.s44)
                     .padding(.trailing, skin.size.s12)
                     .padding(.bottom, skin.size.s10)
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .background(
@@ -216,9 +216,7 @@ struct RunToolCard: View {
                     if running { ToolLiveDot() }
                     status
                 }
-                Text("Copy").citadelFont("t10_5").foregroundStyle(skin.color(skin.palette.accentSecondary))
-                    .opacity(hovering ? 1 : 0)
-                    .onTapGesture { copy(call.argument) }
+                Text("Copy").citadelFont("t10_5").hidden()
                 Text(hasBody ? "›" : "").citadelFont("t14").foregroundStyle(skin.color(skin.text.faint))
                     .frame(width: skin.size.s12)
                     .rotationEffect(.degrees(open || waiting ? 90 : 0))
@@ -227,6 +225,15 @@ struct RunToolCard: View {
             .padding(.trailing, skin.size.s10)
             .padding(.vertical, skin.size.s7)
             .contentShape(Rectangle())
+        }
+        .overlay(alignment: .trailing) {
+            AinkradTapArea(help: "Copy the call") {
+                copy(call.argument)
+            } label: {
+                Text("Copy").citadelFont("t10_5").foregroundStyle(skin.color(skin.palette.accentSecondary))
+            }
+            .opacity(hovering ? 1 : 0)
+            .padding(.trailing, skin.size.s32)
         }
     }
 

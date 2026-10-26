@@ -22,7 +22,9 @@ struct StuckView: View {
             bar.padding(.horizontal, skin.size.s20).padding(.bottom, skin.size.s12)
             ScrollView {
                 VStack(alignment: .leading, spacing: skin.size.s20) {
-                    if lists.stuck.isEmpty && lists.slowing.isEmpty {
+                    if !model.stuckLoaded {
+                        FirstLoadView().frame(maxWidth: .infinity).padding(.top, skin.size.s80)
+                    } else if lists.stuck.isEmpty && lists.slowing.isEmpty {
                         zero.frame(maxWidth: .infinity).padding(.top, skin.size.s80)
                     } else if lists.stuck.isEmpty {
                         clear

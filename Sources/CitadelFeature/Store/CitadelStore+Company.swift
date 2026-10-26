@@ -81,7 +81,9 @@ extension CitadelStore {
         model.approvals = await approvals ?? []
         await loadAnswered(model, server: server)
         await loadQuestions(model, server: server)
-        model.stuck = await stuck ?? []
+        let stuckRead = await stuck
+        model.stuck = stuckRead ?? []
+        if stuckRead != nil { model.stuckLoaded = true }
         model.requirements = await requirements ?? []
         model.sprint = await sprint
         model.accounts = Dictionary(uniqueKeysWithValues: (await accounts ?? []).map { ($0.id, $0) })
@@ -190,7 +192,9 @@ extension CitadelStore {
                 await reloadKnowledge(project, model: model, server: server)
             }
         case .stuck:
-            model.stuck = await server.stuck() ?? model.stuck
+            let read = await server.stuck()
+            model.stuck = read ?? model.stuck
+            if read != nil { model.stuckLoaded = true }
             for issue in model.stuck.compactMap(\.issueID) where model.issues[issue] == nil {
                 model.issues[issue] = await server.issue(issue)
             }

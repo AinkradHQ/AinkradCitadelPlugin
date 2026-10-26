@@ -23,17 +23,18 @@ struct RunsPeek: View {
             header: { AinkradDrawerCrumb(["Runs", "#\(run.id)"]) }
         ) {
             VStack(alignment: .leading, spacing: skin.size.s12) {
-                hero
-                kpis
-                if let why = look.why(run) { whyBlock(why) }
+                hero.ainkradRiseIn()
+                kpis.ainkradRiseIn(delay: 0.04)
+                if let why = look.why(run) { whyBlock(why).ainkradRiseIn(delay: 0.08) }
                 HStack(alignment: .top, spacing: skin.size.s8) {
                     RunPanel { tokenMix }
                     RunPanel { startup }
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                PeekSteps(model: model, run: run)
-                files
-                context
+                .ainkradRiseIn(delay: 0.12)
+                PeekSteps(model: model, run: run).ainkradRiseIn(delay: 0.16)
+                files.ainkradRiseIn(delay: 0.2)
+                context.ainkradRiseIn(delay: 0.24)
             }
         } footer: {
             foot
@@ -187,7 +188,7 @@ struct RunsPeek: View {
             let parts = raw.split(separator: "/").map(String.init)
             let name = parts.last ?? raw
             let dir = parts.dropLast().joined(separator: "/")
-            var added: Int64 = 6
+            var added: Int64 = 0
             var removed: Int64 = 0
             if case .counts(let a, let r) = call.result {
                 added = Int64(a)
@@ -255,28 +256,14 @@ struct RunsPeek: View {
             if look.isLive {
                 AinkradDockButton("Stop run", systemImage: "stop", tone: .danger) { confirmsStop = true }
             } else if look.key == "cap_hit" {
-                AinkradDockButton("Raise the cap", systemImage: "arrow.up.circle") { store.goLimits() }
+                AinkradDockButton("Open limits", systemImage: "arrow.up.circle") { store.goLimits() }
             } else if look.key != "succeeded", run.runnerID != nil {
                 AinkradDockButton("Retry run", systemImage: "arrow.clockwise") { store.retry(run: run) }
             }
             Spacer(minLength: skin.size.s8)
             if let agent {
-                AinkradTapArea(action: { store.open(.agent(agent.id)) }) {
-                    HStack(spacing: skin.size.s6) {
-                        AgentFigure(agent: agent, model: model, size: skin.size.s16)
-                        Text(agent.name).citadelFont("t12", weight: "medium")
-                    }
-                    .foregroundStyle(skin.color(skin.text.primary))
-                    .padding(.horizontal, skin.size.s12)
-                    .frame(height: skin.size.s34)
-                    .background(
-                        skin.color(.palette("foreground", skin.opacity.o07)),
-                        in: RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous)
-                            .strokeBorder(skin.color(.palette("foreground", skin.opacity.o09)), lineWidth: 1))
-                }
+                AinkradDockButton(agent.name) { store.open(.agent(agent.id)) }
+                    .icon { AgentFigure(agent: agent, model: model, size: skin.size.s16) }
             }
             AinkradDockButton("Open transcript", systemImage: "text.alignleft", tone: .primary) {
                 store.peek(run: nil)

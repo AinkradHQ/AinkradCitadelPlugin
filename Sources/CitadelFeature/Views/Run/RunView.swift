@@ -60,10 +60,18 @@ struct RunView: View {
                     "\(model.agent(run.agentID)?.name ?? "The agent") is killed mid-step. The worktree and branch are kept; nothing is merged.",
                 confirmTitle: "Stop run", isDestructive: true
             ) { store.stopWithToast(run) }
-        } else {
+        } else if model.companyRuns == nil {
             AinkradEmptyState(
                 icon: "play", title: "Loading the run", message: "Its transcript replays from the first event."
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack(spacing: skin.size.s10) {
+                AinkradEmptyState(
+                    icon: "play", title: "This run's transcript was pruned",
+                    message: "Transcripts are kept for a limited time; this one is gone.")
+                AinkradDockButton("All runs", height: skin.size.s26) { store.screen = .runs }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -132,7 +140,7 @@ struct RunView: View {
                 .onPreferenceChange(TranscriptEndKey.self) { endY = $0 }
                 .onChange(of: items.count) { old, new in
                     guard new > old else { return }
-                    if followsLive, !reduceMotion, motionBudget != .frozen {
+                    if followsLive, motionBudget != .frozen {
                         scrollToEnd(proxy)
                     } else if !followsLive {
                         fresh += new - old
@@ -140,7 +148,7 @@ struct RunView: View {
                 }
                 .onChange(of: jumpRequest) { _, _ in scrollToEnd(proxy) }
                 .onAppear {
-                    guard !reduceMotion, motionBudget != .frozen else { return }
+                    guard motionBudget != .frozen else { return }
                     autoScrollUntil = Date().addingTimeInterval(0.6)
                     proxy.scrollTo("end", anchor: .bottom)
                     DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
@@ -182,12 +190,10 @@ struct RunView: View {
     private func statusLine(_ run: RunInfo) -> String {
         var parts = ["Run started"]
         if let context = run.contextTokens {
-            parts.append("context: 3 skills, 2 landmines, issue + 4 comments")
             parts.append("\(Fmt.tokens(context)) tokens")
             let worktrees = run.issueID.flatMap { model.issueRepos[$0] }?.count ?? 0
             if worktrees > 1 { parts.append("\(worktrees) worktrees") }
         } else {
-            parts.append("context: 2 skills, issue + comments")
             if let runner = run.runnerID.flatMap({ model.runners[$0] }) { parts.append(runner) }
         }
         return parts.joined(separator: " · ")
