@@ -68,8 +68,7 @@ struct RequirementsTile: View {
             }
         }
         .padding(skin.size.s8)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .homeHoverRow {
             model.requirementsPage.selectedID = requirement.id
             store.screen = .requirements
         }
@@ -227,8 +226,7 @@ struct ActivityTile: View {
                             Text(event.at.formatted(date: .omitted, time: .shortened)).citadelFont("t10", mono: true)
                                 .foregroundStyle(skin.color(skin.text.faint))
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture(perform: event.open)
+                        .homeHoverRow(event.open)
                     }
                 }
                 .background(alignment: .leading) {
@@ -284,8 +282,7 @@ struct SpendTile: View {
                         )
                         .frame(width: skin.size.s120)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { store.screen = .cost }
+                    .homeHoverRow { store.screen = .cost }
                 }
                 if model.budgets.isEmpty {
                     Text("No budgets set").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))

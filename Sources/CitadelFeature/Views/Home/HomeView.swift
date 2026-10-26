@@ -294,8 +294,7 @@ private struct HomeAccountsTile: View {
         }
         .padding(.vertical, skin.size.s6)
         .padding(.horizontal, skin.size.s4)
-        .contentShape(Rectangle())
-        .onTapGesture { store.screen = .accounts }
+        .homeHoverRow { store.screen = .accounts }
     }
 
     private func health(_ account: AccountInfo) -> Text {
