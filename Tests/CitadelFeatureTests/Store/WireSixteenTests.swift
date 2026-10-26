@@ -14,7 +14,7 @@ final class WireSixteenTests: XCTestCase {
             settings: settings, secrets: MemorySecrets(), session: FakeServer.session(),
             connector: FakeSockets().connector)
         store.server = CitadelServer(
-            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_k", company: 1,
+            address: try ServerAddress("https://citadel.example.com"), deviceKey: "ck_dev_FAKE_fixture", company: 1,
             session: FakeServer.session())
         store.model = CompanyFixture.model()
         return store

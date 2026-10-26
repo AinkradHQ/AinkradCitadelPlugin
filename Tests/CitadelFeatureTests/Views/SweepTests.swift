@@ -14,7 +14,7 @@ import XCTest
 @MainActor
 final class SweepTests: XCTestCase {
     private let server = "https://citadel.ainkrad.io"
-    private let key = "ck_dev_4d9f0a7c1b2e8f3a6c5d7Q2m"
+    private let key = "ck_dev_FAKE_fixture_0000007Q2m"
 
     func testShootConnectAndSharedStates() throws {
         let env = ProcessInfo.processInfo.environment
