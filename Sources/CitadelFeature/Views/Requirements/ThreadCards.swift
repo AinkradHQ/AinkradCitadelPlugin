@@ -75,7 +75,7 @@ struct ThreadApprovalCard: View {
                 .foregroundStyle(skin.color(skin.text.primary))
                 .frame(width: skin.size.s160, alignment: .leading)
             ProgressLine(value: epic.tasks.isEmpty ? 0 : Double(done) / Double(epic.tasks.count), tint: tone)
-            Text("\(done)/\(epic.tasks.count)").citadelFont("t11", mono: true)
+            Text(verbatim: "\(done)/\(epic.tasks.count)").citadelFont("t11", mono: true)
                 .foregroundStyle(skin.color(skin.text.faint)).frame(width: skin.size.s34, alignment: .trailing)
         }
     }
@@ -127,8 +127,8 @@ struct ThreadApprovalCard: View {
             }
             Spacer(minLength: skin.size.s8)
             if let diff {
-                (Text("+\(diff.insertions)").foregroundStyle(status.success) + Text(" ")
-                    + Text("−\(diff.deletions)").foregroundStyle(status.danger))
+                (Text(verbatim: "+\(diff.insertions)").foregroundStyle(status.success) + Text(" ")
+                    + Text(verbatim: "−\(diff.deletions)").foregroundStyle(status.danger))
                     .citadelFont("t11", mono: true)
                 DiffBar(insertions: diff.insertions, deletions: diff.deletions)
             }

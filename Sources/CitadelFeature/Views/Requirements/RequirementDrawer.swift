@@ -6,6 +6,7 @@ import SwiftUI
 struct RequirementDrawerHeader: View {
     let model: CompanyModel
     let requirement: RequirementInfo
+    @State private var backHover = false
     @Environment(\.ainkradSkin) private var skin
 
     private var page: RequirementsPage { model.requirementsPage }
@@ -20,9 +21,12 @@ struct RequirementDrawerHeader: View {
                         .padding(.horizontal, skin.size.s12)
                         .frame(height: skin.size.s30)
                         .background(
-                            skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o14),
+                            skin.color(skin.palette.accentPrimary).opacity(
+                                backHover ? skin.opacity.o25 : skin.opacity.o14),
                             in: RoundedRectangle(cornerRadius: skin.size.s9, style: .continuous))
                 }
+                .citadelHover($backHover)  // TODO(appkit-A3)
+                .animation(skin.animation(skin.motion.hover), value: backHover)
             }
             HStack(spacing: skin.size.s6) {
                 ForEach(Array(stack.enumerated()), id: \.offset) { index, view in
@@ -47,6 +51,7 @@ struct RequirementDrawerHeader: View {
         case .plan: "Plan"
         case .artifacts: "Artifacts"
         case .artifact(let id): model.requirementArtifacts(requirement).first { $0.id == id }?.name ?? "Artifact"
+        case .item(let id): model.issue(id)?.key ?? "Item"
         }
     }
 }
@@ -65,6 +70,7 @@ struct RequirementDrawerBody: View {
             case .plan?: RequirementPlanView(store: store, model: model, requirement: requirement)
             case .artifacts?: artifacts
             case .artifact(let id)?: ArtifactPreview(store: store, model: model, requirement: requirement, id: id)
+            case .item(let id)?: RequirementItemPanel(store: store, model: model, requirement: requirement, issueID: id)
             case nil: EmptyView()
             }
         }
@@ -141,9 +147,7 @@ struct RequirementDrawerFooter: View {
 
     var body: some View {
         if model.requirementsPage.drawer.last == .plan, requirement.state == "plan_review",
-            let approval = model.approvals.first(where: {
-                $0.kind == "plan_approval" && $0.fields["requirement"] == String(requirement.id)
-            })
+            let approval = model.pendingPlan(of: requirement)
         {
             HStack(spacing: skin.size.s8) {
                 Text("Nothing starts until you approve.").citadelFont("t11")
@@ -162,8 +166,18 @@ struct RequirementDrawerFooter: View {
             }
             .padding(.horizontal, skin.size.s16)
             .padding(.vertical, skin.size.s12)
-            .background(skin.color(.palette("foreground", skin.opacity.o03)))
         }
+    }
+}
+
+extension CompanyModel {
+    /// The pending plan approval of a requirement: the inbox's, else the one still waiting in its thread.
+    func pendingPlan(of requirement: RequirementInfo) -> ApprovalInfo? {
+        approvals.first { $0.kind == "plan_approval" && $0.fields["requirement"] == String(requirement.id) }
+            ?? requirementsPage.threads[requirement.id]?.items.lazy.compactMap { item -> ApprovalInfo? in
+                if case .approval(let a, _) = item, a.kind == "plan_approval", a.status == "pending" { return a }
+                return nil
+            }.first
     }
 }
 
@@ -288,6 +302,42 @@ struct ArtifactBody: View {
             Text(artifact.isImage || artifact.isText ? "Loading preview…" : "No preview — download it to open.")
                 .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// A plan task's work item inside the requirement drawer (`reqs-drawer.js` `qItemPanel`): the Projects item panel, with
+/// its project's work read when it is not loaded yet.
+struct RequirementItemPanel: View {
+    let store: CitadelStore
+    let model: CompanyModel
+    let requirement: RequirementInfo
+    let issueID: Int64
+
+    /// The task's project: its plan epic's, else the issue's own.
+    private var project: ProjectInfo? {
+        let planned = model.requirementsPage.plans[requirement.id]?.epics.first {
+            $0.tasks.contains { $0.issueID == issueID }
+        }
+        let id = planned?.projectID ?? model.issue(issueID)?.projectID
+        return model.projects.first { $0.id == id }
+    }
+
+    var body: some View {
+        if let project {
+            WorkItemPanel(
+                store: store,
+                facts: ProjectFacts(
+                    project: project, model: model, hasTrancheB: store.hasTrancheB,
+                    logo: store.projectLogos.images[project.id]),
+                itemID: issueID
+            )
+            .task {
+                if model.projectsPage.work[project.id] == nil { store.loadWork(project.id) }
+                store.loadItemDetail(issueID)
+            }
+        } else {
+            AinkradEmptyState(icon: "tray", title: "Item not found", message: "It may have been moved or removed.")
         }
     }
 }

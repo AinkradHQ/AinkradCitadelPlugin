@@ -48,8 +48,11 @@ struct RequirementPlanView: View {
                 }
             }
         } else {
-            AinkradEmptyState(icon: "ellipsis", title: "No plan yet", message: "The CEO is drafting it.")
-                .padding(.vertical, skin.size.s60)
+            AinkradEmptyState(
+                icon: "ellipsis", title: "No plan yet",
+                message: "The \(model.ownerWord(requirement.ownerAgentID)) is drafting it."
+            )
+            .padding(.vertical, skin.size.s60)
         }
     }
 
@@ -75,7 +78,7 @@ struct RequirementPlanView: View {
                 value: Double(plan.percent) / 100, tint: tint, diameter: skin.size.s72 + skin.size.s4,
                 lineWidth: skin.size.s7
             ) {
-                Text("\(plan.percent)%").citadelFont("t14", weight: "semibold", mono: true)
+                Text(verbatim: "\(plan.percent)%").citadelFont("t14", weight: "semibold", mono: true)
                     .foregroundStyle(skin.color(skin.text.primary))
             }
             VStack(alignment: .leading, spacing: skin.size.s8) {
@@ -158,7 +161,8 @@ struct RequirementPlanView: View {
                     HStack(spacing: skin.size.s6) {
                         RoundedRectangle(cornerRadius: skin.size.s2).fill(glyphColor(glyph))
                             .frame(width: skin.size.s8, height: skin.size.s8)
-                        Text("\(label(glyph)) \(count)").citadelFont("t11").foregroundStyle(skin.color(skin.text.muted))
+                        Text(verbatim: "\(label(glyph)) \(count)").citadelFont("t11").foregroundStyle(
+                            skin.color(skin.text.muted))
                     }
                 }
             }
@@ -170,7 +174,7 @@ struct RequirementPlanView: View {
             HStack {
                 Text("Burndown").citadelFont("t11", weight: "semibold").foregroundStyle(skin.color(skin.text.muted))
                 Spacer()
-                Text("\(plan.points - plan.donePoints) pts left").citadelFont("t11", mono: true)
+                Text(verbatim: "\(plan.points - plan.donePoints) pts left").citadelFont("t11", mono: true)
                     .foregroundStyle(skin.color(skin.text.faint))
             }
             Burndown(plan: plan).frame(height: skin.size.s90)
@@ -212,13 +216,14 @@ struct RequirementPlanView: View {
                     .background(color.opacity(skin.opacity.o16), in: RoundedRectangle(cornerRadius: skin.size.s9))
                 VStack(alignment: .leading, spacing: 0) {
                     Text(epic.title).citadelFont("t13", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
-                    Text("\(Wording.count(epic.tasks.count, "task")) · \(points) pts").citadelFont("t11")
+                    Text(verbatim: "\(Wording.count(epic.tasks.count, "task")) · \(points) pts").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint))
                 }
                 Spacer(minLength: skin.size.s8)
                 ProgressLine(value: points == 0 ? 0 : Double(done) / Double(points), tint: color)
                     .frame(width: skin.size.s120)
-                Text("\(done)/\(points)").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.muted))
+                Text(verbatim: "\(done)/\(points)").citadelFont("t11", mono: true).foregroundStyle(
+                    skin.color(skin.text.muted))
             }
             .padding(.horizontal, skin.size.s4)
             .padding(.bottom, skin.size.s6)
@@ -305,12 +310,7 @@ private struct PlanTaskRow: View {
         return rest.isEmpty ? word : "\(word) · \(rest)"
     }
 
-    private func open() {
-        guard let agent = task.assigneeAgentID else { return }
-        model.requirementsPage.drawer = []
-        store.selectedThread = ThreadKey(agentID: agent, issueID: task.issueID)
-        store.screen = .threads
-    }
+    private func open() { model.requirementsPage.openItem(task.issueID) }
 }
 
 /// One artifact, full size (`reqArtView`): its type tile, name and meta, Run ⇱ and issue links, the big preview, and

@@ -133,7 +133,7 @@ struct SysLine: View {
         }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { action?() }
+        .tappable(action, help: "Open")
     }
 
     private var hairline: some View {
@@ -201,7 +201,7 @@ struct ReceiptRow<Label: View>: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { action?() }
+        .tappable(action, help: "Open")
         .accessibilityElement(children: .combine)
     }
 }
@@ -272,6 +272,7 @@ struct ThreadHeroChip<Label: View>: View {
                     skin.color(
                         .palette("foreground", hovering && action != nil ? skin.opacity.o12 : skin.opacity.o07)))
             )
+            .animation(skin.animation(skin.motion.hover), value: hovering)
             .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o07)), lineWidth: 1))
             .contentShape(shape)
             .onHover { hovering = $0 }
@@ -295,5 +296,12 @@ struct GlowStatePill: View {
         .padding(.horizontal, skin.size.s10)
         .frame(height: skin.size.s24)
         .background(tint.opacity(skin.opacity.o14), in: RoundedRectangle(cornerRadius: skin.size.s7))
+    }
+}
+
+extension View {
+    /// A real button (hand cursor, button trait) when there is an action; the plain view otherwise.
+    @ViewBuilder fileprivate func tappable(_ action: (() -> Void)?, help: String) -> some View {
+        if let action { AinkradTapArea(help: help, action: action) { self } } else { self }
     }
 }

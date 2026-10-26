@@ -13,6 +13,7 @@ struct RequirementHero: View {
     @Binding var cancelling: Bool
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
+    @State private var moreHover = false
 
     private var page: RequirementsPage { model.requirementsPage }
     private var plan: PlanTree? { page.plans[requirement.id] }
@@ -46,7 +47,9 @@ struct RequirementHero: View {
                         }
                         if let project {
                             ThreadHeroChip {
-                                Image(systemName: "folder").citadelFont("t10")
+                                ProjectMark(
+                                    glyph: ProjectLook.glyph(project, in: model),
+                                    tint: ProjectLook.tint(project, in: model), side: skin.size.s16)
                                 Text(project.name)
                             }
                         }
@@ -99,18 +102,7 @@ struct RequirementHero: View {
         }
     }
 
-    /// The pending plan approval of this requirement.
-    private var pendingPlan: ApprovalInfo? {
-        model.approvals.first { $0.kind == "plan_approval" && $0.fields["requirement"] == String(requirement.id) }
-            ?? planInThread
-    }
-
-    private var planInThread: ApprovalInfo? {
-        for item in page.threads[requirement.id]?.items ?? [] {
-            if case .approval(let a, _) = item, a.kind == "plan_approval", a.status == "pending" { return a }
-        }
-        return nil
-    }
+    private var pendingPlan: ApprovalInfo? { model.pendingPlan(of: requirement) }
 
     @ViewBuilder private var dock: some View {
         if requirement.state == "plan_review", let approval = pendingPlan {
@@ -148,8 +140,11 @@ struct RequirementHero: View {
                     .foregroundStyle(skin.color(skin.text.primary))
                     .frame(width: skin.size.s34, height: skin.size.s34)
                     .background(
-                        skin.color(.palette("foreground", skin.opacity.o07)),
-                        in: RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous))
+                        skin.color(.palette("foreground", moreHover ? skin.opacity.o14 : skin.opacity.o07)),
+                        in: RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous)
+                    )
+                    .citadelHover($moreHover)  // TODO(appkit-A3)
+                    .animation(skin.animation(skin.motion.hover), value: moreHover)
             }
             .help("Rename or cancel \(requirement.key)")
         }

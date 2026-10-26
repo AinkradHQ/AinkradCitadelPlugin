@@ -193,8 +193,14 @@ extension CitadelStore {
     // MARK: - Item drawer
 
     func openItem(_ id: Int64) {
-        guard let model, let server else { return }
+        guard let model else { return }
         model.projectsPage.drawer = .item(id)
+        loadItemDetail(id)
+    }
+
+    /// The runs and activity an item panel shows (also read for the Requirements drawer's item view).
+    func loadItemDetail(_ id: Int64) {
+        guard let model, let server else { return }
         Task {
             if let runs = await server.issueRuns(company: model.companyID, issue: id) {
                 model.projectsPage.itemRuns[id] = runs

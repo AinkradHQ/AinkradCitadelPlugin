@@ -85,9 +85,9 @@ struct NewRequirementSheet: View {
                     Text("✓").citadelFont("t11").foregroundStyle(status.success)
                     Text(text).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary))
                     Spacer(minLength: skin.size.s8)
-                    AinkradTapArea(help: "Remove", action: { criteria.remove(at: index) }) {
-                        Image(systemName: "xmark").citadelFont("t10").foregroundStyle(skin.color(skin.text.faint))
-                    }
+                    HoverIcon(
+                        systemName: "xmark", help: "Remove", fontKey: "t10", rest: skin.color(skin.text.faint),
+                        lit: status.danger, action: { criteria.remove(at: index) })
                 }
                 .padding(.horizontal, skin.size.s12)
                 .frame(height: skin.size.s38)
@@ -96,10 +96,9 @@ struct NewRequirementSheet: View {
             HStack(spacing: skin.size.s6) {
                 AinkradBareEditor(
                     text: $criterion, placeholder: "e.g. arrives every Monday 9:00", sizeKey: "t12", onReturn: add)
-                AinkradTapArea(help: "Add", action: add) {
-                    Image(systemName: "plus").citadelFont("t12", weight: "semibold")
-                        .foregroundStyle(skin.color(skin.text.muted)).frame(width: skin.size.s30, height: skin.size.s30)
-                }
+                HoverIcon(
+                    systemName: "plus", help: "Add", fontKey: "t12", rest: skin.color(skin.text.muted),
+                    lit: skin.color(skin.text.primary), side: skin.size.s30, action: add)
             }
             .padding(.horizontal, skin.size.s8)
             .background(shape.fill(skin.color(.palette("foreground", skin.opacity.o03))))
@@ -279,6 +278,29 @@ private struct OptionCard<Label: View>: View {
                 .contentShape(shape)
         }
         .onHover { hovering = $0 }
+        .animation(skin.animation(skin.motion.hover), value: hovering)
+    }
+}
+
+/// A tap icon that lights up on hover (`.nr-acc em:hover`).
+private struct HoverIcon: View {
+    let systemName: String
+    let help: String
+    let fontKey: String
+    let rest: Color
+    let lit: Color
+    var side: CGFloat?
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+
+    var body: some View {
+        AinkradTapArea(help: help, action: action) {
+            Image(systemName: systemName).citadelFont(fontKey, weight: "semibold")
+                .foregroundStyle(hovering ? lit : rest)
+                .frame(width: side, height: side)
+        }
+        .citadelHover($hovering)  // TODO(appkit-A3)
         .animation(skin.animation(skin.motion.hover), value: hovering)
     }
 }

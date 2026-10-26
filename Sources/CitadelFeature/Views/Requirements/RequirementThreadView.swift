@@ -92,6 +92,11 @@ struct RequirementThreadView: View {
                         Text("Nothing here yet. Tell \(ownerName) what you want.").citadelFont("t12")
                             .foregroundStyle(skin.color(skin.text.faint)).frame(maxWidth: .infinity)
                     }
+                    if thread == nil {
+                        AinkradSkeletonRow(widthFraction: 0.8, showsAvatar: true).ainkradShimmer()
+                        AinkradSkeletonRow(widthFraction: 0.6, showsAvatar: true).ainkradShimmer()
+                        AinkradSkeletonRow(widthFraction: 0.7, showsAvatar: true).ainkradShimmer()
+                    }
                     ForEach(lines) { line in
                         lineView(line).transition(
                             reduceMotion ? .opacity : .opacity.combined(with: .offset(y: skin.size.s8)))
@@ -146,7 +151,7 @@ struct RequirementThreadView: View {
                 ? model.issue(comment.issueID)?.key : nil
             AgentTurn(
                 agent: author, model: model, role: role, issueKey: key, at: Self.time(at), text: comment.body,
-                onKey: nil)
+                onKey: key == nil ? nil : { model.requirementsPage.openItem(comment.issueID) })
         } else {
             YouTurn(text: comment.body, at: Self.time(at))
         }
