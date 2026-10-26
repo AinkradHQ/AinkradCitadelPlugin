@@ -33,6 +33,9 @@ struct NewCompanyDraft: Equatable {
     var logoType: String?
     /// The company's monthly budget in tokens — the server's budgets are tokens, never dollars.
     var budgetTokens: Int64 = 100_000_000
+    /// The `$ / tokens` toggle: on, the company budget also carries a dollar cap (`budgetDollars`).
+    var budgetInDollars = false
+    var budgetDollars: Int64 = 1_000
     var accounts: Set<Int64> = []
     var tags: Set<String> = ["linux"]
 
@@ -56,6 +59,13 @@ struct NewCompanyDraft: Equatable {
     var hasName: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
     var cleanName: String { name.trimmingCharacters(in: .whitespaces) }
     var colour: String { Self.swatches[swatch] }
+    /// The dollar cap sent as `usdCapMicros` (millionths); `nil` while the toggle is on tokens.
+    var usdCapMicros: Int64? { budgetInDollars ? max(0, budgetDollars) * 1_000_000 : nil }
+    /// The CEO's share of the company budget, in percent (prototype `Share of company`).
+    var ceoShare: Int {
+        let ceo = min(budgetTokens, TokenAmount.parse(ceoBudget) ?? 0)
+        return Int((Double(ceo) / Double(max(budgetTokens, 1)) * 100).rounded())
+    }
     var modelName: String { HireCatalog.modelName(model) }
     /// "Software · Marketing", or "Software +2" past two.
     var industryLine: String {

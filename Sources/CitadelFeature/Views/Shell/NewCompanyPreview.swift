@@ -6,6 +6,8 @@ import SwiftUI
 /// follows the step.
 struct NewCompanyPreview: View {
     let draft: NewCompanyDraft
+    /// What the Fallback row reads: the picked chain preset's name, else "<harness> first".
+    let fallback: String
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -45,7 +47,9 @@ struct NewCompanyPreview: View {
                 Text(draft.industryLine).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
             }
             HStack(spacing: skin.size.s6) {
-                stat(Fmt.tokens(draft.budgetTokens), "tok / month")
+                stat(
+                    draft.budgetInDollars ? "$\(draft.budgetDollars)" : Fmt.tokens(draft.budgetTokens),
+                    draft.budgetInDollars ? "$ / month" : "tok / month")
                 stat("\(draft.accounts.count)", "accounts")
                 stat("\(draft.tags.count)", "tags")
             }
@@ -77,7 +81,8 @@ struct NewCompanyPreview: View {
             Grid(alignment: .leading, horizontalSpacing: skin.size.s12, verticalSpacing: skin.size.s6) {
                 row("Effort", draft.effort)
                 row("Budget", "\(draft.ceoBudget) tok / mo")
-                row("Fallback", "\(AgentLook.harnessName(draft.harness)) first")
+                row("Fallback", fallback)
+                row("Share", "\(draft.ceoShare)% of company")
                 row("Sandbox", draft.sandbox)
             }
             .padding(.top, skin.size.s10)

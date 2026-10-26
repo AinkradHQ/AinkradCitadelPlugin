@@ -22,7 +22,7 @@ struct NewCompanyWizard: View {
                 ScrollView {
                     NewCompanyStepPane(store: store, draft: draft)
                         .id(step)
-                        .transition(.opacity)
+                        .ainkradRiseIn()
                         .padding(.horizontal, skin.size.s26)
                         .padding(.top, skin.size.s8)
                         .padding(.bottom, skin.size.s18)
@@ -32,7 +32,7 @@ struct NewCompanyWizard: View {
                 footer
             }
             .frame(maxWidth: .infinity)
-            NewCompanyPreview(draft: store.newCompany.draft)
+            NewCompanyPreview(draft: store.newCompany.draft, fallback: store.newCompanyFallbackName)
                 .frame(width: skin.size.s300)
         }
         .frame(height: skin.size.s640 + skin.size.s80)
@@ -58,23 +58,21 @@ struct NewCompanyWizard: View {
         let current = store.newCompany.draft
         let isLast = current.step == last
         return HStack(spacing: skin.size.s12) {
-            AinkradButton(title: current.step == 0 ? "Cancel" : "Back", style: .ghost) {
+            AinkradDockButton(current.step == 0 ? "Cancel" : "Back") {
                 if current.step == 0 { store.isCreatingCompany = false } else { draft.wrappedValue.step -= 1 }
             }
-            .borderless().fixedSize()
             Text("Step \(current.step + 1) of \(NewCompanyDraft.steps.count)").citadelFont("t11_5")
                 .foregroundStyle(skin.color(skin.text.faint))
             Spacer(minLength: 0)
-            AinkradButton(
-                title: isLast ? "Create company" : "Next · \(NewCompanyDraft.steps[current.step + 1].title)",
-                isLoading: store.newCompany.isCreating
+            AinkradDockButton(
+                store.newCompany.isCreating
+                    ? "Creating…"
+                    : isLast ? "Create company" : "Next · \(NewCompanyDraft.steps[current.step + 1].title)",
+                tone: .primary, isEnabled: current.hasName && !store.newCompany.isCreating
             ) { next() }
-            .fixedSize()
-            .disabled(!current.hasName || store.newCompany.isCreating)
         }
         .padding(.horizontal, skin.size.s26)
         .padding(.vertical, skin.size.s14)
-        .background(skin.color(.palette("foreground", skin.opacity.o03)))
     }
 
     private func next() {

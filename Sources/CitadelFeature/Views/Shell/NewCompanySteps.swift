@@ -9,6 +9,7 @@ struct NewCompanyStepPane: View {
     let store: CitadelStore
     @Binding var draft: NewCompanyDraft
     @Environment(\.ainkradSkin) private var skin
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s18) {
@@ -30,9 +31,12 @@ struct NewCompanyStepPane: View {
             title: "Who is this company?",
             line: "Name, what it does and how it looks everywhere — the sidebar, Home and every notification.")
         field("Name") {
-            AinkradTextField(text: $draft.name, placeholder: "Acme Robotics").fieldHeight(skin.size.s42)
+            AinkradTextField(text: $draft.name, placeholder: "Acme Robotics", focus: $nameFocused)
+                .fieldHeight(skin.size.s42)
                 .onReturn { _ in if draft.hasName { draft.step += 1 } }
                 .citadelFont("t15")
+                // The pane is rebuilt per step, so this also fires each time the wizard returns to step 0.
+                .onAppear { nameFocused = true }
         }
         field("Kind") {
             AinkradCardGrid(columns: 2) {
@@ -162,30 +166,25 @@ struct NewCompanyStepPane: View {
 
     private var owner: some View {
         let who = store.userName ?? "you"
-        return HStack(spacing: skin.size.s12) {
-            Text(String(who.prefix(2)).uppercased()).citadelFont("t12", weight: "bold")
-                .foregroundStyle(skin.color(skin.palette.white))
-                .frame(width: skin.size.s36, height: skin.size.s36)
-                .background(skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o60), in: Circle())
-            VStack(alignment: .leading, spacing: skin.size.s1) {
-                Text("You · \(who)").citadelFont("t13", weight: "semibold")
-                Text("owner · approves plans, hires and budgets").citadelFont("t11")
-                    .foregroundStyle(skin.color(skin.text.faint))
+        return AinkradCard {
+            HStack(spacing: skin.size.s12) {
+                Text(String(who.prefix(2)).uppercased()).citadelFont("t12", weight: "bold")
+                    .foregroundStyle(skin.color(skin.palette.white))
+                    .frame(width: skin.size.s36, height: skin.size.s36)
+                    .background(skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o60), in: Circle())
+                VStack(alignment: .leading, spacing: skin.size.s1) {
+                    Text("You · \(who)").citadelFont("t13", weight: "semibold")
+                    Text("owner · approves plans, hires and budgets").citadelFont("t11")
+                        .foregroundStyle(skin.color(skin.text.faint))
+                }
+                Spacer()
+                Text("fixed").citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.palette.accentPrimary))
+                    .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s2)
+                    .background(
+                        skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o16),
+                        in: RoundedRectangle(cornerRadius: skin.size.s6))
             }
-            Spacer()
-            Text("fixed").citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.palette.accentPrimary))
-                .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s2)
-                .background(
-                    skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o16),
-                    in: RoundedRectangle(cornerRadius: skin.size.s6))
         }
-        .padding(skin.size.s12)
-        .background(
-            skin.color(.palette("foreground", skin.opacity.o05)), in: RoundedRectangle(cornerRadius: skin.size.s12)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: skin.size.s12).strokeBorder(
-                skin.color(.palette("foreground", skin.opacity.o07)), lineWidth: 1))
     }
 
     // MARK: - 2 CEO instructions
@@ -239,6 +238,7 @@ struct NewCompanyStepPane: View {
                     selection: Binding(
                         get: { TokenAmount.parse(draft.ceoBudget) ?? 0 }, set: { draft.ceoBudget = Fmt.tokens($0) })
                 ) { Fmt.tokens($0) }
+                .controlSize(.small)
                 .fixedSize()
             }
             BudgetFields(

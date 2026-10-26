@@ -22,6 +22,12 @@ extension CitadelStore {
         }
     }
 
+    /// The Fallback line of the wizard's preview and review: the picked chain preset's name, else "<harness> first".
+    var newCompanyFallbackName: String {
+        if chainPresetsOn, let name = model?.chainPreset(newCompany.draft.chainTemplate)?.name { return name }
+        return "\(AgentLook.harnessName(newCompany.draft.harness)) first"
+    }
+
     /// Creates the company, then its logo, accounts, budget and CEO proposal — one call each, so not atomic: a
     /// later failure keeps the company and a toast names what did not happen. Then closes and switches to it.
     func createCompany() {
@@ -91,7 +97,7 @@ extension CitadelStore {
         }
         if await scoped.createBudget(
             company: company.id, scope: "company:\(company.id)", period: "month", cap: draft.budgetTokens,
-            warnPercent: 80) != nil
+            usdCap: draft.usdCapMicros, warnPercent: 80) != nil
         {
             missed.append("its \(Fmt.tokens(draft.budgetTokens)) token budget")
         }

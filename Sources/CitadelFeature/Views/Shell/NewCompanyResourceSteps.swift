@@ -59,7 +59,7 @@ struct NewCompanyResourceSteps: View {
         NewCompanyHead(
             title: "Budget & resources",
             line: "What the whole company may spend, which pool accounts it can use, and where its runs happen.")
-        field("Company monthly budget · tokens") { budget }
+        field("Company monthly budget · \(draft.budgetInDollars ? "dollars" : "tokens")") { budget }
         field("Accounts from the pool · \(draft.accounts.count) assigned") { accounts }
         field("Company runs on runners tagged") {
             NewCompanyTagCards(runners: store.newCompany.runners, selection: $draft.tags, large: true)
@@ -71,22 +71,40 @@ struct NewCompanyResourceSteps: View {
         let total = draft.budgetTokens
         let ceo = min(total, TokenAmount.parse(draft.ceoBudget) ?? 0)
         let warn = Int64(Double(total) * 0.8)
+        let dollars = draft.budgetInDollars
         return VStack(alignment: .leading, spacing: skin.size.s12) {
+            AinkradSegmentedPicker(items: [false, true], selection: $draft.budgetInDollars) { $0 ? "$" : "tokens" }
+                .controlSize(.small).fixedSize()
             VStack(spacing: skin.size.s6) {
                 HStack(spacing: skin.size.s20) {
-                    Text(Fmt.tokens(total)).citadelFont("t24", weight: "bold", mono: true)
+                    Text(verbatim: dollars ? "$\(draft.budgetDollars)" : Fmt.tokens(total))
+                        .citadelFont("t24", weight: "bold", mono: true)
                         .foregroundStyle(skin.color(skin.text.primary)).frame(
                             minWidth: skin.size.s90, alignment: .leading)
-                    AinkradDragGauge(
-                        value: Double(total) / Self.millions, range: 10...500, step: 10,
-                        mark: Double(warn) / Self.millions,
-                        tint: blue, label: "Company monthly budget",
-                        valueText: { "\(Fmt.tokens(Int64($0 * Self.millions))) tokens" },
-                        onChange: { draft.budgetTokens = Int64($0 * Self.millions) },
-                        onCommit: { draft.budgetTokens = Int64($0 * Self.millions) })
+                    if dollars {
+                        AinkradDragGauge(
+                            value: Double(draft.budgetDollars), range: 100...5_000, step: 100,
+                            mark: Double(draft.budgetDollars) * 0.8,
+                            tint: blue, label: "Company monthly budget",
+                            valueText: { "$\(Int($0)) / month" },
+                            onChange: { draft.budgetDollars = Int64($0) },
+                            onCommit: { draft.budgetDollars = Int64($0) })
+                    } else {
+                        AinkradDragGauge(
+                            value: Double(total) / Self.millions, range: 10...500, step: 10,
+                            mark: Double(warn) / Self.millions,
+                            tint: blue, label: "Company monthly budget",
+                            valueText: { "\(Fmt.tokens(Int64($0 * Self.millions))) tokens" },
+                            onChange: { draft.budgetTokens = Int64($0 * Self.millions) },
+                            onCommit: { draft.budgetTokens = Int64($0 * Self.millions) })
+                    }
                 }
-                GaugeLegend(low: "10M", middle: "warn at \(Fmt.tokens(warn))", high: "500M")
-                    .padding(.leading, skin.size.s90 + skin.size.s20)
+                GaugeLegend(
+                    low: dollars ? "$100" : "10M",
+                    middle: "warn at " + (dollars ? "$\(draft.budgetDollars * 8 / 10)" : Fmt.tokens(warn)),
+                    high: dollars ? "$5000" : "500M"
+                )
+                .padding(.leading, skin.size.s90 + skin.size.s20)
             }
             .padding(skin.size.s16)
             .background(
@@ -186,13 +204,15 @@ struct NewCompanyResourceSteps: View {
                 HarnessTag(harness: draft.harness, size: skin.size.s22)
                 bold(draft.modelName)
                 faint(
-                    "\(draft.effort) effort · \(draft.ceoBudget) tok/mo · \(draft.cap) per run · \(AgentLook.harnessName(draft.harness)) first fallback"
+                    "\(draft.effort) effort · \(draft.ceoBudget) tok/mo · \(draft.cap) per run · \(store.newCompanyFallbackName) fallback"
                 )
             }
         }
         group("Setup") {
             row("Budget", 5) {
-                bold("\(Fmt.tokens(draft.budgetTokens)) tokens / month")
+                bold(
+                    draft.budgetInDollars
+                        ? "$\(draft.budgetDollars) / month" : "\(Fmt.tokens(draft.budgetTokens)) tokens / month")
                 faint("warn at \(Fmt.tokens(Int64(Double(draft.budgetTokens) * 0.8)))")
             }
             row("Accounts", 5) {
@@ -226,12 +246,7 @@ struct NewCompanyResourceSteps: View {
                 .frame(width: skin.size.s90, alignment: .leading)
             AinkradFlowLayout(spacing: skin.size.s8, lineSpacing: skin.size.s4) { value() }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            AinkradTapArea {
-                draft.step = step
-            } label: {
-                Text("Edit").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.palette.accentSecondary))
-            }
-            .buttonStyle(.plain)
+            ReviewEditLink { draft.step = step }
         }
         .padding(.horizontal, skin.size.s12).padding(.vertical, skin.size.s9)
         .background(
@@ -245,5 +260,26 @@ struct NewCompanyResourceSteps: View {
 
     private func faint(_ text: String) -> some View {
         Text(text).citadelFont("t12").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+    }
+}
+
+/// The review row's Edit link, lifting a fill on hover.
+private struct ReviewEditLink: View {
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    var body: some View {
+        AinkradTapArea(action: action) {
+            Text("Edit").citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.palette.accentSecondary))
+                .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s2)
+                .background(
+                    skin.color(.palette("foreground", hovering ? skin.opacity.o08 : 0)),
+                    in: RoundedRectangle(cornerRadius: skin.size.s6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .citadelHover($hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
