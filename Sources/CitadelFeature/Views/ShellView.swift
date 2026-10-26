@@ -32,7 +32,7 @@ struct ShellView: View {
                     .id(store.route)
                     .transition(store.navDirection.transition(skin, reduceMotion: reduceMotion))
                 }
-                .animation(skin.animation(skin.motion.present), value: store.route)
+                .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: store.route)
                 .clipped()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

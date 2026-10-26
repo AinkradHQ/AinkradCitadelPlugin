@@ -200,7 +200,11 @@ struct ApprovalDetail: View {
         switch approval.kind {
         case "sprint_commit": return "Commit sprint"
         case "pr_merge": return (approval.lists["prs"]?.count ?? 1) > 1 ? "Merge both" : "Merge"
-        case "budget_overrun": return "Raise to \(Fmt.tokens(Int64(newCap.rounded())))"
+        case "budget_overrun":
+            let word =
+                BudgetNumbers(f, budget: scopeBudget)?.word(Int64(newCap.rounded()))
+                ?? Fmt.tokens(Int64(newCap.rounded()))
+            return "Raise to \(word)"
         case "hire_agent": return "Hire \(f["name"] ?? "")".trimmingCharacters(in: .whitespaces)
         case "workflow_push": return "I pushed it"
         case "permission_escalation":
@@ -212,6 +216,8 @@ struct ApprovalDetail: View {
         default: return "Approve"
         }
     }
+
+    private var scopeBudget: BudgetInfo? { model.budgets.first { $0.scope == f["scope"] } }
 
     /// A raise must lift the cap.
     private var canApprove: Bool { approval.kind != "budget_overrun" || raise != nil }
@@ -265,12 +271,25 @@ struct ApprovalDetail: View {
 struct BudgetNumbers {
     let spent: Int64
     let cap: Int64
+    /// The overrun's budget; a dollar one shows its amounts in dollars, scaled from the token slider.
+    var budget: BudgetInfo?
 
-    init?(_ f: [String: String]) {
+    init?(_ f: [String: String], budget: BudgetInfo? = nil) {
+        self.budget = budget
         guard let spent = f["spent"].flatMap(Int64.init), let cap = f["token_cap"].flatMap(Int64.init) else {
             return nil
         }
         self.spent = spent
         self.cap = cap + (f["raised"].flatMap(Int64.init) ?? 0)
     }
+
+    private var isDollars: Bool { budget?.isDollars == true && cap > 0 }
+    var spentWord: String { isDollars ? budget?.spentWord ?? "" : Fmt.tokens(spent) }
+    /// A token amount in the budget's own unit.
+    func word(_ tokens: Int64) -> String {
+        guard isDollars, let budget else { return Fmt.tokens(tokens) }
+        return budget.word(Int64((Double(budget.shownCap) * Double(tokens) / Double(cap)).rounded()))
+    }
+    /// " tokens" after a token amount, nothing after dollars.
+    var unitSuffix: String { isDollars ? "" : " tokens" }
 }

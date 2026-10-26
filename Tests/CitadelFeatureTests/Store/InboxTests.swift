@@ -145,6 +145,32 @@ final class InboxTests: XCTestCase {
         XCTAssertNil(model.navCount(.cost))
     }
 
+    func testTheArtifactsRowCountsLoadedArtifactsAndHidesWhenNone() {
+        let model = CompanyFixture.model()
+        XCTAssertNil(model.navCount(.artifacts))
+        CompanyFixture.artifactsPage(model)
+        XCTAssertFalse(model.artifactsPage.items.isEmpty)
+        XCTAssertEqual(model.navCount(.artifacts), AinkradNavCount("\(model.artifactsPage.items.count)"))
+    }
+
+    func testARunsCapIsTheAgentsOverrideElseTheCompanys() throws {
+        let model = CompanyFixture.model()
+        let run = try XCTUnwrap(model.runs[418])
+        XCTAssertEqual(model.cap(of: run), 200_000)
+        model.limits["run.token_cap.agent.\(run.agentID)"] = LimitSetting(value: 50_000, source: nil)
+        XCTAssertEqual(model.cap(of: run), 50_000)
+    }
+
+    func testTheLastDecisionLineCarriesItsAgeWhenKnown() {
+        let model = CompanyFixture.model()
+        let now = Date()
+        var approval = ApprovalInfo(
+            id: 1, kind: "sprint_commit", agentID: nil, issueID: nil, requestedBy: 3, expiresAt: nil, fields: [:])
+        XCTAssertFalse(model.lastDecisionLine(approval, now: now).contains("·"))
+        approval.decidedAt = now.addingTimeInterval(-240)
+        XCTAssertTrue(model.lastDecisionLine(approval, now: now).hasSuffix(" · 4m ago"))
+    }
+
     // MARK: - Actions
 
     private func connectedStore() throws -> (CitadelStore, CompanyModel) {

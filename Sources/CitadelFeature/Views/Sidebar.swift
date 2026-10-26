@@ -122,17 +122,17 @@ struct Sidebar: View {
     /// `● Connected` (→ Runners) · search · settings.
     private var footer: some View {
         HStack(spacing: skin.size.s4) {
-            AinkradTapArea {
+            HStack(spacing: skin.size.s6) {
+                Circle().fill(footerState.0).frame(width: skin.size.s7, height: skin.size.s7)
+                Text(footerState.1).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+            }
+            .padding(.horizontal, skin.size.s6)
+            .padding(.vertical, skin.size.s4)
+            .homeHoverRow {  // TODO(appkit-A3)
                 store.screen = .runners
                 store.detail = nil
                 store.isShowingSettings = false
-            } label: {
-                HStack(spacing: skin.size.s6) {
-                    Circle().fill(footerState.0).frame(width: skin.size.s7, height: skin.size.s7)
-                    Text(footerState.1).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
-                }
             }
-            .buttonStyle(.plain)
             .help("\(store.host) · \(store.cursor.map { "seq \($0.formatted())" } ?? "")")
             Spacer(minLength: skin.size.s4)
             FootButton(icon: "magnifyingglass", tip: "Search · ⌘K", isOn: store.isSearching) {
@@ -194,17 +194,22 @@ private struct LiveNowRow: View {
     let open: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
 
     var body: some View {
         let agent = model.agent(run.agentID)
         let issue = model.issue(run.issueID)
-        let warn = model.waitingApproval(run: run.id) != nil
+        let tone = model.cardState(of: run).tone
         HStack(alignment: .top, spacing: skin.size.s8) {
             if let agent { AgentFigure(agent: agent, model: model, size: skin.size.s20) }
             VStack(alignment: .leading, spacing: skin.size.s1) {
                 HStack(spacing: skin.size.s6) {
                     Text("\(agent?.name ?? "Agent") · \(issue?.title ?? model.runTitle(run))").citadelFont("t12")
-                        .foregroundStyle(warn ? skin.color(skin.palette.warning) : skin.color(skin.text.primary))
+                        .foregroundStyle(
+                            tone == .danger
+                                ? status.danger
+                                : tone == .warning ? skin.color(skin.palette.warning) : skin.color(skin.text.primary)
+                        )
                         .lineLimit(1)
                     Spacer(minLength: skin.size.s4)
                     TimelineView(.periodic(from: .now, by: 1)) { context in

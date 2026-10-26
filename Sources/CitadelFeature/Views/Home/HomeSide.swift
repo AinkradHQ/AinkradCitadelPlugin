@@ -59,7 +59,7 @@ struct RequirementsTile: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if asks > 0 {
-                Text("\(asks)").citadelFont("t10", weight: "bold", mono: true).foregroundStyle(
+                Text(verbatim: "\(asks)").citadelFont("t10", weight: "bold", mono: true).foregroundStyle(
                     skin.color(.palette("background", 1))
                 )
                 .frame(width: skin.size.s18, height: skin.size.s18).background(status.warning, in: Circle())
@@ -156,7 +156,8 @@ struct TeamTile: View {
         HStack(spacing: skin.size.s6) {
             Circle().fill(part.2).frame(width: skin.size.s7, height: skin.size.s7)
             Text(part.0).citadelFont("t12").foregroundStyle(skin.color(skin.text.muted))
-            Text("\(part.1)").citadelFont("t12", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
+            Text(verbatim: "\(part.1)").citadelFont("t12", weight: "bold").foregroundStyle(
+                skin.color(skin.text.primary))
         }
     }
 }
@@ -259,7 +260,7 @@ struct SpendTile: View {
                             name: "Spend", points: cumulative.map { AinkradChartPoint(x: $0.0, y: $0.1) },
                             tone: .accentSecondary)
                     ],
-                    fillsArea: true, emptyMessage: "No spend yet today"
+                    threshold: warnLine, fillsArea: true, emptyMessage: "No spend yet today"
                 )
                 .frame(height: skin.size.s80 + skin.size.s4)
                 if let spend = model.spend {
@@ -289,6 +290,16 @@ struct SpendTile: View {
                 }
             }
         }
+    }
+
+    /// The company's daily dollar budget's warn line, the dashed rule on the chart.
+    private var warnLine: AinkradChartThreshold? {
+        guard let day = model.budgets.first(where: { $0.scope.hasPrefix("company") && $0.period == "day" }),
+            day.isDollars
+        else { return nil }
+        let warn = Double(day.shownCap) / 1_000_000 * day.warnFraction
+        return AinkradChartThreshold(
+            value: warn, label: "warn \(Fmt.budgetDollars(micros: Int64(warn * 1_000_000)))", tone: .warning)
     }
 
     /// Dollars spent so far by hour of the day.
