@@ -88,7 +88,7 @@ struct PairDeviceDrawer: View {
                         title: "Waiting for the device…", hint: "This updates by itself when it pairs.",
                         symbol: "iphone")
                 }
-                CommandStrip(command: "citadel key create --device \"iPad Pro\"")
+                CommandStrip(command: "citadel key create --device \"<device name>\"")
             }
         }
     }

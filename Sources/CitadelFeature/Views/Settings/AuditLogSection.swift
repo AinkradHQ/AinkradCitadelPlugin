@@ -52,9 +52,13 @@ struct AuditLogSection: View {
             SettingsCard {
                 VStack(alignment: .leading, spacing: skin.size.s4) {
                     if rows.isEmpty {
-                        Text(page.auditLog == nil ? "Loading…" : "Nothing matches these filters")
-                            .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
-                            .frame(maxWidth: .infinity).padding(skin.size.s20)
+                        if page.auditLog == nil {
+                            ForEach(0..<3, id: \.self) { _ in AinkradSkeletonRow().ainkradShimmer() }
+                        } else {
+                            Text("Nothing matches these filters")
+                                .citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
+                                .frame(maxWidth: .infinity).padding(skin.size.s20)
+                        }
                     }
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, line in
                         AuditRow(
@@ -63,6 +67,7 @@ struct AuditLogSection: View {
                         ) {
                             if open.contains(line.seq) { open.remove(line.seq) } else { open.insert(line.seq) }
                         }
+                        .ainkradRiseIn(delay: 0.04 * Double(index))
                     }
                     if page.auditNext != nil {
                         AinkradDockButton("Load more", height: skin.size.s30) { store.loadMoreAudit() }
@@ -99,6 +104,19 @@ struct AuditLogSection: View {
 
 /// One audited change: who (figure, avatar or a system disc) with its type badge, what and where, the time; open, the
 /// before → after.
+enum AuditWords {
+    private static let known: [String: String] = [
+        "approval.requested": "asked for approval", "approval.created": "asked for approval",
+        "approval.approved": "approved a request", "device.revoked": "revoked a device key",
+        "account.limited": "hit an account limit", "account.at_limit": "reached an account limit",
+    ]
+
+    /// An audit action in plain words: a known one by name, else the family and verb ("issue state changed").
+    static func plain(_ action: String) -> String {
+        known[action] ?? action.replacingOccurrences(of: ".", with: " ").replacingOccurrences(of: "_", with: " ")
+    }
+}
+
 private struct AuditRow: View {
     let line: AuditLine
     let model: CompanyModel
@@ -109,6 +127,7 @@ private struct AuditRow: View {
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         AinkradTapArea(action: toggle) {
@@ -145,7 +164,7 @@ private struct AuditRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.present), value: isOpen)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: isOpen)
     }
 
     private var agent: AgentInfo? {
@@ -220,7 +239,7 @@ private struct AuditRow: View {
             let name = LimitNames.name(key).lowercased()
             return line.action == "setting.reset" ? "reset \(name)" : name
         }
-        return line.action.replacingOccurrences(of: ".", with: " ").replacingOccurrences(of: "_", with: " ")
+        return AuditWords.plain(line.action)
     }
 
     private var whereText: String? {

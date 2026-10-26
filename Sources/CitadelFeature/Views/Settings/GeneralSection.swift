@@ -17,6 +17,8 @@ struct GeneralSection: View {
     @State private var end = SettingsCompanyDefaults.end
     @State private var days = SettingsCompanyDefaults.days
     @State private var saving: Bool?
+    @State private var logoHover = false
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
     @Environment(\.ainkradSkin) private var skin
 
     private var company: Components.Schemas.Company? { store.company }
@@ -52,7 +54,7 @@ struct GeneralSection: View {
             time
             defaults
             connection
-            SettingsCard(title: "Danger zone", danger: true) {
+            SettingsCard(title: "Danger zone", danger: true, delay: 0.3) {
                 SettingsRow(
                     label: "Archive company",
                     hint: "Stops every run, keeps history read-only, frees its accounts and runners."
@@ -95,7 +97,7 @@ struct GeneralSection: View {
     // MARK: Identity
 
     private func identity(_ company: Components.Schemas.Company) -> some View {
-        SettingsCard(title: "Identity") {
+        SettingsCard(title: "Identity", delay: 0.06) {
             HStack(spacing: skin.size.s18) {
                 logoTile(company)
                 VStack(alignment: .leading, spacing: skin.size.s10) {
@@ -122,9 +124,28 @@ struct GeneralSection: View {
         preview.name = trimmedName.isEmpty ? company.name : trimmedName
         preview.color = color
         return VStack(spacing: skin.size.s6) {
-            CompanyMark(
+            let mark = CompanyMark(
                 company: preview, size: skin.size.s80, live: false, radius: skin.size.s24, fontKey: "t34",
                 logo: store.logos.images[company.id])
+            if supported {
+                AinkradTapArea(help: "A PNG, JPEG or WebP up to 2 MB") {
+                    uploadLogo()
+                } label: {
+                    mark.overlay {
+                        Image(systemName: "camera.fill").foregroundStyle(skin.color(skin.text.primary))
+                            .frame(width: skin.size.s80, height: skin.size.s80)
+                            .background(
+                                .black.opacity(logoHover ? skin.opacity.o40 : 0),
+                                in: RoundedRectangle(cornerRadius: skin.size.s24, style: .continuous)
+                            )
+                            .opacity(logoHover ? 1 : 0)
+                            .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: logoHover)
+                    }
+                }
+                .citadelHover($logoHover)
+            } else {
+                mark
+            }
             if supported {
                 AinkradTapArea(help: "A PNG, JPEG or WebP up to 2 MB") {
                     uploadLogo()
@@ -176,7 +197,7 @@ struct GeneralSection: View {
     // MARK: Time and defaults
 
     private var time: some View {
-        SettingsCard(title: "Time") {
+        SettingsCard(title: "Time", delay: 0.12) {
             SettingsRow(label: "Time zone", hint: "approvals and quiet hours use it") {
                 if supported {
                     SettingsTimeZoneMenu(zone: $timezone)
@@ -215,7 +236,7 @@ struct GeneralSection: View {
     }
 
     private var defaults: some View {
-        SettingsCard(title: "Defaults for new agents") {
+        SettingsCard(title: "Defaults for new agents", delay: 0.18) {
             SettingsRow(label: "Sprint approval", hint: "who commits a sprint") {
                 ServerSoonChip()
                 disabledSegment(["You approve", "PO alone"])
@@ -267,7 +288,7 @@ struct GeneralSection: View {
     // MARK: Connection
 
     private var connection: some View {
-        SettingsCard(title: "Connection", hint: "this Mac") {
+        SettingsCard(title: "Connection", hint: "this Mac", delay: 0.24) {
             SettingsRow(label: "Server", hint: "Plain http is accepted only for a server on this Mac.") {
                 Text(store.settings.document.server ?? "Not set").citadelFont("t12", mono: true)
                     .foregroundStyle(skin.color(skin.text.primary)).textSelection(.enabled)

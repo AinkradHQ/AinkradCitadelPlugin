@@ -49,7 +49,9 @@ struct DevicesSection: View {
                     columns: [GridItem(.adaptive(minimum: skin.size.s260), spacing: skin.size.s10)],
                     spacing: skin.size.s10
                 ) {
-                    ForEach(page.devices ?? []) { device in deviceCard(device) }
+                    ForEach(Array((page.devices ?? []).enumerated()), id: \.element.id) { index, device in
+                        deviceCard(device).ainkradRiseIn(delay: 0.06 * Double(index))
+                    }
                 }
                 .padding(.top, skin.size.s6)
                 .padding(.bottom, skin.size.s10)
@@ -217,7 +219,9 @@ struct AccountAssignmentSection: View {
                 hint: page.canSeeWholePool ? "the pool picks among them" : "only the admin's device assigns them"
             ) {
                 VStack(spacing: skin.size.s8) {
-                    ForEach(page.accounts) { account in row(account) }
+                    ForEach(Array(page.accounts.enumerated()), id: \.element.id) { index, account in
+                        row(account).ainkradRiseIn(delay: 0.05 * Double(index))
+                    }
                 }
                 .padding(.top, skin.size.s6)
                 .padding(.bottom, skin.size.s10)
