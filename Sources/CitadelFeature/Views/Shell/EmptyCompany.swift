@@ -222,7 +222,7 @@ struct NoAgentsView: View {
         count: String, name: String, tag: String?, detail: String, trailing: String, action: @escaping () -> Void
     ) -> some View {
         let blue = skin.color(skin.palette.accentPrimary)
-        return AinkradTapArea(action: action) {
+        return Group {
             HStack(spacing: skin.size.s10) {
                 Text(count).citadelFont("t12", weight: "semibold", mono: true).foregroundStyle(
                     blue.opacity(skin.opacity.o90)
@@ -250,6 +250,7 @@ struct NoAgentsView: View {
             .padding(.horizontal, skin.size.s6)
             .contentShape(Rectangle())
         }
+        .homeHoverRow(action)  // TODO(appkit-A3)
     }
 }
 

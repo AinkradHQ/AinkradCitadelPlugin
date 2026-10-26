@@ -205,7 +205,8 @@ struct LiveRunCard: View {
                     store.decide(waiting, approve: false)
                 }
                 AinkradDockButton(
-                    isBudget ? "Raise to \(waiting.fields["ask"] ?? "$6")" : "Allow once", tone: .primary,
+                    isBudget ? waiting.fields["ask"].map { "Raise to \($0)" } ?? "Raise cap" : "Allow once",
+                    tone: .primary,
                     height: height, fillsWidth: true
                 ) {
                     store.decide(waiting, approve: true)
@@ -304,7 +305,7 @@ private struct HomeHoverRow: ViewModifier {
             )
             .offset(x: hovering && !reduceMotion ? skin.size.s2 : 0)
             .contentShape(Rectangle())
-            .onHover { hovering = $0 }
+            .citadelHover($hovering)
             .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
             .onTapGesture(perform: action)
             .focusable()

@@ -97,8 +97,8 @@ struct ThreadRail: View {
     }
 
     private func live(_ run: RunInfo) -> some View {
-        let cap = model.limits["run.token_cap"]?.value ?? 0
-        return AinkradTapArea(help: "Open run #\(run.id)", action: { store.open(.run(run.id)) }) {
+        let cap = model.cap(of: run) ?? 0
+        return Group {
             card {
                 HStack(spacing: skin.size.s8) {
                     head("Live run", "#\(run.id)")
@@ -132,6 +132,8 @@ struct ThreadRail: View {
                 .foregroundStyle(skin.color(skin.text.faint))
             }
         }
+        .homeHoverRow { store.open(.run(run.id)) }  // TODO(appkit-A3)
+        .help("Open run #\(run.id)")
     }
 
     private func issueCard(_ issue: IssueInfo) -> some View {

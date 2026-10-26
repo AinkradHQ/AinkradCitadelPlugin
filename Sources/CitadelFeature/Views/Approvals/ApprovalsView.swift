@@ -153,10 +153,10 @@ private struct TypeStrip: View {
         let tint = option.tint(skin)
         let isOn = filter == option
         let shape = RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous)
-        return AinkradTapArea(help: option.title, action: { filter = option }) {
+        return Group {
             HStack(spacing: skin.size.s5) {
                 Image(systemName: option.systemImage).citadelFont("t12", weight: "medium").foregroundStyle(tint)
-                Text("\(count)").citadelFont("t11", weight: "semibold", mono: true)
+                Text(verbatim: "\(count)").citadelFont("t11", weight: "semibold", mono: true)
                     .foregroundStyle(skin.color(isOn ? skin.text.primary : skin.text.muted))
             }
             .frame(maxWidth: .infinity)
@@ -166,6 +166,8 @@ private struct TypeStrip: View {
             .contentShape(shape)
             .opacity(count == 0 && !isOn ? skin.opacity.o40 : 1)
         }
+        .homeHoverRow { filter = option }  // TODO(appkit-A3)
+        .help(option.title)
         .accessibilityLabel("\(option.title), \(count)")
     }
 }

@@ -220,7 +220,7 @@ struct ApprovalBody: View {
     // MARK: - Budget (tokens: the server keeps no dollar caps)
 
     private var budget: [AnyView] {
-        guard let numbers = BudgetNumbers(f) else {
+        guard let numbers = BudgetNumbers(f, budget: model.budgets.first { $0.scope == f["scope"] }) else {
             return [f["summary"].map { AnyView(QuoteCard(agent: nil, text: $0, model: model)) }].compactMap { $0 }
         }
         let scale = Double(numbers.cap) * 2
@@ -231,20 +231,21 @@ struct ApprovalBody: View {
         return [
             AnyView(
                 StageCard(
-                    title: "\(what) spend", note: "\(Fmt.tokens(numbers.spent)) of \(Fmt.tokens(numbers.cap)) tokens"
+                    title: "\(what) spend",
+                    note: "\(numbers.spentWord) of \(numbers.word(numbers.cap))\(numbers.unitSuffix)"
                 ) {
                     AinkradMarkerGauge(
-                        fill: Double(numbers.spent) / scale, nowLabel: Fmt.tokens(numbers.spent),
+                        fill: Double(numbers.spent) / scale, nowLabel: numbers.spentWord,
                         ticks: [
-                            AinkradGaugeTick(fraction: warn / scale, label: "warn \(Fmt.tokens(Int64(warn)))"),
-                            AinkradGaugeTick(fraction: 0.5, label: "cap \(Fmt.tokens(numbers.cap))", isCap: true),
+                            AinkradGaugeTick(fraction: warn / scale, label: "warn \(numbers.word(Int64(warn)))"),
+                            AinkradGaugeTick(fraction: 0.5, label: "cap \(numbers.word(numbers.cap))", isCap: true),
                         ], marker: newCap / scale)
                 }),
             AnyView(
                 HStack(spacing: skin.size.s12) {
                     Text("New cap").citadelFont("t12").foregroundStyle(skin.color(skin.text.primary))
                     AinkradSlider(value: $newCap, in: Double(numbers.cap)...scale)
-                    Text(Fmt.tokens(shownCap)).citadelFont("t16", weight: "bold", mono: true)
+                    Text(numbers.word(shownCap)).citadelFont("t16", weight: "bold", mono: true)
                         .foregroundStyle(amber)
                         .frame(minWidth: skin.size.s64, alignment: .trailing)
                 }
@@ -281,7 +282,7 @@ struct ApprovalBody: View {
             tiles.append(
                 AinkradInfoTile(
                     systemImage: "chart.bar", tint: violet, label: "Budget",
-                    value: "\(Fmt.tokens(budget.cap)) / \(budget.period)"))
+                    value: "\(budget.capWord) / \(budget.period)"))
         }
         if let tags = f["runner_tags"], !tags.isEmpty {
             tiles.append(AinkradInfoTile(systemImage: "tag", tint: violet, label: "Runner tags", value: tags))
@@ -378,7 +379,7 @@ struct ApprovalBody: View {
         let amber = skin.color(skin.palette.warning)
         let isOn = scope == option
         let shape = RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
-        return AinkradTapArea(action: { if enabled && isPending { scope = option } }) {
+        return Group {
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 Text(title).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary))
                 Text(detail).citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint))
@@ -397,6 +398,7 @@ struct ApprovalBody: View {
             .contentShape(shape)
             .opacity(enabled ? 1 : skin.opacity.o45)
         }
+        .homeHoverRow { if enabled && isPending { scope = option } }  // TODO(appkit-A3)
     }
 
     /// "ask", "accept_edits", "sandboxed" in words, with the allowlist's size.

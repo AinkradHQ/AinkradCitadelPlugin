@@ -8,6 +8,7 @@ struct HomeView: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
     @State private var confirmsPause = false
     @State private var dismissedStrip: String?
 
@@ -17,7 +18,11 @@ struct HomeView: View {
                 HomeHero(store: store, model: model) { confirmsPause = true }
                 if let alert = accountAlert, alert.plain != dismissedStrip {
                     AccountStrip(text: alert.text, open: { store.screen = .accounts }) {
-                        withAnimation(skin.animation(skin.motion.dismiss)) { dismissedStrip = alert.plain }
+                        if reduceMotion {
+                            dismissedStrip = alert.plain
+                        } else {
+                            withAnimation(skin.animation(skin.motion.dismiss)) { dismissedStrip = alert.plain }
+                        }
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
@@ -82,6 +87,7 @@ private struct AccountStrip: View {
     let text: Text
     let open: () -> Void
     let dismiss: () -> Void
+    @State private var closeHovering = false  // TODO(appkit-A3)
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -95,8 +101,13 @@ private struct AccountStrip: View {
             AinkradTapArea(action: dismiss) {
                 Image(systemName: "xmark").citadelFont("t11", weight: "semibold")
                     .foregroundStyle(skin.color(skin.text.faint)).frame(width: skin.size.s26, height: skin.size.s26)
+                    .background(
+                        RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous)
+                            .fill(skin.color(.palette("foreground", closeHovering ? skin.opacity.o08 : 0)))
+                    )
             }
             .buttonStyle(.plain)
+            .citadelHover($closeHovering)  // TODO(appkit-A3)
             .help("Dismiss until it changes")
         }
         .padding(.vertical, skin.size.s10)
@@ -153,7 +164,7 @@ struct NeedsYouTile: View {
             Text("Nothing waits on you").citadelFont("t13", weight: "semibold").foregroundStyle(
                 skin.color(skin.text.primary))
             if let last = model.answeredApprovals.first {
-                Text("Last decision: \(model.summary(last).title)").citadelFont("t11").foregroundStyle(
+                Text(verbatim: model.lastDecisionLine(last)).citadelFont("t11").foregroundStyle(
                     skin.color(skin.text.faint)
                 )
                 .lineLimit(1)
@@ -196,6 +207,7 @@ private struct NeedsRow: View {
     let perform: (_ open: Bool) -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: skin.size.s10) {
@@ -216,10 +228,10 @@ private struct NeedsRow: View {
             RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
                 .fill(skin.color(.palette("foreground", hovering ? skin.opacity.o05 : 0)))
         )
-        .offset(x: hovering ? skin.size.s2 : 0)
+        .offset(x: hovering && !reduceMotion ? skin.size.s2 : 0)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
         .onTapGesture { perform(true) }
     }
 

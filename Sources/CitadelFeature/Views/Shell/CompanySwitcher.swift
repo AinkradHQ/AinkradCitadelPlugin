@@ -95,11 +95,11 @@ struct CompanySwitcher: View {
             } else {
                 HStack(spacing: skin.size.s6) {
                     if model.busyAgents > 0 {
-                        Text("\(model.busyAgents) working").citadelFont("t10_5", weight: "semibold")
+                        Text(verbatim: "\(model.busyAgents) working").citadelFont("t10_5", weight: "semibold")
                             .foregroundStyle(skin.color(skin.palette.accentSecondary))
                     }
                     if model.needsYouCount > 0 {
-                        Text("\(model.needsYouCount) need you").citadelFont("t10_5", weight: "semibold")
+                        Text(verbatim: "\(model.needsYouCount) need you").citadelFont("t10_5", weight: "semibold")
                             .foregroundStyle(skin.color(skin.palette.warning))
                     }
                 }

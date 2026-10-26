@@ -335,7 +335,8 @@ extension CompanyModel {
             }
             return hot.isEmpty ? nil : AinkradNavCount("\(hot.count)", tone: .warning)
         case .runners: return runners.isEmpty ? nil : AinkradNavCount("\(runnersOnline)/\(runners.count)")
-        case .home, .artifacts, .cost: return nil
+        case .artifacts: return plain(artifactsPage.items.count)
+        case .home, .cost: return nil
         }
     }
 }
@@ -349,5 +350,12 @@ extension ApprovalInfo {
     /// "4m ago" for an answered approval, or nil without `decided_at`.
     func decidedAgo(now: Date = Date()) -> String? {
         decidedAt.map { "\(Fmt.age(now.timeIntervalSince($0))) ago" }
+    }
+}
+
+extension CompanyModel {
+    /// Home's all-clear line: "Last decision: Merge CIT-4 · 4m ago" (no age without `decided_at`).
+    func lastDecisionLine(_ approval: ApprovalInfo, now: Date = Date()) -> String {
+        "Last decision: \(summary(approval).title)" + (approval.decidedAgo(now: now).map { " · \($0)" } ?? "")
     }
 }

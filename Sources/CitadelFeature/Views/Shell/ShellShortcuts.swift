@@ -11,7 +11,17 @@ struct ShellShortcuts: View {
     var body: some View {
         ZStack {
             ForEach(Array(Screen.allCases.prefix(9).enumerated()), id: \.element) { index, screen in
-                key(KeyEquivalent(Character("\(index + 1)"))) { store.go(to: screen) }
+                key(KeyEquivalent(Character("\(index + 1)"))) {
+                    // The company menu's own ⌘1…⌘9 (its rows show the hint) win while it is open.
+                    if store.isSwitchingCompany {
+                        if store.companies.indices.contains(index) {
+                            store.isSwitchingCompany = false
+                            store.select(company: store.companies[index].id)
+                        }
+                    } else {
+                        store.go(to: screen)
+                    }
+                }
             }
             key("[") { store.goBack() }
             key("]") { store.goForward() }

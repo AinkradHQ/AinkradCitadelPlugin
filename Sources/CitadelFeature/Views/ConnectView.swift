@@ -10,6 +10,7 @@ struct ConnectView: View {
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @Environment(\.ainkradMotionBudget) private var motionBudget
 
     @State private var breathe = false
 
@@ -171,6 +172,12 @@ struct ConnectView: View {
                 Spacer(minLength: 0)
                 AinkradDockButton("Open Home", tone: .primary) { store.openHome() }
                     .keyboardShortcut(.return, modifiers: [])
+                    // The prototype opens Home by itself after 1.5 s; the button stays for the impatient.
+                    .task {
+                        guard motionBudget != .frozen else { return }
+                        try? await Task.sleep(for: .seconds(1.5))
+                        if !Task.isCancelled { store.openHome() }
+                    }
             case .rejected:
                 AinkradButton(title: "How keys work", style: .ghost) { store.showsKeyHelp.toggle() }
                     .borderless().secondaryAccent().fixedSize()

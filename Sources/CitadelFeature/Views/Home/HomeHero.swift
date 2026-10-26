@@ -125,10 +125,10 @@ struct HomeHero: View {
             .background(
                 (live ? status.success : status.warning).opacity(skin.opacity.o12),
                 in: RoundedRectangle(cornerRadius: skin.size.s7))
-            (Text("\(model.liveRuns.count)").bold().foregroundStyle(skin.color(skin.text.primary))
+            (Text(verbatim: "\(model.liveRuns.count)").bold().foregroundStyle(skin.color(skin.text.primary))
                 + Text(" runs working"))
             Text("·").foregroundStyle(skin.color(skin.text.faint))
-            (Text("\(model.needsYouCount)").bold() + Text(" need you"))
+            (Text(verbatim: "\(model.needsYouCount)").bold() + Text(" need you"))
                 .foregroundStyle(model.needsYouCount > 0 ? status.warning : status.success)
             if let sprint = model.sprint {
                 Text("·").foregroundStyle(skin.color(skin.text.faint))
@@ -180,8 +180,19 @@ struct HomeHero: View {
         return today == 0 && tokens > 0 ? "\(Fmt.tokens(tokens)) tok" : Fmt.dollars(micros: today)
     }
 
+    /// The company's daily dollar budget, if one is set; the ring shows the share of it spent today.
+    private var dailyBudget: BudgetInfo? {
+        model.budgets.first { $0.scope.hasPrefix("company") && $0.period == "day" && $0.isDollars }
+    }
+
+    private func dailyShare(today: Int64) -> Double? {
+        guard let cap = dailyBudget?.shownCap, cap > 0 else { return nil }
+        return min(Double(today) / Double(cap), 1)
+    }
+
     private func spendCaption(today: Int64) -> String {
         let tokens = model.spendToday?.tokens ?? 0
+        if let budget = dailyBudget { return "of \(budget.capWord) today" }
         return today == 0 && tokens > 0 ? "subscription · no priced spend" : "spent today · \(Fmt.tokens(tokens)) tok"
     }
 
@@ -205,7 +216,8 @@ struct HomeHero: View {
             }
             GridRow {
                 StatRing(
-                    value: nil, tint: skin.color(skin.palette.accentPrimary), label: "$",
+                    value: dailyShare(today: today), tint: skin.color(skin.palette.accentPrimary),
+                    label: dailyShare(today: today).map { "\(Int(($0 * 100).rounded()))%" } ?? "$",
                     title: spendTitle(today: today), caption: spendCaption(today: today)
                 ) { store.screen = .cost }
                 StatRing(
