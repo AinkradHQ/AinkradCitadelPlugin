@@ -99,7 +99,9 @@ struct CompanySwitcher: View {
                             .foregroundStyle(skin.color(skin.palette.accentSecondary))
                     }
                     if model.needsYouCount > 0 {
-                        Text(verbatim: "\(model.needsYouCount) need you").citadelFont("t10_5", weight: "semibold")
+                        let wait = model.oldestWaitLine().map { " · \($0)" } ?? ""
+                        Text(verbatim: "\(model.needsYouCount) need you\(wait)")
+                            .citadelFont("t10_5", weight: "semibold")
                             .foregroundStyle(skin.color(skin.palette.warning))
                     }
                 }

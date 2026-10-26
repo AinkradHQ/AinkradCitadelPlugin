@@ -14,6 +14,22 @@ extension CitadelStore {
     static let honestAggregatesMinor = 19
     var honestAggregates: Bool { serverSupports(minor: Self.honestAggregatesMinor) }
 
+    /// The API minor that added `repo_implicit` on the issue read (P3).
+    static let repoImplicitMinor = 20
+
+    /// "No explicit repo — uses <primary>" for an issue the server flagged; nil on an older server (the flag is not
+    /// read) or when it has an explicit repo.
+    func repoWarning(_ issue: IssueInfo?, primary: String?) -> String? {
+        guard serverSupports(minor: Self.repoImplicitMinor), issue?.repoImplicit == true else { return nil }
+        return "No explicit repo — uses \(primary ?? "the primary repo")"
+    }
+
+    /// Reads the issue once for the flag the lists do not carry; only a minor-20 server has it.
+    func loadRepoFlag(_ id: Int64) {
+        guard serverSupports(minor: Self.repoImplicitMinor), let server, let model else { return }
+        Task { if let issue = await server.issue(id) { model.issues[id] = issue } }
+    }
+
     /// Whether the connected server speaks API minor `minor` or newer (false until `/me` has answered).
     func serverSupports(minor: Int) -> Bool { (apiMinor ?? 0) >= minor }
 

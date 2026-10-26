@@ -2871,6 +2871,10 @@
             "format": "double",
             "type": "number"
           },
+          "repo_implicit": {
+            "description": "True when the issue has no explicit repo and its project has several, so it works in the\nprimary one (API minor 20). Set on a single-issue read; omitted when false.",
+            "type": "boolean"
+          },
           "requirement_id": {
             "description": "The requirement it serves (E15.10), Quest's requirement tag.",
             "format": "int64",
@@ -8777,7 +8781,7 @@
       "name": ""
     },
     "title": "Citadel",
-    "version": "1.19.0"
+    "version": "1.20.0"
   },
   "openapi": "3.1.0",
   "paths": {

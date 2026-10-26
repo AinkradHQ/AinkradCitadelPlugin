@@ -171,6 +171,14 @@ final class CompanyModel {
     var idleAgents: Int { agents.count - busyAgents - pausedAgents }
     var needsYouCount: Int { approvals.count + stuck.count }
 
+    /// The oldest thing that waits on you (a pending approval, an open question, a stuck issue), as "oldest 3h";
+    /// nil when nothing waits or no timestamp is known (an older server sends none for approvals).
+    func oldestWaitLine(now: Date = Date()) -> String? {
+        let starts =
+            approvals.compactMap(\.createdAt) + questions.filter(\.isOpen).map(\.askedAt) + stuck.compactMap(\.since)
+        return starts.min().map { "oldest \(Fmt.age(now.timeIntervalSince($0)))" }
+    }
+
     func agent(_ id: Int64?) -> AgentInfo? { id.flatMap { agents[$0] } }
     func issue(_ id: Int64?) -> IssueInfo? { id.flatMap { issues[$0] } }
 
