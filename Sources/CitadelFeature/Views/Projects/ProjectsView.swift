@@ -215,6 +215,9 @@ private struct ProjectCard: View {
                 dot(skin.color(skin.palette.accentViolet), "\(proposals) proposal\(proposals == 1 ? "" : "s")")
             }
             if facts.blocked > 0 { dot(skin.color(skin.palette.danger), "\(facts.blocked) blocked") }
+            if let ci = facts.ci {
+                dot(skin.color(ci == "CI failing" ? skin.palette.danger : skin.palette.success), ci)
+            }
             Spacer(minLength: skin.size.s8)
             Text("\(facts.work.open.count) open").citadelFont("t11", mono: true).foregroundStyle(
                 skin.color(skin.text.faint))

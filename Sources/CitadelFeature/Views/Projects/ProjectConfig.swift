@@ -75,21 +75,53 @@ struct ConfigTeams: View {
                                 }
                                 Text("\(department.name) · \(team.seats.count) agents")
                                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                                faces(team)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             if many && attached && !isOwner {
                                 AinkradTapArea(help: "Its lead plans sprints with the PO") {
                                     store.makeOwner(team, project: facts.project)
                                 } label: {
-                                    Text("Make owner").citadelFont("t11").foregroundStyle(
-                                        skin.color(skin.palette.accentPrimary))
+                                    Hovering { hovering in
+                                        Text("Make owner").citadelFont("t11").foregroundStyle(
+                                            skin.color(skin.palette.accentPrimary)
+                                        ).underline(hovering)
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                AinkradChoiceCard(
+                    isAdd: true, minHeight: skin.size.s80,
+                    action: {
+                        facts.model.orgPage.stack(.team(nil))
+                        store.screen = .org
+                    }
+                ) {
+                    Text("＋ New team").citadelFont("t12_5", weight: "semibold").foregroundStyle(
+                        skin.color(skin.text.muted))
+                }
             }
         }
+    }
+
+    /// The team's members, overlapped, the lead starred.
+    private func faces(_ team: TeamInfo) -> some View {
+        HStack(spacing: -skin.size.s4) {
+            ForEach(team.seats.prefix(5), id: \.agentID) { seat in
+                if let agent = facts.model.agents[seat.agentID] {
+                    AgentFigure(agent: agent, model: facts.model, size: skin.size.s18)
+                        .overlay(alignment: .topTrailing) {
+                            if seat.teamRole == "team_lead" {
+                                Text("★").citadelFont("t9").foregroundStyle(skin.color(skin.palette.warning))
+                                    .offset(x: skin.size.s3, y: -skin.size.s3)
+                            }
+                        }
+                }
+            }
+        }
+        .padding(.top, skin.size.s2)
     }
 }
 
@@ -158,6 +190,7 @@ struct ConfigRules: View {
                     kv("Branch name", profile.branchPattern, mono: true)
                     kv("Protected", profile.protectedBranches.joined(separator: " · "), mono: true)
                 }
+                Text("Merge strategy").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 choices(
                     [
                         ("merge", "Merge commit", "Keeps every commit"), ("squash", "Squash", "One commit per PR"),
@@ -175,6 +208,7 @@ struct ConfigRules: View {
                 ) { store.updateProfile(project: id, .init(mergedBy: .init(value1: .init(rawValue: $0)))) }
             }
             ConfigSection(title: "Policies") {
+                Text("Plan approval").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
                 choices(
                     [
                         ("owner", "Owner (you)", "You approve each sprint plan"),
@@ -291,7 +325,7 @@ struct ConfigDocs: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s16) {
-            if let profile = facts.profile { DocsGroup(profile: profile) }
+            if let profile = facts.profile { DocsGroup(store: store, project: facts.project.id, profile: profile) }
             KnowledgeGroup(store: store, model: facts.model, project: facts.project.id)
         }
     }
@@ -311,16 +345,33 @@ struct ConfigContext: View {
                 label: "Profile budget", value: Double(preview?.bytes ?? profile.injectedBytes),
                 limit: Double(max(preview?.budgetBytes ?? profile.budgetBytes, 1)))
             Text(
-                "\((preview?.bytes ?? profile.injectedBytes).formatted(.byteCount(style: .file))) of \((preview?.budgetBytes ?? profile.budgetBytes).formatted(.byteCount(style: .file))) · generated from Repos · Rules · Runtime · Limits"
+                "\((preview?.bytes ?? profile.injectedBytes).formatted(.byteCount(style: .file))) of \((preview?.budgetBytes ?? profile.budgetBytes).formatted(.byteCount(style: .file)))\(preview == nil ? " · generated from Repos · Rules · Runtime · Limits" : "")"
             )
             .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
             if let preview {
-                Text(preview.text.isEmpty ? "Nothing is injected yet." : preview.text).citadelFont("t11", mono: true)
-                    .foregroundStyle(skin.color(skin.text.primary)).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .topLeading).padding(skin.size.s12)
-                    .background(
-                        skin.color(.palette("black", skin.opacity.o28)),
-                        in: RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
+                VStack(spacing: 0) {
+                    HStack(spacing: skin.size.s8) {
+                        Text("run-context.md").citadelFont("t11", weight: "semibold", mono: true)
+                            .foregroundStyle(skin.color(skin.text.primary))
+                        Text(facts.project.key).citadelFont("t10", weight: "bold", mono: true)
+                            .foregroundStyle(skin.color(skin.palette.accentSecondary))
+                            .padding(.horizontal, skin.size.s6).padding(.vertical, skin.size.s1)
+                            .background(
+                                skin.color(skin.palette.accentSecondary).opacity(skin.opacity.o14),
+                                in: RoundedRectangle(cornerRadius: skin.size.s5))
+                        Spacer(minLength: skin.size.s8)
+                        Text("generated from Repos · Rules · Runtime · Limits").citadelFont("t10_5")
+                            .foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+                    }
+                    .padding(.horizontal, skin.size.s12).padding(.vertical, skin.size.s8)
+                    .background(skin.color(.palette("foreground", skin.opacity.o05)))
+                    Text(preview.text.isEmpty ? "Nothing is injected yet." : preview.text)
+                        .citadelFont("t11", mono: true)
+                        .foregroundStyle(skin.color(skin.text.primary)).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .topLeading).padding(skin.size.s12)
+                }
+                .background(skin.color(.palette("black", skin.opacity.o28)))
+                .clipShape(RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
                 if !preview.dropped.isEmpty {
                     Text("Left out for the budget: \(preview.dropped.joined(separator: ", "))").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.palette.warning))

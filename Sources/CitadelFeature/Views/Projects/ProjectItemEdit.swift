@@ -14,9 +14,10 @@ struct ProjectsItemTitle: View {
 
     var body: some View {
         if store.hasTrancheB {
-            AinkradTextField(text: $draft, placeholder: "Title").onSubmit {
-                store.setTitle(item, draft, project: project)
-            }
+            AinkradBareEditor(
+                text: $draft, placeholder: "Title", sizeKey: "t20", weight: "semibold",
+                onReturn: { store.setTitle(item, draft, project: project) }
+            )
             .onAppear { draft = item.title }
             .onChange(of: item.title) { _, new in draft = new }
         } else {

@@ -54,7 +54,7 @@ struct ProjectTimeline: View {
                                     end: span.end,
                                     progress: Double(percent(progress)) / 100, order: index)
                             }, from: from, to: to
-                        ) { facts.page.filter.epic = $0 }
+                        ) { openEpic($0) }
                     }
                 }
             }
@@ -62,6 +62,12 @@ struct ProjectTimeline: View {
                 ForEach(work.epics) { epic in card(epic) }
             }
         }
+    }
+
+    /// An epic's bar or card: the Board, filtered to that epic.
+    private func openEpic(_ id: Int64) {
+        facts.page.filter.epic = id
+        facts.page.tab = .board
     }
 
     private func percent(_ p: (done: Int, of: Int, donePoints: Int, points: Int)) -> Int {
@@ -76,7 +82,7 @@ struct ProjectTimeline: View {
         let reqs = Set(work.items.filter { $0.epicID == epic.id }.compactMap(\.requirementID))
         let requirementID = (facts.hasTrancheB ? epic.requirementID : nil) ?? (reqs.count == 1 ? reqs.first : nil)
         let requirement = requirementID.flatMap { id in facts.model.requirements.first { $0.id == id } }
-        return AinkradBentoTile(onTap: { facts.page.filter.epic = epic.id }) {
+        return AinkradBentoTile(onTap: { openEpic(epic.id) }) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
                 HStack(spacing: skin.size.s8) {
                     Text("⚡").citadelFont("t12").foregroundStyle(tint)
@@ -94,7 +100,10 @@ struct ProjectTimeline: View {
                     Text("\(progress.done) of \(progress.of) items")
                     Text("\(progress.donePoints)/\(progress.points) pts")
                     if let requirement {
-                        TileLink(requirement.key) { store.screen = .requirements }
+                        TileLink(requirement.key) {
+                            facts.model.requirementsPage.selectedID = requirement.id
+                            store.screen = .requirements
+                        }
                     }
                 }
                 .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
@@ -179,21 +188,24 @@ struct RoadmapGrid: View {
                                 let x = geo.size.width * start.timeIntervalSince(from) / span
                                 let w = max(skin.size.s24, geo.size.width * end.timeIntervalSince(start) / span)
                                 AinkradTapArea(help: row.title, action: { pick(row.id) }) {
-                                    ZStack(alignment: .leading) {
-                                        RoundedRectangle(cornerRadius: skin.size.s8).fill(
-                                            row.tint.opacity(skin.opacity.o22))
-                                        Rectangle().fill(row.tint.opacity(skin.opacity.o55)).frame(
-                                            width: w * row.progress)
-                                        Text("\(Int(row.progress * 100))%").citadelFont(
-                                            "t10_5", weight: "semibold", mono: true
-                                        )
-                                        .foregroundStyle(skin.color(skin.text.primary)).padding(.leading, skin.size.s8)
+                                    Hovering { hovering in
+                                        ZStack(alignment: .leading) {
+                                            RoundedRectangle(cornerRadius: skin.size.s8).fill(
+                                                row.tint.opacity(hovering ? skin.opacity.o40 : skin.opacity.o22))
+                                            Rectangle().fill(row.tint.opacity(skin.opacity.o55)).frame(
+                                                width: w * row.progress)
+                                            Text("\(Int(row.progress * 100))%").citadelFont(
+                                                "t10_5", weight: "semibold", mono: true
+                                            )
+                                            .foregroundStyle(skin.color(skin.text.primary)).padding(
+                                                .leading, skin.size.s8)
+                                        }
+                                        .frame(width: w, height: skin.size.s24)
+                                        .clipShape(RoundedRectangle(cornerRadius: skin.size.s8))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: skin.size.s8).strokeBorder(
+                                                row.tint.opacity(skin.opacity.o55)))
                                     }
-                                    .frame(width: w, height: skin.size.s24)
-                                    .clipShape(RoundedRectangle(cornerRadius: skin.size.s8))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: skin.size.s8).strokeBorder(
-                                            row.tint.opacity(skin.opacity.o55)))
                                 }
                                 .scaleEffect(x: grown || reduceMotion ? 1 : 0.001, y: 1, anchor: .leading)
                                 .animation(
@@ -249,6 +261,7 @@ struct ProjectReports: View {
                     }
                 }
             }
+            .ainkradRiseIn(delay: 0)
             AinkradBentoTile {
                 VStack(alignment: .leading, spacing: skin.size.s10) {
                     OverviewHead(title: "Throughput") {
@@ -264,8 +277,9 @@ struct ProjectReports: View {
                     .frame(height: skin.size.s150)
                 }
             }
-            cycle(work.cycleDays)
-            mix(work.items.filter { $0.state != "cancelled" })
+            .ainkradRiseIn(delay: 0.04)
+            cycle(work.cycleDays).ainkradRiseIn(delay: 0.08)
+            mix(work.items.filter { $0.state != "cancelled" }).ainkradRiseIn(delay: 0.12)
         }
     }
 

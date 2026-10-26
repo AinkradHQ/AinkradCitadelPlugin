@@ -53,6 +53,27 @@ enum ProjectLogic {
         }
     }
 
+    /// An activity line's action in words: `issue.transitioned` + `to` → "moved it to In review".
+    static func activityWords(action: String, details: [String: String]) -> String {
+        switch action {
+        case "issue.transitioned", "issue.transition":
+            return details["to"].map { "moved it to \(title($0))" } ?? "moved it"
+        case "issue.created": return "created it"
+        case "issue.commented": return "commented"
+        case "issue.assigned", "issue.reassigned": return "reassigned it"
+        default:
+            let verb = action.hasPrefix("issue.") ? String(action.dropFirst("issue.".count)) : action
+            return verb.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: ".", with: " ")
+        }
+    }
+
+    /// The project's CI at a glance from its open PRs' `checks`: failing beats running beats passing; nil with none.
+    static func ci(_ checks: [String]) -> String? {
+        if checks.contains("failure") { return "CI failing" }
+        if checks.contains("pending") { return "CI running" }
+        return checks.contains("success") ? "CI passing" : nil
+    }
+
     /// Lower rank first; id breaks a tie so the order is stable.
     static func ranked(_ items: [WorkItem]) -> [WorkItem] {
         items.sorted { ($0.rank, $0.id) < ($1.rank, $1.id) }

@@ -61,25 +61,33 @@ struct WorkItemPanel: View {
                 AinkradTapArea(help: "Set status to \(ProjectLogic.title(column))") {
                     store.moveItem(item, to: column, project: facts.project)
                 } label: {
-                    HStack(spacing: skin.size.s6) {
-                        Circle().fill(index <= current ? tint : skin.color(.palette("foreground", skin.opacity.o25)))
+                    Hovering { hovering in
+                        HStack(spacing: skin.size.s6) {
+                            Circle().fill(
+                                index <= current ? tint : skin.color(.palette("foreground", skin.opacity.o25))
+                            )
                             .frame(width: skin.size.s8, height: skin.size.s8)
                             .shadow(color: tint.opacity(index == current ? skin.opacity.o60 : 0), radius: skin.size.s4)
-                        Text(ProjectLogic.title(column)).citadelFont("t12")
-                            .foregroundStyle(
-                                index == current ? skin.color(.palette("foreground", 1)) : skin.color(skin.text.muted))
+                            Text(ProjectLogic.title(column)).citadelFont("t12")
+                                .foregroundStyle(
+                                    index == current
+                                        ? skin.color(.palette("foreground", 1)) : skin.color(skin.text.muted))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: skin.size.s34)
+                        .background(
+                            shape.fill(
+                                index == current
+                                    ? tint.opacity(skin.opacity.o16)
+                                    : skin.color(.palette("foreground", hovering ? skin.opacity.o10 : skin.opacity.o05))
+                            )
+                        )
+                        .overlay(
+                            shape.strokeBorder(
+                                index == current
+                                    ? tint.opacity(skin.opacity.o60)
+                                    : skin.color(.palette("foreground", skin.opacity.o07)))
+                        )
                     }
-                    .frame(maxWidth: .infinity, minHeight: skin.size.s34)
-                    .background(
-                        shape.fill(
-                            index == current
-                                ? tint.opacity(skin.opacity.o16) : skin.color(.palette("foreground", skin.opacity.o05)))
-                    )
-                    .overlay(
-                        shape.strokeBorder(
-                            index == current
-                                ? tint.opacity(skin.opacity.o60) : skin.color(.palette("foreground", skin.opacity.o07)))
-                    )
                 }
             }
         }
@@ -111,12 +119,17 @@ struct WorkItemPanel: View {
                         AinkradTapArea(help: agent.name) {
                             store.assign(item, to: agent.id, project: project)
                         } label: {
-                            AgentFigure(agent: agent, model: facts.model, size: skin.size.s34)
-                                .padding(skin.size.s2)
-                                .overlay(
-                                    Circle().strokeBorder(
-                                        skin.color(skin.palette.accentPrimary),
-                                        lineWidth: item.ownerAgentID == agent.id ? skin.size.s2 : 0))
+                            Hovering { hovering in
+                                AgentFigure(agent: agent, model: facts.model, size: skin.size.s34)
+                                    .padding(skin.size.s2)
+                                    .overlay(
+                                        Circle().strokeBorder(
+                                            skin.color(
+                                                item.ownerAgentID == agent.id
+                                                    ? skin.palette.accentPrimary
+                                                    : .palette("foreground", hovering ? skin.opacity.o40 : 0)),
+                                            lineWidth: item.ownerAgentID == agent.id || hovering ? skin.size.s2 : 0))
+                            }
                         }
                     }
                     if facts.agents.isEmpty {
@@ -202,24 +215,20 @@ struct WorkItemPanel: View {
                     skin.color(skin.text.faint))
             }
             ForEach(runs) { run in
-                AinkradTapArea(help: "Open run") {
+                let look = facts.model.look(run)
+                let cost = facts.model.cost(run)
+                HoverRow(height: skin.size.s30) {
                     store.open(.run(run.id))
-                } label: {
-                    HStack(spacing: skin.size.s8) {
-                        if let agent = facts.model.agents[run.agentID] {
-                            AgentFigure(agent: agent, model: facts.model, size: skin.size.s20)
-                        }
-                        Text("#\(run.id)").citadelFont("t11", mono: true).foregroundStyle(
-                            skin.color(skin.palette.accentSecondary))
-                        AinkradStatePill(
-                            text: run.state.replacingOccurrences(of: "_", with: " "),
-                            tint: skin.color(run.state == "failed" ? skin.palette.danger : skin.palette.accentSecondary)
-                        )
-                        Spacer(minLength: skin.size.s8)
-                        Text(run.costMicros.map { String(format: "$%.2f", Double($0) / 1_000_000) } ?? "unpriced")
-                            .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                } content: {
+                    if let agent = facts.model.agents[run.agentID] {
+                        AgentFigure(agent: agent, model: facts.model, size: skin.size.s20)
                     }
-                    .frame(minHeight: skin.size.s30)
+                    Text(verbatim: "#\(run.id)").citadelFont("t11", mono: true).foregroundStyle(
+                        skin.color(skin.palette.accentSecondary))
+                    AinkradStatePill(text: look.word, tint: Hue(look.tone).color(skin))
+                    Spacer(minLength: skin.size.s8)
+                    Text(verbatim: "\(Fmt.duration(facts.model.elapsed(run))) · \(cost.word)")
+                        .citadelFont("t11", mono: true).foregroundStyle(skin.color(skin.text.faint))
                 }
             }
         }
@@ -231,8 +240,11 @@ struct WorkItemPanel: View {
             TileHead(title: "Activity")
             ForEach(lines) { line in
                 HStack(spacing: skin.size.s8) {
+                    if let agent = agent(line.actor) {
+                        AgentFigure(agent: agent, model: facts.model, size: skin.size.s20)
+                    }
                     Text(
-                        "\(who(line.actor)) \(line.action.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: ".", with: " "))"
+                        "\(who(line.actor)) \(ProjectLogic.activityWords(action: line.action, details: line.details))"
                     )
                     .citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                     Spacer(minLength: skin.size.s8)
@@ -251,16 +263,24 @@ struct WorkItemPanel: View {
         }
     }
 
-    /// "agent:3" as the agent's name.
-    private func who(_ actor: String) -> String {
-        guard actor.hasPrefix("agent:"), let id = Int64(actor.dropFirst("agent:".count)),
-            let agent = facts.model.agents[id]
-        else { return actor }
-        return agent.name
+    private func agent(_ actor: String) -> AgentInfo? {
+        guard actor.hasPrefix("agent:"), let id = Int64(actor.dropFirst("agent:".count)) else { return nil }
+        return facts.model.agents[id]
     }
+
+    /// "agent:3" as the agent's name.
+    private func who(_ actor: String) -> String { agent(actor)?.name ?? actor }
 
     private func send(_ item: WorkItem) {
         store.comment(on: item, comment)
         comment = ""
     }
+}
+
+/// Reads the pointer for its content: `Hovering { hovering in … }`, through the shared `.citadelHover`.
+struct Hovering<Content: View>: View {
+    @ViewBuilder let content: (Bool) -> Content
+    @State private var hovering = false
+
+    var body: some View { content(hovering).citadelHover($hovering) }
 }

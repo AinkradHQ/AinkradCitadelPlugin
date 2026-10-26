@@ -116,12 +116,12 @@ struct PoliciesGroup: View {
 }
 
 /// The permission policy's allowlist (API minor 11): what goes ahead without asking — a tool (`Edit`) or
-/// `<tool>:<command prefix>` (`Bash:npm run`). × removes one, "Add…" adds one; the policy is replaced whole.
+/// `<tool>:<command prefix>` (`Bash:npm run`). × removes one, the field adds one on Return; the policy is replaced whole.
 struct AllowlistRow: View {
     let store: CitadelStore
     let project: Int64
     let policy: PolicyInfo
-    @State private var adding = false
+    @State private var draft = ""
     @Environment(\.ainkradSkin) private var skin
 
     var body: some View {
@@ -135,38 +135,56 @@ struct AllowlistRow: View {
                 }
             }
         } trailing: {
-            AinkradButton(title: "Add…", style: .ghost) { adding = true }.borderless().compact().fixedSize()
+            AinkradTextField(text: $draft, placeholder: "Add — Bash:cargo test").compact().monospaced()
+                .onSubmit(add).frame(width: skin.size.s160)
         }
-        .ainkradSheet(isPresented: $adding) {
-            PromptSheet(
-                title: "Allow without asking",
-                message:
-                    "A tool name (Edit), or a tool and a command prefix (Bash:npm run). A path outside the worktree always asks.",
-                placeholder: "Bash:cargo test", confirmTitle: "Allow", text: "", isPresented: $adding
-            ) { entry in
-                let entry = entry.trimmingCharacters(in: .whitespaces)
-                guard !policy.allow.contains(entry) else { return }
-                store.setAllowlist(project: project, policy.allow + [entry])
-            }
-        }
+    }
+
+    private func add() {
+        let entry = draft.trimmingCharacters(in: .whitespaces)
+        draft = ""
+        guard !entry.isEmpty, !policy.allow.contains(entry) else { return }
+        store.setAllowlist(project: project, policy.allow + [entry])
     }
 }
 
-/// Conventions and linked docs.
+/// Conventions and linked docs: a card per doc, and a "＋ Link a doc" card that takes a path or URL.
 struct DocsGroup: View {
+    let store: CitadelStore
+    let project: Int64
     let profile: ProfileInfo
+    @State private var draft = ""
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
 
     var body: some View {
         ProfileGroup(title: "Docs & links") {
             ProfileRow(label: "Commits") { Text(profile.conventions.isEmpty ? "—" : profile.conventions) }
-            ProfileRow(label: "Linked docs") {
-                Text(profile.docs.isEmpty ? "—" : profile.docs.joined(separator: " · "))
-                    .foregroundStyle(theme.accentSecondary)
-            }
             if !profile.stack.isEmpty { ProfileRow(label: "Stack") { Text(profile.stack) } }
+            AinkradCardGrid(columns: 2) {
+                ForEach(profile.docs, id: \.self) { doc in
+                    AinkradChoiceCard(minHeight: skin.size.s46) {
+                        Text(doc).citadelFont("t12", mono: true).foregroundStyle(theme.accentSecondary).lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: skin.size.s4)
+                        AinkradIconButton(systemName: "xmark", size: skin.size.s18, tooltip: "Unlink") {
+                            store.updateProfile(project: project, .init(docs: profile.docs.filter { $0 != doc }))
+                        }
+                        .bare()
+                    }
+                }
+                AinkradChoiceCard(isAdd: true, minHeight: skin.size.s46) {
+                    AinkradTextField(text: $draft, placeholder: "＋ Link a doc — path or URL").compact().onSubmit(link)
+                }
+            }
         }
+    }
+
+    private func link() {
+        let doc = draft.trimmingCharacters(in: .whitespaces)
+        draft = ""
+        guard !doc.isEmpty, !profile.docs.contains(doc) else { return }
+        store.updateProfile(project: project, .init(docs: profile.docs + [doc]))
     }
 }
 

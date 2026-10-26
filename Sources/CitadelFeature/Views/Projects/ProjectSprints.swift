@@ -36,10 +36,10 @@ struct ProjectSprints: View {
             .frame(maxWidth: .infinity).padding(.vertical, skin.size.s60)
         } else {
             AinkradCardGrid(columns: 2, spacing: skin.size.s14) {
-                if let active = work.active { current(active) }
-                capacity
-                velocity
-                all
+                if let active = work.active { current(active).ainkradRiseIn(delay: 0) }
+                capacity.ainkradRiseIn(delay: 0.04)
+                velocity.ainkradRiseIn(delay: 0.08)
+                all.ainkradRiseIn(delay: 0.12)
             }
         }
     }
@@ -94,6 +94,11 @@ struct ProjectSprints: View {
         }
     }
 
+    /// The team the agent sits on, among the project's teams; the owning team when none lists it.
+    private static func team(of agent: AgentInfo, in facts: ProjectFacts) -> TeamInfo? {
+        facts.teams.first { $0.seats.contains { $0.agentID == agent.id } } ?? facts.team
+    }
+
     private var small: Font { skin.font(AinkradFontToken(sizeKey: "t12")) }
 
     private func kpi(_ value: Text, _ label: String) -> some View {
@@ -124,16 +129,17 @@ struct ProjectSprints: View {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(agent.name).citadelFont("t12", weight: "bold").foregroundStyle(
                                 skin.color(skin.text.primary))
-                            Text("\(agent.role) · \(facts.team?.name ?? "")").citadelFont("t10_5").foregroundStyle(
-                                skin.color(skin.text.faint)
-                            ).lineLimit(1)
+                            Text("\(agent.role) · \(Self.team(of: agent, in: facts)?.name ?? "")").citadelFont("t10_5")
+                                .foregroundStyle(
+                                    skin.color(skin.text.faint)
+                                ).lineLimit(1)
                         }
                         .frame(width: skin.size.s96, alignment: .leading)
                         CapacityBar(done: done, planned: planned, capacity: cap, scale: scale)
                         Text("\(planned)/\(cap.map(String.init) ?? "–")").citadelFont("t11", mono: true)
                             .foregroundStyle(
                                 cap.map { planned > $0 } == true
-                                    ? skin.color(skin.palette.danger) : skin.color(skin.text.faint)
+                                    ? skin.color(skin.palette.warning) : skin.color(skin.text.faint)
                             )
                             .frame(width: skin.size.s40, alignment: .trailing)
                     }
@@ -178,12 +184,17 @@ struct ProjectSprints: View {
                             back: Double($0.committed) / Double(top),
                             front: Double($0.done) / Double(top), highlight: $0.state == "active",
                             dim: $0.state == "planned")
-                    }
+                    }, average: work.velocityAverage.map { min(1, $0 / Double(top)) }
                 )
                 .frame(height: skin.size.s150)
                 HStack(spacing: skin.size.s14) {
                     ProjectLegend(tint: skin.color(.palette("foreground", skin.opacity.o18)), label: "committed")
                     ProjectLegend(tint: skin.color(skin.palette.accentSecondary), label: "done")
+                    if let average = work.velocityAverage {
+                        ProjectLegend(
+                            tint: skin.color(skin.palette.warning),
+                            label: "average \(Int(average.rounded()))", dashed: true)
+                    }
                 }
             }
         }
@@ -297,6 +308,8 @@ struct VBar {
 /// Bars that grow from the bottom, staggered (`.vel`): a committed bar behind a cyan done bar.
 struct VBars: View {
     let bars: [VBar]
+    /// The average, as a share of the tallest bar: drawn as a dashed line across every column.
+    var average: Double?
     @State private var grown = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
@@ -332,6 +345,18 @@ struct VBars: View {
                         .animation(
                             skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.7)).delay(
                                 Double(index) * 0.08), value: grown)
+                        if let average {
+                            Path { path in
+                                let y = geo.size.height * (1 - average)
+                                path.move(to: CGPoint(x: 0, y: y))
+                                path.addLine(to: CGPoint(x: geo.size.width + skin.size.s12, y: y))
+                            }
+                            .stroke(
+                                skin.color(skin.palette.warning).opacity(skin.opacity.o60),
+                                style: StrokeStyle(lineWidth: 1, dash: [skin.size.s4, skin.size.s3])
+                            )
+                            .allowsHitTesting(false)
+                        }
                     }
                     Text(bar.label).citadelFont("t11", weight: "bold")
                         .foregroundStyle(

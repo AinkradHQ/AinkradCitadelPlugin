@@ -21,6 +21,21 @@ final class ProjectLogicTests: XCTestCase {
         XCTAssertEqual(try? ProjectLogic.step(for: item(1, "done"), to: "todo", reviewer: 9).get(), .reopen(next: 7))
     }
 
+    func testActivityWords() {
+        XCTAssertEqual(
+            ProjectLogic.activityWords(action: "issue.transitioned", details: ["to": "in_review"]),
+            "moved it to In review")
+        XCTAssertEqual(ProjectLogic.activityWords(action: "issue.transitioned", details: [:]), "moved it")
+        XCTAssertEqual(ProjectLogic.activityWords(action: "issue.idle_escalated", details: [:]), "idle escalated")
+    }
+
+    func testCIAtAGlance() {
+        XCTAssertEqual(ProjectLogic.ci(["success", "failure", "pending"]), "CI failing")
+        XCTAssertEqual(ProjectLogic.ci(["success", "pending"]), "CI running")
+        XCTAssertEqual(ProjectLogic.ci(["none", "success"]), "CI passing")
+        XCTAssertNil(ProjectLogic.ci(["none"]))
+    }
+
     func testRefusals() {
         XCTAssertNil(try? ProjectLogic.step(for: item(1, "in_progress"), to: "in_review", reviewer: nil).get())
         XCTAssertNil(try? ProjectLogic.step(for: item(1, "blocked"), to: "done", reviewer: 9).get())

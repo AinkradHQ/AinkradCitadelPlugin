@@ -32,23 +32,31 @@ struct RepositoriesGroup: View {
             ) { repo in
                 RepoCard(
                     store: store, repo: repo, project: project.id,
+                    number: (repos.firstIndex { $0.id == repo.id } ?? 0) + 1,
                     stack: store.hasTrancheB ? repo.stack : (repo.isPrimary ? page.profiles[project.id]?.stack : nil))
             }
+            if adding { addForm }
             declared.padding(.top, skin.size.s8)
         }
-        .ainkradSheet(isPresented: $adding) {
-            AddRepoSheet(
-                isPresented: $adding, probes: store.hasTrancheB,
-                probe: { name, url, forge, token, done in
-                    store.probeRepo(
-                        project: project.id, name: name, url: url, forge: forge, tokenFile: token, done: done)
-                },
-                add: { name, url, branch, forge, token, probe in
-                    store.addRepo(
-                        project: project.id, name: name, url: url, branch: branch, forge: forge, tokenFile: token,
-                        probe: probe)
-                })
-        }
+    }
+
+    /// The add form, inline under the list (it was a sheet), its Name field focused.
+    private var addForm: some View {
+        AddRepoSheet(
+            isPresented: $adding, probes: store.hasTrancheB,
+            probe: { name, url, forge, token, done in
+                store.probeRepo(
+                    project: project.id, name: name, url: url, forge: forge, tokenFile: token, done: done)
+            },
+            add: { name, url, branch, forge, token, probe in
+                store.addRepo(
+                    project: project.id, name: name, url: url, branch: branch, forge: forge, tokenFile: token,
+                    probe: probe)
+            }
+        )
+        .background(
+            skin.color(.palette("foreground", skin.opacity.o03)),
+            in: RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous))
     }
 
     /// "ISSUES DECLARE THE REPOS THEY TOUCH": an issue in flight and its repo chips.
@@ -97,11 +105,18 @@ private struct RepoCard: View {
     let store: CitadelStore
     let repo: RepoInfo
     let project: Int64
+    let number: Int
     let stack: String?
     @State private var confirmsRemove = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradTheme) private var theme
     @Environment(\.ainkradStatusColors) private var status
+
+    private static func ordinal(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .ordinal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s6) {
@@ -120,6 +135,9 @@ private struct RepoCard: View {
                     Text(stack).citadelFont("t11").foregroundStyle(skin.color(skin.text.muted)).lineLimit(1)
                 }
                 Spacer(minLength: skin.size.s8)
+                if repo.tokenFile != nil { AinkradBadge(text: "connected", status: .success).fixedSize() }
+                Text(verbatim: "merges \(Self.ordinal(number))").citadelFont("t11", mono: true)
+                    .foregroundStyle(skin.color(skin.palette.accentPrimary)).fixedSize()
                 if repo.isPrimary {
                     Text("click ★ on another repo to make it primary").citadelFont("t11")
                         .foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
@@ -225,6 +243,7 @@ private struct AddRepoSheet: View {
     @State private var token = ""
     @State private var checking = false
     @State private var found: Result<RepoProbe, ServerAnswer>?
+    @FocusState private var nameFocus: Bool
     @Environment(\.ainkradSkin) private var skin
 
     private var passed: RepoProbe? { if case .success(let probe) = found, probe.passes { probe } else { nil } }
@@ -232,7 +251,9 @@ private struct AddRepoSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: skin.size.s12) {
             Text("Add repository").citadelFont("t15", weight: "semibold")
-            AinkradFormRow(title: "Name") { AinkradTextField(text: $name, placeholder: "citadel") }
+            AinkradFormRow(title: "Name") {
+                AinkradTextField(text: $name, placeholder: "citadel", focus: $nameFocus)
+            }
             AinkradFormRow(title: "URL") { AinkradTextField(text: $url, placeholder: "https://github.com/…") }
             AinkradFormRow(title: "Default branch") { AinkradTextField(text: $branch, placeholder: "development") }
             AinkradFormRow(title: "Forge") {
@@ -261,8 +282,9 @@ private struct AddRepoSheet: View {
                 }
             }
         }
-        .padding(skin.size.s20)
-        .frame(width: skin.size.s480)
+        .padding(skin.size.s14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { nameFocus = true }
         .onChange(of: [name, url, forge, token]) { _, _ in found = nil }
     }
 
