@@ -28,8 +28,9 @@ struct LimitsView: View {
                 AinkradSearchField(text: $page.search, placeholder: "Find a setting").frame(width: skin.size.s220)
             }
             resolution
-            ForEach(groups, id: \.0) { title, rows in
-                SettingsCard {
+            ForEach(Array(groups.enumerated()), id: \.element.0) { index, group in
+                let (title, rows) = group
+                SettingsCard(delay: 0.06 * Double(index)) {
                     HStack(spacing: skin.size.s8) {
                         SectionGlyph(
                             icon: Self.groupIcon(title), tint: Self.groupTint(title, skin), size: skin.size.s24)
@@ -203,7 +204,7 @@ struct LimitsView: View {
         }
     }
 
-    /// The same, from the server's CLI (`citadel-server setting …`), for the selected row.
+    /// The same, from the server's CLI (`citadel-server setting …`; no client `citadel setting` command yet), for the selected row.
     private var cli: some View {
         let key = page.selected ?? page.company.first { $0.isSet(at: companyScope) }?.key ?? "run.stall_after_secs"
         let value = page.company.first { $0.key == key }?.text.replacingOccurrences(of: " ", with: "") ?? "<value>"
@@ -214,7 +215,7 @@ struct LimitsView: View {
             "citadel-server setting reset $DB \(key) --scope \(companyScope)",
             "citadel-server setting history $DB \(key)",
         ]
-        return SettingsCard(title: "Same from the CLI · API", hint: LimitNames.name(key)) {
+        return SettingsCard(title: "On the server (citadel-server, needs the database)", hint: LimitNames.name(key)) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(lines, id: \.self) { line in
                     (Text(verbatim: "$ ").foregroundStyle(skin.color(skin.text.faint))

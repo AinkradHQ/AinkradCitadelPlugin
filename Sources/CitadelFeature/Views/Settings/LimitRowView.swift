@@ -13,6 +13,7 @@ struct LimitRowView: View {
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     private var page: LimitsPage { model.limitsPage }
     private var scope: String { "company:\(model.companyID)" }
@@ -60,11 +61,16 @@ struct LimitRowView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { page.selected = row.id }
+        .focusable()
+        .onKeyPress(keys: [.return, .space]) { _ in
+            page.selected = row.id
+            return .handled
+        }
         .onHover { hovering = $0 }
         .ainkradHoverCard { resolutionCard }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
-        .animation(skin.animation(skin.motion.present), value: flashing)
-        .animation(skin.animation(skin.motion.hover), value: selected)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: flashing)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: selected)
     }
 
     /// The gauge's step in the setting's unit: whole minutes / hours, whole GB / KB, thousands of tokens.

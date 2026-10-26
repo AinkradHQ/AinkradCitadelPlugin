@@ -48,13 +48,21 @@ struct SettingsHero<Action: View>: View {
     var title: String?
     var subtitle: String?
     @ViewBuilder let action: Action
+    @State private var popped = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let tint = section.tint(skin)
         let shape = RoundedRectangle(cornerRadius: skin.size.s20, style: .continuous)
         HStack(spacing: skin.size.s16) {
             SectionGlyph(icon: section.icon, tint: tint, size: skin.size.s52)
+                .scaleEffect(popped || reduceMotion ? 1 : 0.6)
+                .opacity(popped || reduceMotion ? 1 : 0)
+                .onAppear {
+                    guard !popped, !reduceMotion else { return }
+                    withAnimation(skin.animation(skin.motion.present)) { popped = true }
+                }
             VStack(alignment: .leading, spacing: skin.size.s2) {
                 Text(title ?? section.title).citadelFont("t21", weight: "heavy").foregroundStyle(
                     skin.color(skin.text.primary))
@@ -101,6 +109,8 @@ struct SettingsCard<Content: View>: View {
     var title: String?
     var hint: String?
     var danger = false
+    /// Seconds before the card rises in; pass `0.06 * index` to stagger a page's cards.
+    var delay: Double = 0
     @ViewBuilder let content: Content
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
@@ -138,7 +148,9 @@ struct SettingsCard<Content: View>: View {
         .overlay(
             shape.strokeBorder(
                 danger ? status.danger.opacity(skin.opacity.o25) : skin.color(.palette("foreground", skin.opacity.o07)),
-                lineWidth: 1))
+                lineWidth: 1)
+        )
+        .ainkradRiseIn(delay: delay)
     }
 }
 

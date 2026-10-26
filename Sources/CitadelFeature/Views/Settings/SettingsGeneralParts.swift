@@ -26,10 +26,12 @@ enum SettingsCompanyDefaults {
 struct SettingsColorSwatches: View {
     @Binding var color: String?
     let enabled: Bool
+    @State private var hovered: String?
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: skin.size.s8) {
+        HStack(spacing: skin.size.s4) {
             ForEach(SettingsCompanyDefaults.colors, id: \.self) { hex in
                 let rgb = CompanyLook.rgb(hex)
                 let fill = Color(.sRGB, red: rgb?.red ?? 0, green: rgb?.green ?? 0, blue: rgb?.blue ?? 0)
@@ -38,11 +40,15 @@ struct SettingsColorSwatches: View {
                 } label: {
                     RoundedRectangle(cornerRadius: skin.size.s8, style: .continuous).fill(fill)
                         .frame(width: skin.size.s24, height: skin.size.s24)
-                        .padding(skin.size.s2)
+                        .padding(skin.size.s4)
                         .overlay(
-                            RoundedRectangle(cornerRadius: skin.size.s10, style: .continuous)
-                                .strokeBorder(fill, lineWidth: color == hex ? skin.size.s2 : 0))
+                            RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+                                .strokeBorder(fill, lineWidth: color == hex ? skin.size.s2 : 0)
+                        )
+                        .scaleEffect(hovered == hex && enabled && !reduceMotion ? 1.12 : 1)
+                        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovered)
                 }
+                .citadelHover(Binding(get: { hovered == hex }, set: { hovered = $0 ? hex : nil }))
             }
             if !enabled { ServerSoonChip() }
         }

@@ -19,6 +19,10 @@ struct NotificationsSection: View {
                 if let prefs = store.model?.notifications {
                     matrix(prefs)
                     quietHours(prefs)
+                } else {
+                    VStack(spacing: skin.size.s8) {
+                        ForEach(0..<3, id: \.self) { _ in AinkradSkeletonRow().ainkradShimmer() }
+                    }
                 }
             } else {
                 legacy
