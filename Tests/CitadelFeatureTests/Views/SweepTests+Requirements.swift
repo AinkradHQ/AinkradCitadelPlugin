@@ -36,6 +36,15 @@ extension SweepTests {
             ("12-requirements-plan-drawer", requirements { $0.drawer = [.plan] }, size),
             ("12-requirements-artifacts-drawer", requirements { $0.drawer = [.artifacts] }, size),
             ("12-requirements-artifact-preview", requirements { $0.drawer = [.artifacts, .artifact(102)] }, size),
+            (
+                "12-requirements-item-drawer",
+                stage(.requirements, nil) {
+                    CompanyFixture.requirementsPage($0)
+                    CompanyFixture.projectWorkPage($0)
+                    $0.requirementsPage.selectedID = 12
+                    $0.requirementsPage.drawer = [.plan, .item(42)]
+                }, size
+            ),
             ("12-requirements-new-sheet", sheet, size),
             (
                 "12-requirement-cancel", stage(.requirements, nil, CompanyFixture.requirementsPage),
