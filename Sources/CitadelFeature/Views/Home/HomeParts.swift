@@ -307,5 +307,8 @@ private struct HomeHoverRow: ViewModifier {
             .onHover { hovering = $0 }
             .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
             .onTapGesture(perform: action)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, action)
     }
 }
