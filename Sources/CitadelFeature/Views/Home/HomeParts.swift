@@ -284,3 +284,36 @@ private struct Breathing: ViewModifier {
         return floor + (1 - floor) * (0.5 + 0.5 * cos(2 * Double.pi * phase))
     }
 }
+
+extension View {
+    /// A Home row that opens something: a faint wash and a 2 pt nudge on hover, still under reduce-motion.
+    func homeHoverRow(_ action: @escaping () -> Void) -> some View { modifier(HomeHoverRow(action: action)) }
+}
+
+private struct HomeHoverRow: ViewModifier {
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: skin.size.s12, style: .continuous)
+                    .fill(skin.color(.palette("foreground", hovering ? skin.opacity.o05 : 0)))
+            )
+            .offset(x: hovering && !reduceMotion ? skin.size.s2 : 0)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
+            .onTapGesture(perform: action)
+            .focusable()
+            .onKeyPress(keys: [.return, .space]) { _ in
+                action()
+                return .handled
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, action)
+    }
+}

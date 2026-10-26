@@ -174,6 +174,17 @@ struct HomeHero: View {
 
     // MARK: - Stats
 
+    /// Subscription-only spend is never "$0.00": the headline leads with the tokens when nothing was priced.
+    private func spendTitle(today: Int64) -> String {
+        let tokens = model.spendToday?.tokens ?? 0
+        return today == 0 && tokens > 0 ? "\(Fmt.tokens(tokens)) tok" : Fmt.dollars(micros: today)
+    }
+
+    private func spendCaption(today: Int64) -> String {
+        let tokens = model.spendToday?.tokens ?? 0
+        return today == 0 && tokens > 0 ? "subscription · no priced spend" : "spent today · \(Fmt.tokens(tokens)) tok"
+    }
+
     private var stats: some View {
         let today = model.spendToday?.costMicros ?? 0
         let sprint = model.sprint
@@ -195,8 +206,7 @@ struct HomeHero: View {
             GridRow {
                 StatRing(
                     value: nil, tint: skin.color(skin.palette.accentPrimary), label: "$",
-                    title: Fmt.dollars(micros: today),
-                    caption: "spent today · \(Fmt.tokens(model.spendToday?.tokens ?? 0)) tok"
+                    title: spendTitle(today: today), caption: spendCaption(today: today)
                 ) { store.screen = .cost }
                 StatRing(
                     value: sprint.map { Double($0.completed) / Double(max($0.committed, 1)) },
@@ -228,11 +238,14 @@ private struct StatRing: View {
             HStack(spacing: skin.size.s12) {
                 AinkradRingGauge(value: value, tint: tint, diameter: skin.size.s64, lineWidth: skin.size.s7) {
                     Text(label).citadelFont("t13", weight: "bold", mono: true).foregroundStyle(
-                        skin.color(skin.text.primary))
+                        skin.color(skin.text.primary)
+                    )
+                    .contentTransition(.numericText())
                 }
                 VStack(alignment: .leading, spacing: skin.size.s2) {
                     Text(title).citadelFont("t15", weight: "bold").foregroundStyle(skin.color(skin.text.primary))
                         .lineLimit(1)
+                        .contentTransition(.numericText())
                     Text(caption).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -247,6 +260,7 @@ private struct StatRing: View {
         .buttonStyle(.plain)
         .offset(y: hovering && !reduceMotion ? -skin.size.s3 : 0)
         .animation(skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.7)), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: label + title)
         .onHover { hovering = $0 }
     }
 }
