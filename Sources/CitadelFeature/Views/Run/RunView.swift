@@ -19,6 +19,7 @@ struct RunView: View {
     @State private var endY: CGFloat = 0
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @Environment(\.ainkradMotionBudget) private var motionBudget
 
     var body: some View {
         if let run = model.runs[runID] {
@@ -139,7 +140,7 @@ struct RunView: View {
                 .onPreferenceChange(TranscriptEndKey.self) { endY = $0 }
                 .onChange(of: items.count) { old, new in
                     guard new > old else { return }
-                    if followsLive {
+                    if followsLive, motionBudget != .frozen {
                         scrollToEnd(proxy)
                     } else if !followsLive {
                         fresh += new - old
@@ -147,6 +148,7 @@ struct RunView: View {
                 }
                 .onChange(of: jumpRequest) { _, _ in scrollToEnd(proxy) }
                 .onAppear {
+                    guard motionBudget != .frozen else { return }
                     autoScrollUntil = Date().addingTimeInterval(0.6)
                     proxy.scrollTo("end", anchor: .bottom)
                     DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }

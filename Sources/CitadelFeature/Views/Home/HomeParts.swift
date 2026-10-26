@@ -120,13 +120,8 @@ struct LiveRunCard: View {
         .animation(
             skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.75)), value: hovering
         )
-        .background {
-            AinkradTapArea {
-                if let onOpen { onOpen() } else { store.open(.run(run.id)) }
-            } label: {
-                Color.clear.contentShape(shape)
-            }
-        }
+        .onTapGesture { if let onOpen { onOpen() } else { store.open(.run(run.id)) } }
+        .accessibilityAddTraits(.isButton)
         .ainkradConfirmDialog(
             isPresented: $confirmsStop, title: "Stop run #\(run.id) now?",
             message:
