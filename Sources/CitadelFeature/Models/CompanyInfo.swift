@@ -123,6 +123,8 @@ struct IssueInfo: Identifiable, Equatable, Sendable {
     var points: Int?
     /// The planned or active sprint it is in.
     var sprintID: Int64? = nil
+    /// No explicit repo on a multi-repo project, so it works in the primary one (API minor 20, single read only).
+    var repoImplicit = false
 }
 
 /// Who moves an issue next.

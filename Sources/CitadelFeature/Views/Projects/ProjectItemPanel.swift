@@ -18,6 +18,11 @@ struct WorkItemPanel: View {
         if let item = facts.work.items.first(where: { $0.id == itemID }) {
             VStack(alignment: .leading, spacing: skin.size.s14) {
                 top(item)
+                if let warning = store.repoWarning(
+                    facts.model.issue(item.id), primary: facts.repos.first { $0.isPrimary }?.name)
+                {
+                    repoChip(warning)
+                }
                 ProjectsItemTitle(store: store, item: item, project: facts.project.id)
                 steps(item)
                 if let run = item.checkoutRunID { live(item, run: run) }
@@ -27,9 +32,21 @@ struct WorkItemPanel: View {
                 runs(item)
                 activity(item)
             }
+            .task(id: itemID) { store.loadRepoFlag(itemID) }
         } else {
             AinkradEmptyState(icon: "tray", title: "Item not found", message: "It may have been moved or removed.")
         }
+    }
+
+    private func repoChip(_ text: String) -> some View {
+        let tint = skin.color(skin.palette.warning)
+        return HStack(spacing: skin.size.s6) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(tint)
+            Text(text).citadelFont("t11").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
+        }
+        .padding(.horizontal, skin.size.s8).padding(.vertical, skin.size.s4)
+        .background(tint.opacity(skin.opacity.o12), in: RoundedRectangle(cornerRadius: skin.size.s6))
+        .help("The issue names no repo, so its run works in the project's primary repo.")
     }
 
     private func top(_ item: WorkItem) -> some View {

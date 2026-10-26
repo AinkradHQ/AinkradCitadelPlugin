@@ -130,6 +130,9 @@ struct HomeHero: View {
             Text("·").foregroundStyle(skin.color(skin.text.faint))
             (Text(verbatim: "\(model.needsYouCount)").bold() + Text(" need you"))
                 .foregroundStyle(model.needsYouCount > 0 ? status.warning : status.success)
+            if let wait = model.oldestWaitLine() {
+                Text(verbatim: "(\(wait))").foregroundStyle(status.warning)
+            }
             if let sprint = model.sprint {
                 Text("·").foregroundStyle(skin.color(skin.text.faint))
                 Text("sprint ")

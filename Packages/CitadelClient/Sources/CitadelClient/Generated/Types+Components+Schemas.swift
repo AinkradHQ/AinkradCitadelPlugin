@@ -4247,6 +4247,11 @@ extension Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Issue/rank`.
             public var rank: Swift.Double
+            /// True when the issue has no explicit repo and its project has several, so it works in the
+            /// primary one (API minor 20). Set on a single-issue read; omitted when false.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Issue/repo_implicit`.
+            public var repoImplicit: Swift.Bool?
             /// The requirement it serves (E15.10), Quest's requirement tag.
             ///
             /// - Remark: Generated from `#/components/schemas/Issue/requirement_id`.
@@ -4277,6 +4282,7 @@ extension Components {
             ///   - priorityLevel: `none` … `urgent` (API minor 18); `priority` is true from `high` up. Absent from a
             ///   - projectId:
             ///   - rank: Backlog order within the project: lower first.
+            ///   - repoImplicit: True when the issue has no explicit repo and its project has several, so it works in the
             ///   - requirementId: The requirement it serves (E15.10), Quest's requirement tag.
             ///   - sprintId:
             ///   - state:
@@ -4299,6 +4305,7 @@ extension Components {
                 priorityLevel: Components.Schemas.PriorityLevel? = nil,
                 projectId: Swift.Int64,
                 rank: Swift.Double,
+                repoImplicit: Swift.Bool? = nil,
                 requirementId: Swift.Int64? = nil,
                 sprintId: Swift.Int64? = nil,
                 state: Components.Schemas.IssueState,
@@ -4321,6 +4328,7 @@ extension Components {
                 self.priorityLevel = priorityLevel
                 self.projectId = projectId
                 self.rank = rank
+                self.repoImplicit = repoImplicit
                 self.requirementId = requirementId
                 self.sprintId = sprintId
                 self.state = state
@@ -4344,6 +4352,7 @@ extension Components {
                 case priorityLevel = "priority_level"
                 case projectId = "project_id"
                 case rank
+                case repoImplicit = "repo_implicit"
                 case requirementId = "requirement_id"
                 case sprintId = "sprint_id"
                 case state

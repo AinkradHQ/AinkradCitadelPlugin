@@ -151,6 +151,7 @@ extension IssueInfo {
             id: issue.id, key: issue.key, title: issue.title, projectID: issue.projectId,
             requirementID: issue.requirementId, state: issue.state.word, nextActor: next,
             points: issue.points.map(Int.init), sprintID: issue.sprintId)
+        repoImplicit = issue.repoImplicit ?? false
     }
 }
 
