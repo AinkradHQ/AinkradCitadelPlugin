@@ -9,6 +9,7 @@ struct CostHero: View {
     @Binding var period: CostPeriod
     let label: String
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
     @State private var glow = false
 
     private var budget: BudgetInfo? { model.budgets.first { $0.scope.hasPrefix("company:") } }
@@ -76,10 +77,14 @@ struct CostHero: View {
         .overlay(shape.strokeBorder(skin.color(skin.palette.accentPrimary).opacity(skin.opacity.o25), lineWidth: 1))
         .shadow(color: skin.color(.palette("black", skin.opacity.o30)), radius: skin.size.s24, y: skin.size.s18)
         .onAppear {
-            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 8)).repeatForever()) {
+            guard !reduceMotion else { return }
+            withAnimation(
+                skin.animation(AinkradAnimationToken(curve: "easeInOut", durationKey: "breathe")).repeatForever()
+            ) {
                 glow = true
             }
         }
+        .ainkradRiseIn()
     }
 
     private func ring(_ budget: BudgetInfo) -> some View {
@@ -155,7 +160,7 @@ private struct ProjectionBar: View {
                 grown = true
                 return
             }
-            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.9))) { grown = true }
+            withAnimation(skin.animation(skin.motion.materializeAnimation)) { grown = true }
         }
     }
 }
@@ -197,7 +202,7 @@ struct CostKinds: View {
         HStack(alignment: .top, spacing: skin.size.s12) {
             tile(
                 "Priced", "dollarsign", blue, value: Text(Fmt.dollars(micros: t.costMicros)),
-                sub: "API-billed runs at known prices · \(Fmt.tokens(t.pricedTokens)) tok"
+                sub: "API-billed runs at known prices · \(Fmt.tokens(t.pricedTokens)) tok", delay: 0
             ) {
                 AinkradMicroTrend(values: model.costDays.map { Double($0.totals.costMicros) }, tint: blue, style: .area)
                     .frame(height: skin.size.s34)
@@ -208,10 +213,12 @@ struct CostKinds: View {
                     + Text("run\(t.unpricedRuns == 1 ? "" : "s") · \(Fmt.tokens(t.unpricedTokens)) tok").font(
                         skin.font(AinkradFontToken(sizeKey: "t12", weight: "medium"))
                     ).foregroundStyle(skin.color(skin.text.faint)),
-                sub: t.unpricedRuns > 0 ? unpricedLine : "Every model in this period has a price"
+                sub: t.unpricedRuns > 0 ? unpricedLine : "Every model in this period is priced", delay: 0.06
             ) {
                 AinkradDockButton(
-                    "Set a price", systemImage: "plus", tone: t.unpricedRuns > 0 ? .warning : .plain, action: setPrice
+                    t.unpricedRuns > 0 ? "Set a price" : "Edit price",
+                    systemImage: t.unpricedRuns > 0 ? "plus" : "pencil",
+                    tone: t.unpricedRuns > 0 ? .warning : .plain, action: setPrice
                 )
                 .padding(.top, skin.size.s8)
             }
@@ -220,7 +227,8 @@ struct CostKinds: View {
                 value: Text(Fmt.tokens(t.subscriptionTokens) + " ")
                     + Text("tokens").font(skin.font(AinkradFontToken(sizeKey: "t12", weight: "medium")))
                     .foregroundStyle(skin.color(skin.text.faint)),
-                sub: "\(Wording.count(t.subscriptionRuns, "run")) on Max / Pro logins — tokens, not dollars"
+                sub: "\(Wording.count(t.subscriptionRuns, "run")) on Max / Pro logins — tokens, not dollars",
+                delay: 0.12
             ) {
                 AinkradMicroTrend(
                     values: model.costDays.map { Double($0.totals.subscriptionTokens) }, tint: violet, style: .area
@@ -239,7 +247,8 @@ struct CostKinds: View {
     }
 
     private func tile<Foot: View>(
-        _ label: String, _ symbol: String, _ tint: Color, value: Text, sub: String, @ViewBuilder foot: () -> Foot
+        _ label: String, _ symbol: String, _ tint: Color, value: Text, sub: String, delay: Double,
+        @ViewBuilder foot: () -> Foot
     ) -> some View {
         AinkradBentoTile(padding: skin.size.s14, tint: tint) {
             VStack(alignment: .leading, spacing: skin.size.s4) {
@@ -262,14 +271,19 @@ struct CostKinds: View {
         }
         .frame(maxHeight: .infinity)
         .ainkradHoverLift(nil, cornerRadius: skin.size.s18)
+        .ainkradRiseIn(delay: delay)
     }
 }
 
 /// `.cs-chart`: per day (per hour on Today), the three kinds stacked in tokens, hover for the split.
 struct CostChartTile: View {
+    let store: CitadelStore
     let model: CompanyModel
     let hourly: Bool
     @Environment(\.ainkradSkin) private var skin
+
+    /// The company's daily budget: its warn mark is the dashed line, edited under the chart.
+    private var daily: BudgetInfo? { model.budgets.first { $0.scope.hasPrefix("company:") && $0.period == "day" } }
 
     var body: some View {
         let blue = skin.color(skin.palette.accentPrimary)
@@ -313,7 +327,8 @@ struct CostChartTile: View {
                                                 colors: [violet.opacity(skin.opacity.o60), violet], startPoint: .top,
                                                 endPoint: .bottom))),
                                 ])
-                        }
+                        },
+                        threshold: threshold, thresholdColor: amber
                     ) { index in tip(days[index]) }
                     .frame(height: skin.size.s164)
                     .id(days.map(\.day))
@@ -323,9 +338,28 @@ struct CostChartTile: View {
                         Text(axis(days.last))
                     }
                     .citadelFont("t10", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    if let daily { warnPill(daily) }
                 }
             }
         }
+    }
+
+    /// The daily warn pill under the chart, editing the day budget's warn % in place. The dashed line is drawn only
+    /// for a token budget: the bars are tokens, and a dollar cap has no exact token equivalent.
+    private func warnPill(_ budget: BudgetInfo) -> some View {
+        HStack(spacing: skin.size.s6) {
+            Text("daily warn").citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
+            AinkradValuePill(text: "\(budget.warnPercent)%", help: "Edit warn %") {
+                store.editBudgetWarn(budget, text: $0, inherited: Int(model.limits["budget.warn_percent"]?.value ?? 80))
+            }
+            AinkradScopeChip(text: "company")
+        }
+    }
+
+    /// The dashed threshold at the day budget's warn mark, in the bars' unit (tokens).
+    private var threshold: Double? {
+        guard let daily, !daily.isDollars else { return nil }
+        return Double(daily.shownCap) * daily.warnFraction
     }
 
     private func axis(_ day: DaySpend?) -> String {

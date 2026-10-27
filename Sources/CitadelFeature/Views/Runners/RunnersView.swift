@@ -64,6 +64,12 @@ struct RunnersView: View {
             guard !old.isEmpty, let joined = new.first(where: { !old.contains($0) }) else { return }
             flash(joined, for: 1.6)
         }
+        // ⌘K's Add a runner… opens the add drawer here.
+        .task(id: store.pendingSheet) {
+            guard store.pendingSheet == .addRunner else { return }
+            store.pendingSheet = nil
+            openAdd()
+        }
         .modifier(RunnerDrawers(store: store, page: page))
     }
 

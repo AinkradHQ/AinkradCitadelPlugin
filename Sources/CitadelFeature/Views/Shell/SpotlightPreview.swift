@@ -162,6 +162,15 @@ struct SpotlightPreview: View {
                     }
                 }
             }
+        case .artifact(let id):
+            if let artifact = model.artifactsPage.items.first(where: { $0.id == id }) {
+                card("Artifact") {
+                    fact("Type", artifact.type)
+                    fact("Size", ScopedSetting.bytes(artifact.size))
+                    fact("By", artifact.agentID.flatMap { model.agent($0)?.name } ?? "—")
+                    fact("When", Fmt.age(-artifact.createdAt.timeIntervalSinceNow) + " ago")
+                }
+            }
         case .screen, .action:
             EmptyView()
         }
