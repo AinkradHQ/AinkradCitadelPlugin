@@ -31,7 +31,7 @@ struct AccountCard: View {
             if account.companyTokens.values.contains(where: { $0 > 0 }) { share }
             meta
             if let why { why }
-            actions
+            if confirmingRemove { removeConfirm } else { actions }
         }
         .padding(skin.size.s16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,18 +56,19 @@ struct AccountCard: View {
         .opacity(health == .disabled ? skin.opacity.o55 : 1)
         .offset(y: hovering && !reduceMotion ? -skin.size.s3 : 0)
         .onHover { hovering = $0 }
-        .animation(
-            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.25, damping: 0.7)), value: hovering
-        )
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
         .ainkradContextMenu([
             AinkradMenuItem(title: "Set plan tier…", systemName: "tag") {
                 planDraft = account.planTier ?? ""
                 editingPlan = true
             }
         ])
+        .ainkradRiseIn(delay: 0.05 * Double(index))
         .ainkradPanelModal(isPresented: $editingPlan, contentWidth: skin.size.s440) { planForm }
-        .ainkradPanelModal(isPresented: $confirmingRemove, contentWidth: skin.size.s440) { removeForm }
     }
+
+    /// Live runs on this account; the pool refuses to remove it while any use it.
+    private var runCount: Int { model.liveRuns.filter { $0.accountID == account.id }.count }
 
     private var head: some View {
         HStack(spacing: skin.size.s10) {
@@ -81,9 +82,13 @@ struct AccountCard: View {
             HealthPill(health: health)
             // The prototype's trash: revealed on hover in the head, never a row button.
             if hovering && store.serverSupports(minor: CitadelStore.structureMinor) {
-                AinkradIconButton(systemName: "trash", size: skin.size.s26, tooltip: "Remove it from the pool") {
+                AinkradIconButton(
+                    systemName: "trash", size: skin.size.s26,
+                    tooltip: runCount > 0 ? "Pause it first" : "Remove it from the pool"
+                ) {
                     confirmingRemove = true
                 }
+                .disabled(runCount > 0)
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
@@ -158,7 +163,7 @@ struct AccountCard: View {
     }
 
     private var meta: some View {
-        let runs = model.liveRuns.filter { $0.accountID == account.id }.count
+        let runs = runCount
         let drops = account.recentDropsWindowSecs > 0 ? account.recentDrops : account.drops
         let window =
             account.recentDropsWindowSecs > 0
@@ -256,15 +261,15 @@ struct AccountCard: View {
         }
     }
 
-    /// "Remove account": gone from the pool with its assignments and limits; the server refuses while runs used it.
-    private var removeForm: some View {
-        VStack(alignment: .leading, spacing: skin.size.s12) {
-            Text("Remove \(account.label)?").citadelFont("t15", weight: "semibold")
-            Text(
-                "It leaves the pool with its company assignments and limits. If runs used it, the server refuses — pause it instead."
-            )
-            .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).fixedSize(
-                horizontal: false, vertical: true)
+    /// "Remove account", confirmed on the card in place of its actions: gone from the pool with its assignments and
+    /// limits; the server refuses while runs used it, so the button stays off until they finish.
+    private var removeConfirm: some View {
+        VStack(alignment: .leading, spacing: skin.size.s10) {
+            Text("Remove \(account.label)?").citadelFont("t13", weight: "semibold")
+                .foregroundStyle(skin.color(skin.text.primary))
+            Text("It leaves the pool with its company assignments and limits.")
+                .citadelFont("t12").foregroundStyle(skin.color(skin.text.muted)).fixedSize(
+                    horizontal: false, vertical: true)
             HStack(spacing: skin.size.s8) {
                 Spacer()
                 AinkradButton(title: "Cancel", style: .ghost) { confirmingRemove = false }.fixedSize()
@@ -273,6 +278,7 @@ struct AccountCard: View {
                     confirmingRemove = false
                 }
                 .fixedSize()
+                .disabled(runCount > 0)
             }
         }
     }
@@ -358,7 +364,9 @@ struct HealthPill: View {
         )
         .onAppear {
             guard health == .flaky else { return }
-            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 0.6)).repeatForever()) {
+            withAnimation(
+                skin.animation(AinkradAnimationToken(curve: "easeInOut", durationKey: "materialize")).repeatForever()
+            ) {
                 pulse = true
             }
         }
@@ -379,8 +387,11 @@ struct LiveDots: View {
                     .shadow(color: cyan, radius: skin.size.s3)
                     .opacity(pulse ? skin.opacity.o35 : 1)
                     .animation(
-                        skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 0.8)).repeatForever()
-                            .delay(Double(index) * 0.3), value: pulse)
+                        skin.animation(AinkradAnimationToken(curve: "easeInOut", durationKey: "materialize"))
+                            .repeatForever()
+                        .delay(Double(index) * 0.3),
+                        value: pulse
+                    )
             }
         }
         .onAppear { pulse = true }
