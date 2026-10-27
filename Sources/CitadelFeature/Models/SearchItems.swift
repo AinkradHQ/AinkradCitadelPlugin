@@ -28,6 +28,7 @@ struct SearchItem: Identifiable {
         case requirement(Int64)
         case issue(Int64)
         case project(Int64)
+        case artifact(Int64)
         case approval(Int64)
         case stuck(Int)
         case screen(Screen)
@@ -45,6 +46,8 @@ struct SearchItem: Identifiable {
     let glyph: String
     /// ⌘↵'s label ("Run", "Agent", "Chat"), when it has one.
     var altTitle: String?
+    /// A stuck row whose issue has no slowing signal and no live run: the prototype's `it.bad` (red, not amber).
+    var isFailing = false
 }
 
 /// The ranking: label prefix 5 › word start 4 › substring 3 › subtitle 2 › letters in order 1 › no match 0.
@@ -66,11 +69,21 @@ func searchScore(_ query: String, title: String, subtitle: String) -> Int {
     return 1
 }
 
-/// The ranges of `title` that match `query` (case-insensitive), for the highlight.
-func searchHighlight(_ query: String, in title: String) -> Range<String.Index>? {
-    let q = query.trimmingCharacters(in: .whitespaces)
-    guard !q.isEmpty else { return nil }
-    return title.range(of: q, options: .caseInsensitive)
+/// The ranges of `title` that match `query` (case-insensitive), for the highlight: the substring when there is one,
+/// otherwise each letter of a letters-in-order match (only for a row that ranked as one, `fuzzy`).
+func searchHighlight(_ query: String, in title: String, fuzzy: Bool) -> [Range<String.Index>] {
+    let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+    guard !q.isEmpty else { return [] }
+    if let range = title.range(of: q, options: .caseInsensitive) { return [range] }
+    guard fuzzy else { return [] }
+    var ranges: [Range<String.Index>] = []
+    var index = title.startIndex
+    for ch in q {
+        guard let found = title[index...].firstIndex(where: { String($0).lowercased() == String(ch) }) else { break }
+        ranges.append(found..<title.index(after: found))
+        index = title.index(after: found)
+    }
+    return ranges
 }
 
 extension CompanyModel {
@@ -88,12 +101,13 @@ extension CompanyModel {
         }
         for (index, item) in stuck.enumerated() {
             let key = issue(item.issueID)?.key
+            let live = item.issueID.map { id in liveRuns.contains { $0.issueID == id } } ?? false
             items.append(
                 SearchItem(
                     id: "st\(index)", kind: .stuck(index), scope: .issues, group: "Needs you",
                     title: [key, item.reason].compactMap { $0 }.joined(separator: " "), subtitle: item.action,
                     meta: "stuck",
-                    glyph: "⚑"))
+                    glyph: "⚑", isFailing: !(item.isSlowing || live)))
         }
         for run in liveRuns {
             let who = agent(run.agentID)?.name ?? "Agent"
@@ -145,6 +159,14 @@ extension CompanyModel {
                     id: "pj\(project.id)", kind: .project(project.id), scope: .projects, group: "Projects",
                     title: project.name, subtitle: "\(project.key) · \(project.mode)", meta: project.key, glyph: "▦"))
         }
+        for artifact in artifactsPage.items {
+            let who = artifact.agentID.flatMap { agent($0)?.name } ?? "—"
+            items.append(
+                SearchItem(
+                    id: "ar\(artifact.id)", kind: .artifact(artifact.id), scope: .artifacts, group: "Artifacts",
+                    title: artifact.name, subtitle: "\(artifact.type) · \(ScopedSetting.bytes(artifact.size)) · \(who)",
+                    meta: Fmt.age(-artifact.createdAt.timeIntervalSinceNow), glyph: "▤"))
+        }
         for screen in Screen.allCases {
             items.append(
                 SearchItem(
@@ -154,17 +176,22 @@ extension CompanyModel {
                     meta: Screen.allCases.firstIndex(of: screen).flatMap { $0 < 9 ? "⌘\($0 + 1)" : nil },
                     glyph: "→"))
         }
-        for (key, title, hint) in [
-            ("newRequirement", "New requirement…", "⌘N"), ("pauseAll", "Pause all runs", nil),
-            ("switchCompany", "Switch company…", "⌘⇧O"), ("newCompany", "New company…", nil),
+        // The prototype's `acts`, in its order, each with what it does as the subtitle.
+        for (key, title, subtitle) in [
+            ("newRequirement", "New requirement…", "Tell the CEO what you want"),
+            ("newProject", "New project…", "Repos, teams and runtime"),
+            ("newCompany", "New company…", "Identity, CEO and budget"),
+            ("addAccount", "Add an account…", "A subscription or API key for the pool"),
+            ("addRunner", "Add a runner…", "A machine your agents run on"),
+            ("pauseAll", "Pause all runs", "Every live run stops at its next step"),
+            ("switchCompany", "Switch company…", "⌘⇧O"),
             ("shortcuts", "Keyboard shortcuts", "?"),
-            ("settings", "Company settings", nil),
+            ("settings", "Company settings", "Company settings"),
         ] {
             items.append(
                 SearchItem(
                     id: "ac\(key)", kind: .action(key), scope: .actions, group: "Actions", title: title,
-                    subtitle: "Action",
-                    meta: hint, glyph: "⌘"))
+                    subtitle: subtitle, meta: nil, glyph: "⌘"))
         }
         return items
     }

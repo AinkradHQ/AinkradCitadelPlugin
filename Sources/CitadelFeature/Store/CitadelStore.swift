@@ -64,6 +64,8 @@ final class CitadelStore {
     var searchSeed = ""
     /// The New requirement sheet is open (Home dock, ⌘N, ⌘K action).
     var isComposingRequirement = false
+    /// A sheet the ⌘K action asked for on its screen (New project, Add an account, Add a runner); the screen takes it.
+    var pendingSheet: PendingSheet?
     /// The company menu (⌘⇧O) and the keyboard sheet (?) are open.
     var isSwitchingCompany = false
     /// The New company wizard is open (switcher menu, ⌘K), and what it has collected.
@@ -405,4 +407,9 @@ final class CitadelStore {
             $0.lastSeen = now
         }
     }
+}
+
+/// A sheet opened from ⌘K on the screen it belongs to.
+enum PendingSheet: Equatable {
+    case newProject, addAccount, addRunner
 }

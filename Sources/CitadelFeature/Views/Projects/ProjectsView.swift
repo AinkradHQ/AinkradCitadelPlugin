@@ -25,6 +25,12 @@ struct ProjectsView: View {
             }
         }
         .task { if !page.isLoaded { store.loadProjectsPage() } }
+        // ⌘K's New project… lands here.
+        .task(id: store.pendingSheet) {
+            guard store.pendingSheet == .newProject else { return }
+            store.pendingSheet = nil
+            creating = true
+        }
         .ainkradSheet(isPresented: $creating) { NewProjectSheet(store: store, isPresented: $creating) }
     }
 

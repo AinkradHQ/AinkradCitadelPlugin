@@ -39,7 +39,7 @@ struct Spotlight: View {
                 }
                 .frame(height: skin.size.s460)
                 .background(skin.color(.palette("black", skin.opacity.o12)))
-                foot(rows.count)
+                foot(rows.count, alt: rows.indices.contains(selected) ? rows[selected].altTitle : nil)
             }
             .frame(maxWidth: skin.size.s860 + skin.size.s40)
             .background(shape.fill(skin.color(.palette("surfaceElevated", skin.opacity.o90))))
@@ -51,7 +51,11 @@ struct Spotlight: View {
             .padding(.horizontal, skin.size.s20)
             .transition(.offset(y: -skin.size.s14).combined(with: .scale(scale: 0.97)).combined(with: .opacity))
         }
-        .onAppear { focused = true }
+        .onAppear {
+            focused = true
+            // Artifacts load with their screen; ⌘K needs them too, so its Artifacts scope is never empty by accident.
+            store.loadArtifacts()
+        }
         .onChange(of: query) { selected = 0 }
         .onChange(of: scope) { selected = 0 }
     }
@@ -68,9 +72,10 @@ struct Spotlight: View {
                             skin.color(skin.text.muted))
                     },
                     onArrow: { arrow in
+                        // The list wraps at both ends, as the prototype's does.
                         switch arrow {
-                        case .down: selected = min(selected + 1, max(rows.count - 1, 0))
-                        case .up: selected = max(selected - 1, 0)
+                        case .down: selected = rows.isEmpty ? 0 : (selected + 1) % rows.count
+                        case .up: selected = rows.isEmpty ? 0 : (selected - 1 + rows.count) % rows.count
                         default: return false
                         }
                         return true
@@ -182,7 +187,7 @@ struct Spotlight: View {
         HStack(spacing: skin.size.s11) {
             icon(item, size: skin.size.s28)
             VStack(alignment: .leading, spacing: skin.size.s1) {
-                highlighted(item.title).citadelFont("t13", weight: "medium").lineLimit(1)
+                highlighted(item).citadelFont("t13", weight: "medium").lineLimit(1)
                 Text(item.subtitle).citadelFont("t11").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
             }
             Spacer(minLength: skin.size.s8)
@@ -210,13 +215,19 @@ struct Spotlight: View {
             value: isSelected)
     }
 
-    private func highlighted(_ title: String) -> Text {
-        guard let range = searchHighlight(query, in: title) else {
-            return Text(title).foregroundStyle(skin.color(skin.text.primary))
+    /// The title with each matched part in the accent: the substring, or each letter of a letters-in-order match.
+    private func highlighted(_ item: SearchItem) -> Text {
+        let title = item.title
+        let fuzzy = searchScore(query, title: title, subtitle: item.subtitle) == 1
+        var text = Text("")
+        var cursor = title.startIndex
+        for range in searchHighlight(query, in: title, fuzzy: fuzzy) {
+            text =
+                text + Text(title[cursor..<range.lowerBound]).foregroundStyle(skin.color(skin.text.primary))
+                + Text(title[range]).foregroundStyle(skin.color(skin.palette.accentPrimary)).bold()
+            cursor = range.upperBound
         }
-        return Text(title[..<range.lowerBound]).foregroundStyle(skin.color(skin.text.primary))
-            + Text(title[range]).foregroundStyle(skin.color(skin.palette.accentPrimary)).bold()
-            + Text(title[range.upperBound...]).foregroundStyle(skin.color(skin.text.primary))
+        return text + Text(title[cursor...]).foregroundStyle(skin.color(skin.text.primary))
     }
 
     @ViewBuilder private func icon(_ item: SearchItem, size: CGFloat) -> some View {
@@ -229,12 +240,21 @@ struct Spotlight: View {
             } else {
                 AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
             }
-        case .approval, .stuck:
+        case .approval:
             AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.warning), size: size)
-        case .requirement, .issue:
+        case .stuck:
+            AinkradIconTile(
+                glyph: item.glyph, tint: skin.color(item.isFailing ? skin.palette.danger : skin.palette.warning),
+                size: size)
+        // Requirements are violet and projects cyan, as in the prototype's SP_COL.
+        case .requirement:
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentViolet), size: size)
+        case .issue:
             AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
         case .project:
-            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentViolet), size: size)
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentSecondary), size: size)
+        case .artifact:
+            AinkradIconTile(glyph: item.glyph, tint: skin.color(skin.palette.accentPrimary), size: size)
         case .screen(let screen):
             GlyphTile(icon: screen.icon, size: size, tint: skin.color(skin.palette.accentPrimary))
         case .action:
@@ -254,11 +274,14 @@ struct Spotlight: View {
         }
     }
 
-    private func foot(_ count: Int) -> some View {
+    private func foot(_ count: Int, alt: String?) -> some View {
         HStack(spacing: skin.size.s14) {
             Text("↑↓ move").foregroundStyle(skin.color(skin.text.faint))
             Text("↵ open").foregroundStyle(skin.color(skin.text.faint))
-            Text("⌘↵ alt").foregroundStyle(skin.color(skin.text.faint))
+            // The selected row's second action, named; hidden when it has none.
+            if let alt {
+                Text("⌘↵ \(alt.lowercased())").foregroundStyle(skin.color(skin.text.faint))
+            }
             Text("⇥ scope").foregroundStyle(skin.color(skin.text.faint))
             Spacer()
             Text(Wording.count(count, "result")).foregroundStyle(skin.color(skin.text.muted))
@@ -276,19 +299,25 @@ struct Spotlight: View {
         close()
         switch item.kind {
         case .agent(let id):
-            if alt {
-                store.go(to: .threads)
-            } else {
-                store.open(.agent(id))
-            }
+            // ⌘↵ opens the agent's chat; ↵ its page.
+            if alt { store.chat(with: id) } else { store.open(.agent(id)) }
         case .run(let id):
             let agent = model.runs[id]?.agentID ?? model.companyRuns?.first { $0.id == id }?.agentID
             if alt, let agent { store.open(.agent(agent)) } else { store.open(.run(id)) }
         case .requirement(let id):
-            model.requirementsPage.selectedID = id
-            store.go(to: .requirements)
-        case .issue, .stuck: store.go(to: .stuck)
-        case .project: store.go(to: .projects)
+            store.goRequirement(id)
+        case .issue(let id):
+            // An issue opens its requirement, else its agent (the prototype's `go`).
+            if let requirement = model.issues[id]?.requirementID {
+                store.goRequirement(requirement)
+            } else if case .agent(let agent)? = model.issues[id]?.nextActor {
+                store.open(.agent(agent))
+            }
+        case .stuck: store.go(to: .stuck)
+        case .project(let id): store.openProject(id)
+        case .artifact(let id):
+            model.artifactsPage.quickLookID = id
+            store.go(to: .artifacts)
         case .approval(let id):
             if alt, let run = model.approvals.first(where: { $0.id == id })?.fields["run"].flatMap(Int64.init) {
                 store.open(.run(run))
@@ -304,6 +333,9 @@ struct Spotlight: View {
             case "switchCompany": store.isSwitchingCompany = true
             case "newCompany": store.openNewCompany()
             case "shortcuts": store.isShowingShortcuts = true
+            case "newProject": store.go(to: .projects); store.pendingSheet = .newProject
+            case "addAccount": store.go(to: .accounts); store.pendingSheet = .addAccount
+            case "addRunner": store.go(to: .runners); store.pendingSheet = .addRunner
             default: store.isShowingSettings = true
             }
         }

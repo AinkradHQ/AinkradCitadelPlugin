@@ -58,6 +58,12 @@ struct RunnersView: View {
             .offlineDimmed()
         }
         .task { store.loadRunnersPage() }
+        // ⌘K's Add a runner… opens the add drawer here.
+        .task(id: store.pendingSheet) {
+            guard store.pendingSheet == .addRunner else { return }
+            store.pendingSheet = nil
+            openAdd()
+        }
         .modifier(RunnerDrawers(store: store, page: page))
     }
 
