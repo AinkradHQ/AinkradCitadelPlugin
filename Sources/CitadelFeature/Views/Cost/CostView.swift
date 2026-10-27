@@ -29,7 +29,7 @@ struct CostView: View {
                 VStack(alignment: .leading, spacing: skin.size.s12) {
                     CostHero(model: model, period: $period, label: periodLabel)
                     CostKinds(model: model) { model.costPage.drawer = .price }
-                    CostChartTile(model: model, hourly: period == .today)
+                    CostChartTile(store: store, model: model, hourly: period == .today)
                     HStack(alignment: .top, spacing: skin.size.s12) {
                         BreakdownCard(store: store, model: model)
                         PerTaskCard(store: store, model: model, period: period)

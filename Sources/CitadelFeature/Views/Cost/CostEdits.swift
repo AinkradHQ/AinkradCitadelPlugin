@@ -25,6 +25,7 @@ struct SetPriceForm: View {
     @State private var applyPast = true
     @State private var problem: PriceProblem?
     @State private var history: [PriceVersionInfo] = []
+    @FocusState private var modelFocus: Bool
     @Environment(\.ainkradSkin) private var skin
 
     init(store: CitadelStore, unpriced: [UnpricedModelInfo] = [], isPresented: Binding<Bool>) {
@@ -65,8 +66,9 @@ struct SetPriceForm: View {
             }
             AinkradDrawerSection(title: "Model", hint: "as the harness reports it") {
                 AinkradSegmentedPicker(items: PriceDraft.harnesses, selection: $harness) { AgentLook.harnessName($0) }
-                    .fixedSize()
-                AinkradTextField(text: $modelName, placeholder: "qwen3-coder").monospaced()
+                    .controlSize(.small).fixedSize()
+                AinkradTextField(text: $modelName, placeholder: "qwen3-coder", focus: $modelFocus).monospaced()
+                    .task { modelFocus = true }
                 if unpriced.count > 1 {
                     AinkradMenuButton(
                         items: unpriced.map { item in
@@ -150,6 +152,7 @@ struct NewBudgetForm: View {
     @State private var period = "month"
     @State private var cap = ""
     @State private var unit: BudgetUnit
+    @FocusState private var capFocus: Bool
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
 
@@ -206,7 +209,7 @@ struct NewBudgetForm: View {
             }
             AinkradDrawerSection(title: "Period") {
                 AinkradSegmentedPicker(items: ["day", "week", "month", "total"], selection: $period) { $0.capitalized }
-                    .fixedSize()
+                    .controlSize(.small).fixedSize()
             }
             AinkradDrawerSection(
                 title: "Cap",
@@ -214,9 +217,12 @@ struct NewBudgetForm: View {
                     ? "dollars or tokens" : "tokens · dollar caps: \(store.help(minor: CitadelStore.trancheBMinor))"
             ) {
                 if tranche {
-                    AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }.fixedSize()
+                    AinkradSegmentedPicker(items: BudgetUnit.allCases, selection: $unit) { $0.title }
+                        .controlSize(.small).fixedSize()
                 }
-                AinkradTextField(text: $cap, placeholder: unit == .dollars ? "$120" : "2M").monospaced()
+                AinkradTextField(text: $cap, placeholder: unit == .dollars ? "$120" : "2M", focus: $capFocus)
+                    .monospaced()
+                    .task { capFocus = true }
                 if !cap.isEmpty, case .failure(let why) = edit {
                     Text(why.message).citadelFont("t11").foregroundStyle(status.danger)
                 }
