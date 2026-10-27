@@ -33,6 +33,8 @@ final class RunnersPage {
     var adding = false
     var addStep = 0
     var addDraft = AddRunnerDraft()
+    /// Bumped to move focus to the drawer's name field (Generate with no name asks for it).
+    var nameFocusRequest = 0
     /// Runners a "Wake now" is in flight for (the button spins).
     var waking: Set<Int64> = []
     /// Runners a "Probe now" is in flight for.

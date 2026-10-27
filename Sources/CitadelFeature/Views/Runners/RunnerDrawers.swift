@@ -91,12 +91,13 @@ struct RunnerLogDrawer: View {
                     Text(lines.isEmpty ? "The log is empty." : "nothing at this level")
                         .foregroundStyle(skin.color(skin.text.faint)).padding(.horizontal, skin.size.s14)
                 }
-                ForEach(Array(shown.enumerated()), id: \.offset) { _, line in row(line) }
+                ForEach(Array(shown.enumerated()), id: \.offset) { index, line in
+                    LogRow(line: line).ainkradRiseIn(delay: 0.035 * Double(index))
+                }
                 if runner.status == "online" {
                     HStack(spacing: skin.size.s10) {
                         Text("now").foregroundStyle(skin.color(skin.text.faint))
-                        Rectangle().fill(skin.color(skin.palette.accentSecondary)).frame(
-                            width: skin.size.s8, height: skin.size.s14)
+                        LogCaret()
                     }
                     .padding(.horizontal, skin.size.s14)
                 } else {
@@ -112,9 +113,26 @@ struct RunnerLogDrawer: View {
         .overlay(shape.strokeBorder(skin.color(.palette("foreground", skin.opacity.o07)), lineWidth: 1))
     }
 
-    private func row(_ line: RunnerLogLine) -> some View {
+    /// Saves the tail as text where the user picks.
+    private func download() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(runner.name)-runner.log"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+}
+
+/// One log line: its level tints the row (red and amber), and a hover washes it faintly, still under reduce-motion.
+private struct LogRow: View {
+    let line: RunnerLogLine
+    @State private var hovering = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    var body: some View {
         let tint: Color? = line.level == "err" ? status.danger : line.level == "warn" ? status.warning : nil
-        return HStack(alignment: .firstTextBaseline, spacing: skin.size.s10) {
+        HStack(alignment: .firstTextBaseline, spacing: skin.size.s10) {
             Text(line.time).foregroundStyle(skin.color(skin.text.faint)).fixedSize()
             Text(line.source).foregroundStyle(skin.color(skin.palette.accentPrimary)).lineLimit(1)
                 .frame(width: skin.size.s64, alignment: .leading)
@@ -127,14 +145,27 @@ struct RunnerLogDrawer: View {
         .padding(.horizontal, skin.size.s14)
         .padding(.vertical, skin.size.s1)
         .background((tint ?? .clear).opacity(line.level == "err" ? skin.opacity.o07 : skin.opacity.o05))
+        .background(skin.color(.palette("foreground", hovering ? skin.opacity.o05 : 0)))
+        .citadelHover($hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
+}
 
-    /// Saves the tail as text where the user picks.
-    private func download() {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(runner.name)-runner.log"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+/// The "now" caret at the foot of a live log: it blinks, and holds still under reduce-motion.
+private struct LogCaret: View {
+    @State private var dim = false
+    @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Rectangle().fill(skin.color(skin.palette.accentSecondary))
+            .frame(width: skin.size.s8, height: skin.size.s14)
+            .opacity(dim ? skin.opacity.o30 : 1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                let blink = skin.animation(AinkradAnimationToken(curve: "easeInOut", durationKey: "slow"))
+                withAnimation(blink.repeatForever(autoreverses: true)) { dim = true }
+            }
     }
 }
 

@@ -40,11 +40,12 @@ struct RunnersView: View {
                                 ],
                                 alignment: .leading, spacing: skin.size.s14
                             ) {
-                                ForEach(page.runners) { runner in
+                                ForEach(Array(page.runners.enumerated()), id: \.element.id) { index, runner in
                                     RunnerCard(
                                         store: store, model: model, runner: runner, running: running[runner.id] ?? 0
                                     )
                                     .id(runner.id)
+                                    .ainkradRiseIn(delay: 0.07 * Double(index))
                                 }
                             }
                             .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: page.runners)
@@ -58,6 +59,11 @@ struct RunnersView: View {
             .offlineDimmed()
         }
         .task { store.loadRunnersPage() }
+        .onChange(of: page.runners.map(\.id)) { old, new in
+            // A runner that joins while the page is open arrives flashed; the first load does not flash them all.
+            guard !old.isEmpty, let joined = new.first(where: { !old.contains($0) }) else { return }
+            flash(joined, for: 1.6)
+        }
         // ⌘K's Add a runner… opens the add drawer here.
         .task(id: store.pendingSheet) {
             guard store.pendingSheet == .addRunner else { return }
@@ -83,9 +89,14 @@ struct RunnersView: View {
     /// A fleet chip: scroll its card into view and flash it.
     private func focus(_ id: Int64, proxy: ScrollViewProxy) {
         withAnimation(reduceMotion ? nil : skin.animation(skin.motion.present)) { proxy.scrollTo(id, anchor: .center) }
+        flash(id, for: 1.2)
+    }
+
+    /// Lights a card's ring for a moment (the prototype's `arrive` / fleet flash).
+    private func flash(_ id: Int64, for seconds: Double) {
         page.flashed = id
         Task {
-            try? await Task.sleep(for: .seconds(1.2))
+            try? await Task.sleep(for: .seconds(seconds))
             if page.flashed == id { page.flashed = nil }
         }
     }

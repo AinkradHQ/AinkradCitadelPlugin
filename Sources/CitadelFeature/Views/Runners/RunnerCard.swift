@@ -57,7 +57,8 @@ struct RunnerCard: View {
         .opacity(look.state == "offline" ? skin.opacity.o70 : 1)
         .ainkradConfirmDialog(
             isPresented: $confirmsRemove, title: "Remove \(runner.name)?",
-            message: "Its key stops working at once. Register it again to bring the machine back.",
+            message: "Key revoked · queued jobs only it could take go back to Why stuck. "
+                + "Register it again to bring the machine back.",
             confirmTitle: "Remove", isDestructive: true
         ) { store.removeRunner(runner) }
     }
@@ -129,6 +130,7 @@ struct RunnerCard: View {
                 .help(
                     runner.loggedOut.isEmpty
                         ? "The runner reports no logged-out harness" : "Walks you through the login on its host")
+                probeButton
             }
         case "asleep":
             HStack(spacing: skin.size.s10) {
@@ -357,19 +359,24 @@ struct RunnerCard: View {
                 body: "Values are validated against the bounds — never clamped.", status: .danger))
     }
 
-    /// Probe now (API minor 17, on a newer server only), drain / stop draining, the log and remove (Pause waits for
-    /// the server).
+    /// Probe now (API minor 17, on a newer server only). It sits in the why block on an unhealthy card, else here.
+    @ViewBuilder private var probeButton: some View {
+        if store.serverSupports(minor: CitadelStore.structureMinor) {
+            let probing = page.probing.contains(runner.id)
+            AinkradDockButton(
+                probing ? "Probing…" : "Probe now", systemImage: "waveform.path.ecg", isEnabled: !probing,
+                height: skin.size.s30
+            ) { store.probeRunner(runner) }
+            .help("Asks the runner to look at itself now: its harness versions and logins are read again")
+        }
+    }
+
+    /// Probe now (unless the why block carries it), drain / stop draining, the log and remove (Pause waits for the
+    /// server).
     private var actions: some View {
         let drained = runner.drainedAt != nil
-        let probing = page.probing.contains(runner.id)
         return HStack(spacing: skin.size.s6) {
-            if store.serverSupports(minor: CitadelStore.structureMinor) {
-                AinkradDockButton(
-                    probing ? "Probing…" : "Probe now", systemImage: "waveform.path.ecg", isEnabled: !probing,
-                    height: skin.size.s30
-                ) { store.probeRunner(runner) }
-                .help("Asks the runner to look at itself now: its harness versions and logins are read again")
-            }
+            if runner.state != "unhealthy" { probeButton }
             AinkradDockButton(
                 drained ? "Stop draining" : "Drain", systemImage: "arrow.down.to.line",
                 tone: drained ? .warning : .plain,

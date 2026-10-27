@@ -9,6 +9,7 @@ struct AddRunnerDrawer: View {
     let page: RunnersPage
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
+    @FocusState private var nameFocused: Bool
 
     private var machine: (id: String, title: String, mac: Bool, tags: [String]) {
         AddRunnerDraft.machines.first { $0.id == page.addDraft.machine } ?? AddRunnerDraft.machines[0]
@@ -94,8 +95,10 @@ struct AddRunnerDrawer: View {
     @ViewBuilder private var machineStep: some View {
         @Bindable var page = page
         AinkradDrawerSection(title: "Name", hint: "how it shows up everywhere") {
-            AinkradTextField(text: $page.addDraft.name, placeholder: "hetzner-3").monospaced()
+            AinkradTextField(text: $page.addDraft.name, placeholder: "hetzner-3", focus: $nameFocused).monospaced()
+                .onAppear { nameFocused = true }
         }
+        .onChange(of: page.nameFocusRequest) { nameFocused = true }
         AinkradDrawerSection(title: "Machine") {
             HStack(spacing: skin.size.s8) {
                 ForEach(AddRunnerDraft.machines, id: \.id) { option in
@@ -301,8 +304,12 @@ struct AddRunnerFoot: View {
         case 0:
             Spacer()
             AinkradDockButton("Cancel", action: close)
-            AinkradDockButton("Generate install command", tone: .primary, isEnabled: !page.addDraft.trimmedName.isEmpty)
-            {
+            // With no name it asks for one (focus moves to the field) rather than doing nothing.
+            AinkradDockButton("Generate install command", tone: .primary) {
+                guard !page.addDraft.trimmedName.isEmpty else {
+                    page.nameFocusRequest += 1
+                    return
+                }
                 store.registerRunner(name: page.addDraft.trimmedName, tags: page.addDraft.allTags)
             }
         case 1:

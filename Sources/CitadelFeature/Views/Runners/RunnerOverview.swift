@@ -8,21 +8,25 @@ struct RunnerOverview: View {
     let focus: (Int64) -> Void
     @Environment(\.ainkradSkin) private var skin
     @Environment(\.ainkradStatusColors) private var status
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
+    @State private var diskGrown = false
 
     var body: some View {
         WeightedRow(weights: [1.25, 1, 1, 1], spacing: skin.size.s12) {
-            tile("server.rack", "Fleet", trailing: "\(page.runners.count) machine\(page.runners.count == 1 ? "" : "s")")
-            {
-                fleet
-            }
-            tile("square.split.3x1", "Capacity", trailing: "\(running.values.reduce(0, +)) running") { capacity }
-            tile("cylinder", "Disk") { disk }
-            tile("tag", "Tag coverage") { tags }
+            tile(
+                0, "server.rack", "Fleet",
+                trailing: "\(page.runners.count) machine\(page.runners.count == 1 ? "" : "s")"
+            ) { fleet }
+            tile(1, "square.split.3x1", "Capacity", trailing: "\(running.values.reduce(0, +)) running") { capacity }
+            tile(2, "cylinder", "Disk") { disk }
+            tile(3, "tag", "Tag coverage") { tags }
         }
+        .onAppear { diskGrown = true }
     }
 
+    /// One of the four tiles, rising in 60 ms after the last (the prototype's `--i`).
     private func tile<Content: View>(
-        _ icon: String, _ title: String, trailing: String? = nil, @ViewBuilder content: () -> Content
+        _ index: Int, _ icon: String, _ title: String, trailing: String? = nil, @ViewBuilder content: () -> Content
     ) -> some View {
         AinkradBentoTile(padding: skin.size.s15) {
             VStack(alignment: .leading, spacing: skin.size.s10) {
@@ -36,6 +40,7 @@ struct RunnerOverview: View {
             }
             .frame(maxHeight: .infinity, alignment: .topLeading)
         }
+        .ainkradRiseIn(delay: 0.06 * Double(index))
     }
 
     // MARK: Fleet
@@ -43,7 +48,10 @@ struct RunnerOverview: View {
     private var fleet: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: skin.size.s80), spacing: skin.size.s6)], spacing: skin.size.s6)
         {
-            ForEach(page.runners) { runner in FleetChip(runner: runner) { focus(runner.id) } }
+            ForEach(Array(page.runners.enumerated()), id: \.element.id) { index, runner in
+                FleetChip(runner: runner) { focus(runner.id) }
+                    .ainkradRiseIn(delay: 0.06 * Double(index))
+            }
         }
     }
 
@@ -99,6 +107,10 @@ struct RunnerOverview: View {
                         .frame(height: skin.size.s8)
                         .background(skin.color(.palette("foreground", skin.opacity.o06)))
                         .clipShape(Capsule())
+                        .scaleEffect(x: diskGrown || reduceMotion ? 1 : 0.001, y: 1, anchor: .leading)
+                        .animation(
+                            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.8)),
+                            value: diskGrown)
                         Text(verbatim: "\(percent)%").citadelFont("t11", weight: "semibold", mono: true)
                             .foregroundStyle(percent >= 80 ? status.warning : skin.color(skin.text.primary))
                             .frame(width: skin.size.s36, alignment: .trailing)
@@ -157,6 +169,7 @@ private struct FleetChip: View {
     let action: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let look = RunnerLook(runner: runner)
@@ -181,9 +194,9 @@ private struct FleetChip: View {
             .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .offset(y: hovering ? -skin.size.s2 : 0)
-        .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .offset(y: hovering && !reduceMotion ? -skin.size.s2 : 0)
+        .citadelHover($hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 
