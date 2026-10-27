@@ -21,8 +21,9 @@ struct BudgetsCard: View {
                     columns: [GridItem(.adaptive(minimum: skin.size.s250), spacing: skin.size.s10, alignment: .top)],
                     alignment: .leading, spacing: skin.size.s10
                 ) {
-                    ForEach(model.budgets) { budget in
+                    ForEach(Array(model.budgets.enumerated()), id: \.element.id) { index, budget in
                         BudgetCard(store: store, model: model, budget: budget)
+                            .ainkradRiseIn(delay: 0.04 * Double(index))
                     }
                     NewBudgetTile(add: add)
                 }
@@ -36,6 +37,8 @@ private struct BudgetCard: View {
     let model: CompanyModel
     let budget: BudgetInfo
     @Environment(\.ainkradSkin) private var skin
+    @State private var hovering = false
+    @State private var confirmsDelete = false
 
     private var inherited: Int { Int(model.limits["budget.warn_percent"]?.value ?? 80) }
 
@@ -88,12 +91,25 @@ private struct BudgetCard: View {
         .padding(skin.size.s14)
         .background(shape.fill(skin.color(.palette("foreground", skin.opacity.o03))))
         .overlay(shape.strokeBorder(tint.opacity(skin.opacity.o22), lineWidth: 1))
+        .overlay(alignment: .topTrailing) {
+            if hovering {
+                AinkradIconButton(systemName: "xmark", size: skin.size.s24, tooltip: "Delete budget") {
+                    confirmsDelete = true
+                }
+                .padding(skin.size.s6)
+            }
+        }
+        .citadelHover($hovering)
         .ainkradHoverLift(nil, cornerRadius: skin.size.s16)
         .ainkradContextMenu([
             AinkradMenuItem(title: "Delete budget", systemName: "trash", isDestructive: true) {
-                store.deleteBudget(budget)
+                confirmsDelete = true
             }
         ])
+        .ainkradConfirmDialog(
+            isPresented: $confirmsDelete, title: "Delete the \(budget.label) budget?",
+            message: "Its cap goes; spend stays counted.", confirmTitle: "Delete budget", isDestructive: true
+        ) { store.deleteBudget(budget) }
     }
 
     /// "Company · October", "Sprint CIT S4", "Kestrel · week".

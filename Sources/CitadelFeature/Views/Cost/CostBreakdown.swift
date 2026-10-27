@@ -18,6 +18,7 @@ struct BreakdownCard: View {
     let store: CitadelStore
     let model: CompanyModel
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         AinkradBentoTile(padding: skin.size.s14) {
@@ -33,7 +34,7 @@ struct BreakdownCard: View {
                 .transition(.opacity)
             }
         }
-        .animation(skin.animation(skin.motion.present), value: tab)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: tab)
     }
 
     private var tab: String { model.costPage.breakdownTab }
@@ -207,6 +208,7 @@ struct PerTaskCard: View {
     let period: CostPeriod
     @State private var sort: Sort = .tokens
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     private var sorted: [TaskCostInfo] {
         switch sort {
@@ -233,12 +235,13 @@ struct PerTaskCard: View {
                 }
                 ForEach(Array(sorted.prefix(10).enumerated()), id: \.element.id) { index, task in
                     TaskRow(task: task, top: top, index: index) { open(task) }
+                        .ainkradRiseIn(delay: 0.03 * Double(index))
                 }
                 Text("Each task starts a fresh session — no giant resumed context. \"sub\" = subscription tokens.")
                     .citadelFont("t11").foregroundStyle(skin.color(skin.text.faint))
             }
         }
-        .animation(skin.animation(skin.motion.present), value: sorted.map(\.id))
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.present), value: sorted.map(\.id))
     }
 
     private func open(_ task: TaskCostInfo) {
