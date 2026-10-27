@@ -333,9 +333,15 @@ struct Spotlight: View {
             case "switchCompany": store.isSwitchingCompany = true
             case "newCompany": store.openNewCompany()
             case "shortcuts": store.isShowingShortcuts = true
-            case "newProject": store.go(to: .projects); store.pendingSheet = .newProject
-            case "addAccount": store.go(to: .accounts); store.pendingSheet = .addAccount
-            case "addRunner": store.go(to: .runners); store.pendingSheet = .addRunner
+            case "newProject":
+                store.go(to: .projects)
+                store.pendingSheet = .newProject
+            case "addAccount":
+                store.go(to: .accounts)
+                store.pendingSheet = .addAccount
+            case "addRunner":
+                store.go(to: .runners)
+                store.pendingSheet = .addRunner
             default: store.isShowingSettings = true
             }
         }
