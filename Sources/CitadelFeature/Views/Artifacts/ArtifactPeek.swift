@@ -70,7 +70,6 @@ struct ArtifactPeek: View {
             parts.append("\(Int(image.size.width))×\(Int(image.size.height))")
         }
         if withTime {
-            parts.append("v1")
             parts.append(ArtifactsWhen.short(artifact.createdAt))
         }
         if artifact.redactions > 0 { parts.append(Wording.count(artifact.redactions, "secret") + " redacted") }
@@ -115,16 +114,14 @@ struct ArtifactPeek: View {
                 .contentShape(shape)
         }
         .onHover { hoveringPreview = $0 }
-        .animation(
-            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.25, damping: 0.7)), value: hoveringPreview
-        )
+        .animation(skin.animation(skin.motion.hover), value: hoveringPreview)
     }
 
     private var actions: some View {
         HStack(spacing: skin.size.s6) {
             AinkradDockButton("Download", systemImage: "arrow.down.to.line") { store.download(artifact) }
             // TODO(citadel#lore-open): hand the file to Lore once the host has a cross-plugin open intent.
-            AinkradDockButton("Open in Lore", systemImage: "arrow.up.forward.square") {}
+            AinkradDockButton("Open in Lore", systemImage: "arrow.up.forward.square", isEnabled: false) {}
                 .ainkradTooltip("Needs the host's cross-plugin open (not yet available)")
             AinkradDockButton("Copy link", systemImage: "doc.on.doc") {
                 store.copyLink(artifact)
@@ -246,7 +243,7 @@ private struct SiblingCard: View {
         }
         .offset(y: hovering && !reduceMotion ? -skin.size.s2 : 0)
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 
@@ -294,6 +291,7 @@ struct ArtifactQuickLook: View {
                             .keyboardShortcut(.rightArrow, modifiers: [])
                         }
                         AinkradDrawerButton { page.quickLookID = nil }
+                            .keyboardShortcut(.cancelAction)
                     }
                     .padding(.horizontal, skin.size.s16)
                     .padding(.vertical, skin.size.s14)
