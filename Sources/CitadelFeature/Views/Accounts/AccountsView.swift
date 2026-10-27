@@ -67,6 +67,12 @@ struct AccountsView: View {
         }
         // An account event reloads `model.accounts`; the page follows it (pushed, never polled).
         .onChange(of: model.accounts) { _, _ in if page.isLoaded { store.loadAccountsPage() } }
+        // ⌘K's Add an account… opens the add drawer here.
+        .task(id: store.pendingSheet) {
+            guard store.pendingSheet == .addAccount else { return }
+            store.pendingSheet = nil
+            page.drawer = .add
+        }
     }
 
     @ViewBuilder private var drawerPanel: some View {
