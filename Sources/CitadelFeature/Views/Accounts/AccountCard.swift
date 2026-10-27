@@ -389,7 +389,7 @@ struct LiveDots: View {
                     .animation(
                         skin.animation(AinkradAnimationToken(curve: "easeInOut", durationKey: "materialize"))
                             .repeatForever()
-                        .delay(Double(index) * 0.3),
+                            .delay(Double(index) * 0.3),
                         value: pulse
                     )
             }
