@@ -335,13 +335,11 @@ struct ArtifactGridCard: View {
         }
         .offset(y: hovering && !reduceMotion ? -skin.size.s4 : 0)
         .onHover { hovering = $0 }
-        .animation(
-            skin.animation(AinkradAnimationToken(curve: "spring", response: 0.3, damping: 0.72)), value: hovering
-        )
+        .animation(skin.animation(skin.motion.hover), value: hovering)
         .onAppear {
             guard isFresh, !reduceMotion else { return }
             flash = true
-            withAnimation(skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 1.6))) { flash = false }
+            withAnimation(skin.animation(skin.motion.materializeAnimation)) { flash = false }
         }
     }
 }
@@ -373,6 +371,7 @@ struct ArtifactRow: View {
     let action: () -> Void
     @State private var hovering = false
     @Environment(\.ainkradSkin) private var skin
+    @Environment(\.ainkradReduceMotion) private var reduceMotion
 
     var body: some View {
         let look = ArtifactTypeLook(type: artifact.type)
@@ -419,7 +418,7 @@ struct ArtifactRow: View {
             .contentShape(Rectangle())
         }
         .onHover { hovering = $0 }
-        .animation(skin.animation(skin.motion.hover), value: hovering)
+        .animation(reduceMotion ? nil : skin.animation(skin.motion.hover), value: hovering)
     }
 }
 

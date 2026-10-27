@@ -114,7 +114,7 @@ struct ArtifactsView: View {
     // MARK: - Content
 
     @ViewBuilder private var content: some View {
-        if !page.isLoaded || (page.items.isEmpty && page.usage == nil) {
+        if !page.isLoaded {
             VStack(spacing: skin.size.s10) {
                 ForEach(0..<3, id: \.self) { _ in AinkradSkeletonRow(widthFraction: 0.8) }
             }
@@ -157,13 +157,14 @@ struct ArtifactsView: View {
             columns: [GridItem(.adaptive(minimum: skin.size.s220), spacing: skin.size.s14)], alignment: .leading,
             spacing: skin.size.s14
         ) {
-            ForEach(list) { artifact in
+            ForEach(Array(list.enumerated()), id: \.element.id) { index, artifact in
                 ArtifactGridCard(
                     model: model, artifact: artifact, isSelected: artifact.id == page.selectedID,
                     isFresh: artifact.createdAt == newest && Date().timeIntervalSince(artifact.createdAt) < 120,
                     action: { page.selectedID = artifact.id }
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
+                .ainkradRiseIn(delay: 0.045 * Double(index))
                 .onAppear { store.loadPreview(artifact) }
             }
         }
