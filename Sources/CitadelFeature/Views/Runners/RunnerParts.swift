@@ -77,11 +77,14 @@ struct DeviceTile: View {
             .opacity(look.state == "asleep" || look.state == "offline" ? skin.opacity.o75 : 1)
             .onAppear {
                 guard !reduceMotion, look.state != "offline" else { return }
-                let period = bad ? 0.8 : look.state == "asleep" ? 2.6 : 1.6
-                withAnimation(
-                    skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: period))
-                        .repeatForever(autoreverses: look.state != "asleep")
-                ) { phase = true }
+                // A live machine breathes on the motion token (the prototype's 3.2 s `rnBreath`); the others keep their own.
+                let token =
+                    bad || look.state == "asleep"
+                    ? AinkradAnimationToken(curve: "easeInOut", duration: bad ? 1.6 : 2.6)
+                    : AinkradAnimationToken(curve: "easeInOut", durationKey: "breathe")
+                withAnimation(skin.animation(token).repeatForever(autoreverses: look.state != "asleep")) {
+                    phase = true
+                }
             }
     }
 }
@@ -115,7 +118,7 @@ struct SlotPips: View {
                     .animation(
                         reduceMotion
                             ? nil
-                            : skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 1))
+                            : skin.animation(AinkradAnimationToken(curve: "easeInOut", duration: 2))
                                 .repeatForever().delay(Double(index) * 0.3), value: pulse)
                 } else if isOn && hollowFree {
                     shape.strokeBorder(
