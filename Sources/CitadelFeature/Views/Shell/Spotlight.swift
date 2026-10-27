@@ -31,14 +31,13 @@ struct Spotlight: View {
                 .onTapGesture { close() }
             VStack(spacing: 0) {
                 top(rows)
+                // One surface: the list and the preview share the panel's fill, with no band or slab behind either.
                 HStack(spacing: 0) {
                     list(rows).frame(maxWidth: .infinity)
                     preview(rows.indices.contains(selected) ? rows[selected] : nil)
                         .frame(width: skin.size.s340)
-                        .background(skin.color(.palette("foreground", skin.opacity.o03)))
                 }
                 .frame(height: skin.size.s460)
-                .background(skin.color(.palette("black", skin.opacity.o12)))
                 foot(rows.count, alt: rows.indices.contains(selected) ? rows[selected].altTitle : nil)
             }
             .frame(maxWidth: skin.size.s860 + skin.size.s40)
@@ -166,10 +165,13 @@ struct Spotlight: View {
                             .padding(.bottom, skin.size.s4)
                             .padding(.horizontal, skin.size.s10)
                         }
-                        row(item, isSelected: index == selected)
-                            .id(item.id)
-                            .onHover { if $0 { selected = index } }
-                            .onTapGesture { open(item, alt: false) }
+                        // A real button: keyboard and VoiceOver reach every row. Rows rise in one after another.
+                        AinkradTapArea(action: { open(item, alt: false) }) {
+                            row(item, isSelected: index == selected)
+                        }
+                        .id(item.id)
+                        .onHover { if $0 { selected = index } }
+                        .ainkradRiseIn(delay: Double(min(index, 12)) * 0.018)
                     }
                 }
                 .padding(.horizontal, skin.size.s8)
@@ -211,7 +213,7 @@ struct Spotlight: View {
         }
         .contentShape(Rectangle())
         .animation(
-            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "easeOut", duration: 0.18)),
+            reduceMotion ? nil : skin.animation(skin.motion.hover),
             value: isSelected)
     }
 

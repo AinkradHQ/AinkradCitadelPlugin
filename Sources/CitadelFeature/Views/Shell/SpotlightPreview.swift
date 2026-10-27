@@ -26,6 +26,12 @@ struct SpotlightPreview: View {
             .padding(skin.size.s16)
         }
         .scrollIndicators(.never)
+        // A project's sprint and repos come from its page's data, which ⌘K loads for the selected row only.
+        .task(id: item.id) {
+            guard case .project(let id) = item.kind else { return }
+            if model.projectsPage.repos.isEmpty { store.loadProjectsPage() }
+            if model.projectsPage.work[id] == nil { store.loadWork(id) }
+        }
     }
 
     // MARK: - Header
@@ -43,6 +49,7 @@ struct SpotlightPreview: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+            agentTiles(id)
         case .run(let id):
             if let run = run(id), let agent = model.agent(run.agentID) {
                 HStack(spacing: skin.size.s12) {
@@ -98,13 +105,16 @@ struct SpotlightPreview: View {
             card("Issues · \(issues.count)") {
                 ForEach(issues.prefix(8)) { issue in
                     HStack(spacing: skin.size.s6) {
+                        if case .agent(let agent)? = issue.nextActor, let figure = model.agent(agent) {
+                            AgentFigure(agent: figure, model: model, size: skin.size.s18)
+                        }
                         Text(issue.key).citadelFont("t11", mono: true).foregroundStyle(
                             skin.color(skin.palette.accentSecondary))
                         Text(issue.title).citadelFont("t12").foregroundStyle(skin.color(skin.text.primary)).lineLimit(1)
                         Spacer(minLength: skin.size.s4)
                         AinkradStatePill(
                             text: issue.state.replacingOccurrences(of: "_", with: " "),
-                            tint: skin.color(skin.text.muted))
+                            tint: stateTone(issue.state))
                     }
                 }
                 if issues.isEmpty {
@@ -155,12 +165,9 @@ struct SpotlightPreview: View {
                 card("Project") {
                     fact("Key", project.key)
                     fact("Cadence", project.mode == "kanban" ? "Kanban" : "Sprints")
-                    if let sprint = model.sprint {
-                        fact(
-                            "Sprint",
-                            "\(Wording.sprintName(sprint.title)) · \(sprint.completed)/\(sprint.committed) pts")
-                    }
                 }
+                projectSprint(id, kanban: project.mode == "kanban")
+                projectRepos(id)
             }
         case .artifact(let id):
             if let artifact = model.artifactsPage.items.first(where: { $0.id == id }) {
@@ -173,6 +180,101 @@ struct SpotlightPreview: View {
             }
         case .screen, .action:
             EmptyView()
+        }
+    }
+
+    /// The agent's month budget as a ring, and its runs and spend today (prototype `sp-tiles`).
+    private func agentTiles(_ agent: Int64) -> some View {
+        let budget = model.monthBudget(of: agent)
+        let stats = model.stats(of: agent)
+        return HStack(alignment: .top, spacing: skin.size.s8) {
+            VStack(spacing: skin.size.s4) {
+                AinkradRingGauge(
+                    value: budget?.shownFraction, tint: skin.color(skin.palette.accentPrimary), diameter: skin.size.s40,
+                    lineWidth: skin.size.s5
+                ) {
+                    Text(budget.map { "\(Int($0.shownFraction * 100))%" } ?? "—")
+                        .citadelFont("t10_5", weight: "bold", mono: true)
+                }
+                Text(budget.map { "\($0.spentWord) of \($0.capWord)" } ?? "No month budget")
+                    .citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.faint))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            tile("\(stats.todayRuns)", "runs today")
+            tile(Fmt.dollars(micros: stats.todayMicros), "spent today")
+        }
+        .padding(.top, skin.size.s4)
+    }
+
+    private func tile(_ value: String, _ label: String) -> some View {
+        VStack(spacing: skin.size.s2) {
+            Text(value).citadelFont("t13", weight: "semibold", mono: true).foregroundStyle(
+                skin.color(skin.text.primary)
+            ).lineLimit(1)
+            Text(label).citadelFont("t10_5").foregroundStyle(skin.color(skin.text.faint)).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// The project's active sprint: its name, day, points done against committed, and the bar (prototype `sp-card`).
+    @ViewBuilder private func projectSprint(_ id: Int64, kanban: Bool) -> some View {
+        if let work = model.projectsPage.work[id] {
+            if let sprint = work.active {
+                let items = work.items(in: sprint.id)
+                let committed = items.reduce(0) { $0 + ($1.points ?? 0) }
+                let completed = items.filter(\.isDone).reduce(0) { $0 + ($1.points ?? 0) }
+                let day = sprint.day().map { "day \($0.day) of \($0.of)" }
+                card(["Sprint", day].compactMap { $0 }.joined(separator: " · ")) {
+                    HStack {
+                        Text(Wording.sprintName(sprint.name)).citadelFont("t12", weight: "medium").foregroundStyle(
+                            skin.color(skin.text.primary))
+                        Spacer(minLength: skin.size.s4)
+                        Text("\(completed)/\(committed) pts").citadelFont("t11", mono: true).foregroundStyle(
+                            skin.color(skin.text.muted))
+                    }
+                    AinkradBudgetBar(
+                        label: "Sprint \(sprint.name)", value: Double(completed), limit: Double(max(committed, 1)),
+                        warnFraction: nil, showsHardLimit: false,
+                        tone: .progress(Double(completed), of: Double(committed)))
+                }
+            } else {
+                card("Sprint") {
+                    Text(kanban ? "Kanban · no sprint" : "No active sprint").citadelFont("t12").foregroundStyle(
+                        skin.color(skin.text.faint))
+                }
+            }
+        }
+    }
+
+    private func projectRepos(_ id: Int64) -> some View {
+        card("Repos") {
+            let repos = model.projectsPage.repos[id] ?? []
+            if repos.isEmpty {
+                Text("No repos").citadelFont("t12").foregroundStyle(skin.color(skin.text.faint))
+            } else {
+                AinkradFlowLayout(spacing: skin.size.s6) {
+                    ForEach(repos) { repo in
+                        Text(repo.name).citadelFont("t10_5", mono: true).foregroundStyle(skin.color(skin.text.muted))
+                            .padding(.horizontal, skin.size.s6)
+                            .padding(.vertical, skin.size.s2)
+                            .background(
+                                skin.color(.palette("foreground", skin.opacity.o07)),
+                                in: RoundedRectangle(cornerRadius: skin.size.s6))
+                    }
+                }
+            }
+        }
+    }
+
+    /// An issue state's tone (prototype `SP_ST`): done green, in flight blue, planning amber, blocked red, the rest muted.
+    private func stateTone(_ state: String) -> Color {
+        switch state {
+        case "done": status.success
+        case "in_progress", "in_review", "review": skin.color(skin.palette.accentPrimary)
+        case "plan", "planning": status.warning
+        case "blocked": status.danger
+        default: skin.color(skin.text.muted)
         }
     }
 

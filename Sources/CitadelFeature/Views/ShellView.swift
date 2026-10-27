@@ -46,7 +46,7 @@ struct ShellView: View {
             }
         }
         .animation(
-            reduceMotion ? nil : skin.animation(AinkradAnimationToken(curve: "spring", response: 0.32, damping: 0.8)),
+            reduceMotion ? nil : skin.animation(skin.motion.present),
             value: store.isSearching
         )
         // The New requirement sheet opens from any screen (Home, Requirements, ⌘N).
